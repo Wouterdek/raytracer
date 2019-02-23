@@ -1,7 +1,6 @@
 #include "PerspectiveCamera.h"
 #include "../math/OrthonormalBasis.h"
-
-const double PI = 3.14159265358979323;
+#include "../math/Constants.h"
 
 PerspectiveCamera::PerspectiveCamera(int xResolution, int yResolution, Point origin, Vector3 lookat, Vector3 up, double fov)
   : origin(std::move(origin)), 

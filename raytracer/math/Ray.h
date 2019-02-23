@@ -4,12 +4,18 @@
 #include <sstream>
 #include "Vector3.h"
 
+#include <array>
+
 class Ray {
 public:
-	const Point origin;
-	const Vector3 direction;
+	Ray(Point origin, Vector3 dir);
 
-	Ray(const Point origin, const Vector3 dir);
+	const Point& getOrigin() const;
+	const Vector3 getDirection() const;
+
+private:
+	Point origin;
+	Vector3 direction;
 };
 
 std::ostream& operator<<(std::ostream& in, const Ray& ray);

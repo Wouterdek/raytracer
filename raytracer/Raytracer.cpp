@@ -1,5 +1,7 @@
 ﻿#include "raytracer.h"
 #include "math/ray.h"
+#include "film/FrameBuffer.h"
+#include "io/PPMFile.h"
 
 int main(char** argc, int argv)
 {
@@ -15,4 +17,7 @@ int main(char** argc, int argv)
 	double fov = 90;
 	std::string filename("output.png");
 
+	FrameBuffer buffer(256, 512);
+	buffer.setPixel(5, 10, RGB{ 1.0, 0.0, 0.0 });
+	write_to_ppm(buffer, "C:/Users/Wouter/Desktop/img.ppm");
 }
