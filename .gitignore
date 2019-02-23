@@ -1,4 +1,4 @@
-/lib/Eigen/*
+/raytracer/lib/*
 
 # Prerequisites
 *.d

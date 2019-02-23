@@ -24,7 +24,7 @@ Transformation Transformation::invert() const
 
 Transformation Transformation::append(const Transformation& transform) const
 {
-	return Transformation(this->matrix * transform.matrix, this->inverse * transform.inverse);
+	return Transformation(this->matrix * transform.matrix, transform.inverse * this->inverse);
 }
 
 Point Transformation::transform(const Point & point) const
@@ -68,13 +68,13 @@ Transformation Transformation::translate(double x, double y, double z)
 	Matrix transform {};
 	transform << 1.0f, 0.0f, 0.0f, x,
 				 0.0f, 1.0f, 0.0f, y,
-				 0.0f, 0.0f, 1.0f, y,
+				 0.0f, 0.0f, 1.0f, z,
 				 0.0f, 0.0f, 0.0f, 1.0f;
 
 	Matrix inverse {};
 	inverse << 1.0f, 0.0f, 0.0f, -x,
 			   0.0f, 1.0f, 0.0f, -y,
-			   0.0f, 0.0f, 1.0f, -y,
+			   0.0f, 0.0f, 1.0f, -z,
 			   0.0f, 0.0f, 0.0f, 1.0f;
 
 	return Transformation(transform, inverse);
@@ -89,7 +89,7 @@ Transformation Transformation::scale(double x, double y, double z)
 				 0, 0, 0, 1;
 
 	Matrix inverse{};
-	transform << 1/x, 0,   0,   0,
+	inverse << 1/x, 0,   0,   0,
 				 0,   1/y, 0,   0,
 				 0,   0,   1/z, 0,
 				 0,   0,   0,   1;
