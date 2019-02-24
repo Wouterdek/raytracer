@@ -1,0 +1,7 @@
+On Windows, vcpkg is recommended as a library package manager.
+Install vcpkg, then use it to install:
+ eigen3:x64-windows
+ eigen3:x86-windows
+ gtest:x64-windows
+ gtest:x86-windows
+Then, consider clearing the CMake cache and try building.

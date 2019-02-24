@@ -6,8 +6,9 @@ file(GLOB_RECURSE tests_SRC
 
 add_executable(tests ${tests_SRC})
 
-add_test(tests raytracer)
+find_package(GTest MODULE REQUIRED)
+include(GoogleTest)
+target_link_libraries (tests PRIVATE GTest::GTest GTest::Main raytracer_lib)
 
-target_include_directories(tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/lib)
-
-target_link_libraries (tests raytracer_lib)
+gtest_add_tests(TARGET tests tests_SRC)
+#gtest_discover_tests(tests)

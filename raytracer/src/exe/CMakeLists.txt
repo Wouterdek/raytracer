@@ -5,7 +5,8 @@
 
 add_executable(raytracer_exe ${raytracer_SRC})
 
-target_include_directories(raytracer_exe PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/lib)
+find_package(Eigen3 REQUIRED NO_MODULE)
+
 target_include_directories(raytracer_exe PRIVATE ${RAYTRACER_SOURCE_DIR}/src/lib)
 
-target_link_libraries (raytracer_exe raytracer_lib)
+target_link_libraries(raytracer_exe PRIVATE Eigen3::Eigen raytracer_lib)

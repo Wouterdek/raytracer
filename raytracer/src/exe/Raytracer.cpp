@@ -24,12 +24,12 @@ int main(char** argc, int argv)
 	Transformation t3 = Transformation::translate(-4, -4, -12).append(Transformation::scale(4, 4, 4));
 	Transformation t4 = Transformation::translate(4, 4, -12).append(Transformation::scale(4, 4, 4));
 	Transformation t5 = Transformation::translate(-4, 4, -12).append(Transformation::scale(4, 4, 4));
-	std::vector<Sphere> shapes;
-	shapes.emplace_back<Sphere>(t1);
-	shapes.emplace_back<Sphere>(t2);
-	shapes.emplace_back<Sphere>(t3);
-	shapes.emplace_back<Sphere>(t4);
-	shapes.emplace_back<Sphere>(t5);
+	std::vector<std::unique_ptr<IShape>> shapes;
+	shapes.emplace_back<std::unique_ptr<IShape>>(std::make_unique<Sphere>(t1));
+	shapes.emplace_back<std::unique_ptr<IShape>>(std::make_unique<Sphere>(t2));
+	shapes.emplace_back<std::unique_ptr<IShape>>(std::make_unique<Sphere>(t3));
+	shapes.emplace_back<std::unique_ptr<IShape>>(std::make_unique<Sphere>(t4));
+	shapes.emplace_back<std::unique_ptr<IShape>>(std::make_unique<Sphere>(t5));
 
 	PerspectiveCamera camera(width, height, origin, destination, lookup, fov);
 	FrameBuffer buffer(width, height);
@@ -44,8 +44,8 @@ int main(char** argc, int argv)
 
 				// test the scene on intersections
 				bool hit = false;
-				for (auto shape : shapes) {
-					if (shape.intersect(ray)) {
+				for (auto& shape : shapes) {
+					if (shape->intersect(ray)) {
 						hit = true;
 						break;
 					}
