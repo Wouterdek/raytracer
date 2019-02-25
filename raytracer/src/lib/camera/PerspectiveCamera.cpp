@@ -17,14 +17,10 @@ PerspectiveCamera PerspectiveCamera::with_destination_point(int xResolution, int
 	return PerspectiveCamera(xResolution, yResolution, origin, destination - origin, up, fov);
 }
 
-PerspectiveCamera::~PerspectiveCamera()
-{
-}
-
 Ray PerspectiveCamera::generateRay(const Sample& sample)
 {
 	auto u = this->width * (sample.x() * invxResolution - 0.5);
-	auto v = this->height * (sample.y() * invyResolution - 0.5);
+	auto v = -this->height * (sample.y() * invyResolution - 0.5);
 
 	auto direction = (basis.getU() * u) + (basis.getV() * v) - basis.getW();
 

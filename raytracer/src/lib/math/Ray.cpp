@@ -1,4 +1,4 @@
-#include "ray.h"
+#include "Ray.h"
 #include <sstream>
 
 Ray::Ray(Point origin, Vector3 dir)
