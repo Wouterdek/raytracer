@@ -14,7 +14,7 @@ void write_to_ppm(const FrameBuffer& buffer, std::string filepath)
 		for (int x = 0; x < buffer.getHorizontalResolution(); x++)
 		{
 			auto& pixel = buffer.getPixel(x, y);
-			out << (pixel.getRed()*255) << " " << (pixel.getGreen()*255) << " " << (pixel.getBlue()*255) << " ";
+			out << static_cast<int>(pixel.getRed()*255) << " " << static_cast<int>(pixel.getGreen()*255) << " " << static_cast<int>(pixel.getBlue()*255) << " ";
 		}
 		out << std::endl;
 	}
