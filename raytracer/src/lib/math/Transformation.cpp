@@ -29,7 +29,9 @@ Transformation Transformation::append(const Transformation& transform) const
 
 Point Transformation::transform(const Point & point) const
 {
-	return (this->matrix * Eigen::Vector4d{point.x(), point.y(), point.z(), 1.0 }).hnormalized().cast<float>();
+	Eigen::Vector4d v = (this->matrix * Eigen::Vector4d{ point.x(), point.y(), point.z(), 1.0 });
+	Point p { (float)(v.x() / v.w()), (float)(v.y() / v.w()), (float)(v.z() / v.w()) };
+	return p;
 }
 
 Point Transformation::transformInverse(const Point & point) const
@@ -46,6 +48,12 @@ Vector3 Transformation::transform(const Vector3 & vector) const
 Vector3 Transformation::transformInverse(const Vector3 & vector) const
 {
 	Eigen::Vector4f val = (this->inverse * Eigen::Vector4d{ vector.x(), vector.y(), vector.z(), 0.0 }).cast<float>();
+	return Vector3{ val.x(), val.y(), val.z() };
+}
+
+Vector3 Transformation::transformNormal(const Vector3& normal) const
+{
+	Eigen::Vector4f val = (Eigen::Vector4d{ normal.x(), normal.y(), normal.z(), 0.0 }.transpose() *this->matrix).cast<float>();
 	return Vector3{ val.x(), val.y(), val.z() };
 }
 

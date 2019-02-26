@@ -10,12 +10,60 @@
 
 #include "scene/Scene.h"
 #include "scene/SceneNode.h"
+#include "shape/TriangleMesh.h"
 
+#define TINYOBJLOADER_IMPLEMENTATION // define this in only *one* .cc
+#include "io/tiny_obj_loader.h"
+#include "shape/Box.h"
+
+TriangleMesh loadMesh(std::string path)
+{
+	tinyobj::attrib_t attrib;
+	std::vector<tinyobj::shape_t> shapes;
+	std::vector<tinyobj::material_t> materials;
+
+	std::string warn;
+	std::string err;
+	bool ret = tinyobj::LoadObj(&attrib, &shapes, &materials, &err, path.c_str());
+
+	if(ret)
+	{
+		std::vector<Point> vertices;
+		vertices.reserve(attrib.vertices.size() / 3);
+		
+		for(int i = 0; i < attrib.vertices.size(); i += 3)
+		{
+			vertices.push_back(Point{ attrib.vertices[i], attrib.vertices[i+1], attrib.vertices[i+2] });
+		}
+
+		std::vector<Vector3> normals;
+		normals.reserve(attrib.normals.size() / 3);
+
+		for (int i = 0; i < attrib.normals.size(); i += 3)
+		{
+			normals.push_back(Vector3{ attrib.normals[i], attrib.normals[i + 1], attrib.normals[i + 2] });
+		}
+
+		std::vector<uint32_t> indices;
+		std::vector<uint32_t> normalIndices;
+		auto& objIndices = shapes[0].mesh.indices;
+		auto& objNormalIndices = shapes[0].mesh.indices;
+		for (int i = 0; i < objIndices.size(); i++)
+		{
+			indices.push_back(static_cast<uint32_t>(objIndices[i].vertex_index));
+			normalIndices.push_back(static_cast<uint32_t>(objNormalIndices[i].normal_index));
+		}
+
+		return TriangleMesh(vertices, indices, normals, normalIndices);
+	}
+
+	throw std::exception("bad file");
+}
 
 int main(char** argc, int argv)
 {
-	int width = 1600;
-	int height = 1600;
+	int width = 640;
+	int height = 640;
 	double sensitivity = 1.0;
 	double gamma = 2.2;
 	bool quiet = false;
@@ -27,36 +75,65 @@ int main(char** argc, int argv)
 
 	//////
 
-	Scene scene{};
-
 	auto diffuseMat = std::make_shared<DiffuseMaterial>();
-	diffuseMat->ambientColor = RGB{ 0.6, 0.6, 1.0 };
-	diffuseMat->ambientIntensity = 0.3;
+	diffuseMat->ambientColor = RGB{ 0.7, 0.7, 1.0 };
+	diffuseMat->ambientIntensity = 0.5;
 	diffuseMat->diffuseColor = RGB{ 1.0, 1.0, 0.8 };
 	diffuseMat->diffuseIntensity = 1.0;
 
-	Model sphereModel{};
+	auto redDiffuseMat = std::make_shared<DiffuseMaterial>();
+	redDiffuseMat->ambientColor = RGB{ 0.7, 0.7, 1.0 };
+	redDiffuseMat->ambientIntensity = 0.7;
+	redDiffuseMat->diffuseColor = RGB{ 1.0, 0.2, 0.2 };
+	redDiffuseMat->diffuseIntensity = 1.0;
+
+	Model sphereModel {};
 	sphereModel.shape = std::make_shared<Sphere>();
 	sphereModel.material = diffuseMat;
+
+	/*Model triangleModel {};
+	std::vector<Point> triangleVertices = { Point(0.0, 0.0, 0.0), Point(1.0, 0.0, 0.0), Point(0.0, 0.0, -1.0) };
+	std::vector<uint32_t> triangleIndices = { 0, 1, 2 };
+	std::vector<Vector3> triangleNormals = { Vector3(0.0, 0.0, 1.0), Vector3(0.0, 0.0, 1.0), Vector3(0.0, 0.0, 1.0) };
+	triangleModel.shape = std::make_shared<TriangleMesh>(triangleVertices, triangleIndices, triangleNormals);
+	triangleModel.material = redDiffuseMat;*/
+
+	Model dragonModel{};
+	dragonModel.shape = std::make_shared<TriangleMesh>(loadMesh("C:/Users/Wouter/Desktop/dragon_low.obj"));
+	dragonModel.material = redDiffuseMat;
 
 	Model planeModel{};
 	planeModel.shape = std::make_shared<Plane>();
 	planeModel.material = diffuseMat;
-		
-	auto curNode = std::make_unique<SceneNode>();
+
+	Model boxModel{};
+	boxModel.shape = std::make_shared<Box>(Vector3(1, 1, 1));
+	boxModel.material = diffuseMat;
+
+
+	////////
+
+	Scene scene{};
+
+	/*auto curNode = std::make_unique<SceneNode>();
 	curNode->transform = Transformation::translate(5, 3, -20).append(Transformation::scale(5, 5, 5));
 	curNode->model = std::make_unique<Model>(sphereModel);
-	scene.root->children.emplace_back(std::move(curNode));
+	scene.root->children.emplace_back(std::move(curNode));*/
+	
+	/*auto curNode = std::make_unique<SceneNode>();
+	curNode->transform = Transformation::translate(0, -4, -10).append(Transformation::rotateY(90)).append(Transformation::scale(6, 6, 6));
+	curNode->model = std::make_unique<Model>(dragonModel);
+	scene.root->children.emplace_back(std::move(curNode));*/
 	/*
-	curNode = std::make_unique<SceneNode>();
-	curNode->transform = Transformation::translate(4, 4, -22).append(Transformation::scale(4, 4, 4)).append(Transformation::rotateY(180));
-	curNode->model = std::make_unique<Model>(sphereModel);
-	scene.root->children.emplace_back(std::move(curNode));
-
 	curNode = std::make_unique<SceneNode>();
 	curNode->transform = Transformation::translate(0, 6, -18).append(Transformation::scale(2, 2, 2));
 	curNode->model = std::make_unique<Model>(sphereModel);
 	scene.root->children.emplace_back(std::move(curNode));*/
+
+	auto curNode = std::make_unique<SceneNode>();
+	curNode->transform = Transformation::translate(0, -4, -10).append(Transformation::scale(6, 6, 6));
+	curNode->model = std::make_unique<Model>(boxModel);
+	scene.root->children.emplace_back(std::move(curNode));
 
 	curNode = std::make_unique<SceneNode>();
 	curNode->transform = Transformation::translate(0, -5, 0);
@@ -65,14 +142,14 @@ int main(char** argc, int argv)
 
 	curNode = std::make_unique<SceneNode>();
 	//curNode->transform = Transformation::translate(-10, 10, -15);
-	curNode->transform = Transformation::translate(0, 12, -20);
+	curNode->transform = Transformation::translate(-5, 12, -5);
 	curNode->lamp = std::make_unique<PointLamp>();
 	scene.root->children.emplace_back(std::move(curNode));
 
-	curNode = std::make_unique<SceneNode>();
+	/*curNode = std::make_unique<SceneNode>();
 	curNode->transform = Transformation::translate(-10, 11, -15).append(Transformation::scale(0.1, 0.1, 0.1));
 	curNode->model = std::make_unique<Model>(sphereModel);
-	scene.root->children.emplace_back(std::move(curNode));
+	scene.root->children.emplace_back(std::move(curNode));*/
 
 	/*
 	Transformation t3 = 

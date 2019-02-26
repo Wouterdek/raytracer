@@ -18,6 +18,7 @@ public:
 	Point transformInverse(const Point& point) const;
 	Vector3 transform(const Vector3& vector) const;
 	Vector3 transformInverse(const Vector3& vector) const;
+	Vector3 transformNormal(const Vector3& normal) const;
 	Ray transform(const Ray& ray) const;
 	Ray transformInverse(const Ray& ray) const;
 
