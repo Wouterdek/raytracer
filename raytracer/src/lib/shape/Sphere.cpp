@@ -1,12 +1,23 @@
 #include "Sphere.h"
+#include "Box.h"
 
-std::optional<RayHitInfo> Sphere::intersect(const Ray& ray, const Transformation& transform) const
+Sphere::Sphere() = default;
+
+Point Sphere::getCentroid() const
 {
-	auto transformed = transform.transformInverse(ray);
-	
-	auto o = Vector3(transformed.getOrigin());
+	return Point(0, 0, 0);
+}
 
-	auto direction = transformed.getDirection();
+Box Sphere::getAABB() const
+{
+	return Box(Point(-0.5, -0.5, -0.5), Point(0.5, 0.5, 0.5));
+}
+
+std::optional<RayHitInfo> Sphere::intersect(const Ray& ray) const
+{
+	auto o = Vector3(ray.getOrigin());
+
+	auto direction = ray.getDirection();
 	double a = direction.squaredNorm();
 	double b = 2.0 * (direction.dot(o));
 	double c = o.dot(o) - 1.0;
@@ -39,9 +50,7 @@ std::optional<RayHitInfo> Sphere::intersect(const Ray& ray, const Transformation
 	}
 
 	Point hitpoint = ray.getOrigin() + (t * ray.getDirection());
-	Point origin = Point{ 0.0, 0.0, 0.0 };
-	Vector3 normal = hitpoint - transform.transform(origin);
-	normal.normalize();
+	Vector3 normal = hitpoint /* - origin */;
 
 	return RayHitInfo(ray, t, normal);
 }

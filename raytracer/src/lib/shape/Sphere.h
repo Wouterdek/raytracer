@@ -6,5 +6,9 @@
 class Sphere : public IShape
 {
 public:
-	std::optional<RayHitInfo> intersect(const Ray& ray, const Transformation& transform) const override;
+	Sphere();
+
+	Point getCentroid() const override;
+	Box getAABB() const override;
+	std::optional<RayHitInfo> intersect(const Ray& ray) const override;
 };

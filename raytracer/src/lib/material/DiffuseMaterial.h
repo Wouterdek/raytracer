@@ -6,7 +6,7 @@ class DiffuseMaterial : public IMaterial
 {
 public:
 	DiffuseMaterial();
-	RGB getColorFor(const RayHitInfo& hit, const Scene& scene, int depth) override;
+	RGB getColorFor(const RayHitInfo& hit, const Scene& scene, int depth) const override;
 
 	RGB diffuseColor;
 	RGB ambientColor;

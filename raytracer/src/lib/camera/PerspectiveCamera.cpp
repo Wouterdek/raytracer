@@ -1,6 +1,6 @@
 #include "PerspectiveCamera.h"
-#include "../math/OrthonormalBasis.h"
-#include "../math/Constants.h"
+#include "math/OrthonormalBasis.h"
+#include "math/Constants.h"
 
 PerspectiveCamera::PerspectiveCamera(int xResolution, int yResolution, Point origin, Vector3 lookat, Vector3 up, double fov)
   : origin(std::move(origin)), 
@@ -17,7 +17,7 @@ PerspectiveCamera PerspectiveCamera::with_destination_point(int xResolution, int
 	return PerspectiveCamera(xResolution, yResolution, origin, destination - origin, up, fov);
 }
 
-Ray PerspectiveCamera::generateRay(const Sample& sample)
+Ray PerspectiveCamera::generateRay(const Sample& sample) const
 {
 	auto u = this->width * (sample.x() * invxResolution - 0.5);
 	auto v = -this->height * (sample.y() * invyResolution - 0.5);
@@ -25,4 +25,9 @@ Ray PerspectiveCamera::generateRay(const Sample& sample)
 	auto direction = (basis.getU() * u) + (basis.getV() * v) - basis.getW();
 
 	return Ray(origin, direction);
+}
+
+PerspectiveCamera* PerspectiveCamera::cloneImpl()
+{
+	return new PerspectiveCamera(*this);
 }

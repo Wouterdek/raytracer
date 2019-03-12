@@ -7,4 +7,6 @@ add_library(raytracer_lib ${raytracer_lib_SRC})
 
 find_package(Eigen3 REQUIRED NO_MODULE)
 
+target_include_directories(raytracer_lib PRIVATE ${RAYTRACER_SOURCE_DIR}/src/lib)
+
 target_link_libraries(raytracer_lib PRIVATE Eigen3::Eigen)

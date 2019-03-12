@@ -5,18 +5,18 @@
 #include <utility>
 #include <optional>
 
-#include "../math/Transformation.h"
-#include "../model/Model.h"
-#include "../camera/ICamera.h"
-#include "../lamp/PointLamp.h"
+#include "math/Transformation.h"
+#include "model/Model.h"
+#include "camera/ICamera.h"
+#include "lamp/PointLamp.h"
 
-class SceneNode
+class DynamicSceneNode
 {
 public:
-	SceneNode();
+	DynamicSceneNode();
 
 	template<typename TState>
-	std::optional<TState> walkDepthFirst(std::function<std::pair<TState, bool>(const SceneNode&, const TState&)> visitor, const TState& init) const
+	std::optional<TState> walkDepthFirst(std::function<std::pair<TState, bool>(const DynamicSceneNode&, const TState&)> visitor, const TState& init) const
 	{
 		auto&[state, shouldContinue] = visitor(*this, init);
 		if (!shouldContinue)
@@ -38,7 +38,7 @@ public:
 
 
 //private:
-	std::vector<std::unique_ptr<SceneNode>> children;
+	std::vector<std::unique_ptr<DynamicSceneNode>> children;
 	Transformation transform;
 	
 	std::unique_ptr<Model> model;

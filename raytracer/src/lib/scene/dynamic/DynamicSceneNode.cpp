@@ -1,8 +1,8 @@
-#include "SceneNode.h"
+#include "DynamicSceneNode.h"
 
 #include <optional>
 
-SceneNode::SceneNode()
+DynamicSceneNode::DynamicSceneNode()
 	: children(), transform(Transformation::IDENTITY)
 {
 }

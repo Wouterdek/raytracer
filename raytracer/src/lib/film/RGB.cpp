@@ -7,7 +7,7 @@ RGB::RGB()
 { }
 
 RGB::RGB(double value)
-	: RGB(red, green, blue)
+	: RGB(value, value, value)
 { }
 
 RGB::RGB(double red, double green, double blue)
