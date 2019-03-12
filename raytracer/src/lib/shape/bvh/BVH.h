@@ -13,7 +13,7 @@ public:
 		: root(std::move(rootNode))
 	{ }
 
-	std::optional<TRayHitInfo> traceRay(const Ray& ray)
+	std::optional<TRayHitInfo> traceRay(const Ray& ray) const
 	{
 		return root->traceRay(ray);
 	}

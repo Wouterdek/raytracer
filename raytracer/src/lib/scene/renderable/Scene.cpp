@@ -17,6 +17,5 @@ const std::vector<SceneNode<ICamera>>& Scene::getCameras() const
 
 std::optional<SceneRayHitInfo> Scene::traceRay(const Ray& ray) const
 {
-	//return this->sceneBVH.traceRay(ray);
-	//TODO
+	return this->sceneBVH.traceRay(ray);
 }
