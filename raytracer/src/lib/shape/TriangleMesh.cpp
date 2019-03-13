@@ -188,21 +188,16 @@ template <typename T>
 void apply_permutation_in_place(
 	const std::vector<uint32_t>& p,
 	int stride,
-	std::vector<T>& vec1,
-	std::vector<T>& vec2
+	typename std::vector<T>::iterator vec1,
+	typename std::vector<T>::iterator vec2
 )
 {
-	if(vec1.size() != vec2.size() || vec1.size() / stride != p.size())
-	{
-		throw std::exception("invalid vector sizes");
-	}
-
 	std::vector<bool> done(p.size());
 
 	auto apply_permutation_in_place_impl = [](
 		const std::vector<uint32_t>& p,
 		int elementsPerItem,
-		std::vector<T>& vec,
+		typename std::vector<T>::iterator vec,
 		std::vector<bool>& done)
 	{
 		for (uint32_t i = 0; i < p.size(); i++)
@@ -217,9 +212,9 @@ void apply_permutation_in_place(
 			while (i != j)
 			{
 				std::swap_ranges(
-					vec.begin() + (elementsPerItem * prev_j),
-					vec.begin() + (elementsPerItem * (prev_j + 1)),
-					vec.begin() + (elementsPerItem * j)
+					vec + (elementsPerItem * prev_j),
+					vec + (elementsPerItem * (prev_j + 1)),
+					vec + (elementsPerItem * j)
 				);
 				done[j] = true;
 				prev_j = j;
@@ -245,7 +240,7 @@ void TriangleMesh::sortByCentroid(Axis axis)
 		return c1[static_cast<int>(axis)] < c2[static_cast<int>(axis)];
 	});
 
-	apply_permutation_in_place(indices, 1, data->vertexIndices, data->normalIndices);
+	apply_permutation_in_place<std::array<uint32_t, 3>>(indices, 1, data->vertexIndices.begin() + this->beginIdx, data->normalIndices.begin() + this->beginIdx);
 }
 
 std::optional<RayHitInfo> TriangleMesh::traceRay(const Ray& ray) const
