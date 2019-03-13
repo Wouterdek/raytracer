@@ -82,6 +82,28 @@ public:
 		}
 		else
 		{
+			/*
+			 * OPTIMIZATION OPPORTUNITY
+			 * if node subnodes are ordered, we can eliminate subnode checks as follows:
+			 * 
+			 * node is ordered by axis i
+			 * order = ray.dir[i]
+			 * if order > 0:
+			 *   bestT = infinity
+			 *   j from 0 to Arity:
+			 *     intersect subnode j
+			 *     if intersection != null && t < bestT:
+			 *       if intersection[i] < subnode[j+1].aabb_start[i]:
+			 *         return intersection
+			 *       else
+			 *         bestT = t
+			 *   return bestT
+			 * else if order < 0
+			 *   do same, but j from Arity to 0 (reverse)
+			 * else
+			 *   check all nodes for intersection, return smallest T
+			 */
+
 			std::optional<RayHitInfo> bestHit;
 			int bestHitI = 0;
 			for(int i = 0; i < Arity; i++)
