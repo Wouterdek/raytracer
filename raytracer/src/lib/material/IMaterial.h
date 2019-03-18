@@ -2,6 +2,7 @@
 #include "film/RGB.h"
 #include "math/RayHitInfo.h"
 
+class SceneRayHitInfo;
 class Scene;
 
 class IMaterial
@@ -9,5 +10,5 @@ class IMaterial
 public:
 	virtual ~IMaterial() = default;
 
-	virtual RGB getColorFor(const RayHitInfo& hit, const Scene& scene, int depth) const = 0;
+	virtual RGB getColorFor(const SceneRayHitInfo& hit, const Scene& scene, int depth) const = 0;
 };

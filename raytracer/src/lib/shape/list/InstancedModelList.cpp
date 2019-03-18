@@ -82,9 +82,10 @@ std::optional<SceneRayHitInfo> InstancedModelList::traceRay(const Ray & ray) con
 {
 	std::optional<RayHitInfo> closestHit;
 	SceneNode<Model>* node;
+	double tScale;
 	for(auto& modelNode : this->data->shapes)
 	{
-		const auto transformedRay = modelNode.getTransform().transformInverse(ray);
+		const auto [transformedRay, scale] = modelNode.getTransform().transformInverseAndGetTScale(ray);
 		
 		auto bvh = this->data->findShapeBVH(modelNode.getData().getShape());
 
@@ -101,12 +102,16 @@ std::optional<SceneRayHitInfo> InstancedModelList::traceRay(const Ray & ray) con
 		{
 			closestHit = hit;
 			node = &modelNode;
+			tScale = scale;
 		}
 	}
 
 	if (closestHit.has_value())
 	{
-		return SceneRayHitInfo(*closestHit, *node);
+		auto normal = node->getTransform().transformNormal(closestHit->normal);
+		normal.normalize();
+		RayHitInfo realHit(ray, closestHit->t, normal, closestHit->texCoord);
+		return SceneRayHitInfo(realHit, *node);
 	}
 	else
 	{

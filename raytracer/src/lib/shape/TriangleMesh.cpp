@@ -1,14 +1,20 @@
 #include "TriangleMesh.h"
 #include <Eigen/Dense>
 #include <numeric>
+#include "utility/soa_sort.h"
 
-TriangleMesh::TriangleMesh(std::vector<Point> vertices, std::vector<std::array<uint32_t, 3>> vertexIndices, std::vector<Vector3> normals, std::vector<std::array<uint32_t, 3>> normalIndices)
+TriangleMesh::TriangleMesh(
+	std::vector<Point> vertices, std::vector<std::array<uint32_t, 3>> vertexIndices, 
+	std::vector<Vector3> normals, std::vector<std::array<uint32_t, 3>> normalIndices,
+	std::vector<Vector2> texCoords, std::vector<std::array<uint32_t, 3>> texCoordIndices)
 	: data(std::make_shared<TriangleMeshData>()), beginIdx(0), endIdx(vertexIndices.size())
 {
 	data->vertices = std::move(vertices);
 	data->vertexIndices = std::move(vertexIndices);
 	data->normals = std::move(normals);
 	data->normalIndices = std::move(normalIndices);
+	data->texCoords = std::move(texCoords);
+	data->texCoordIndices = std::move(texCoordIndices);
 }
 
 TriangleMesh::TriangleMesh(std::shared_ptr<TriangleMeshData> data, size_type begin, size_type end)
@@ -114,12 +120,13 @@ std::optional<TriangleIntersection> intersectTriangle(const Ray& ray, const Vect
 		return std::nullopt;
 	}
 
-	TriangleIntersection intersection(beta, gamma, t);
-	return intersection;
+	return TriangleIntersection(beta, gamma, t);
 }
 
 std::optional<RayHitInfo> TriangleMesh::intersect(const Ray& ray) const
 {
+	std::optional<RayHitInfo> bestHit;
+
 	for(size_type triangleI = this->beginIdx; triangleI < this->endIdx; triangleI++)
 	{
 		const auto& indices = data->vertexIndices[triangleI];
@@ -128,21 +135,27 @@ std::optional<RayHitInfo> TriangleMesh::intersect(const Ray& ray) const
 		auto& c = data->vertices[indices[2]];
 
 		auto intersection = intersectTriangle(ray, a, b, c);
-		if(intersection.has_value())
+		if(intersection.has_value() && (!bestHit.has_value() || bestHit->t > intersection->t))
 		{
+			double alfa = 1.0 - intersection->beta - intersection->gamma;
+
 			const auto& normalIndices = data->normalIndices[triangleI];
 			auto& aNormal = data->normals[normalIndices[0]];
 			auto& bNormal = data->normals[normalIndices[1]];
 			auto& cNormal = data->normals[normalIndices[2]];
-
-			double alfa = 1.0 - intersection->beta - intersection->gamma;
 			Vector3 normal = (alfa * aNormal) + (intersection->beta * bNormal) + (intersection->gamma * cNormal);
-			normal.normalize();
-			return RayHitInfo(ray, intersection->t, normal);
+
+			const auto& texCoordIndices = data->texCoordIndices[triangleI];
+			auto& aTexCoord = data->texCoords[texCoordIndices[0]];
+			auto& bTexCoord = data->texCoords[texCoordIndices[1]];
+			auto& cTexCoord = data->texCoords[texCoordIndices[2]];
+			Vector2 texcoord = (alfa * aTexCoord) + (intersection->beta * bTexCoord) + (intersection->gamma * cTexCoord);
+
+			bestHit = RayHitInfo(ray, intersection->t, normal, texcoord);
 		}
 	}
 
-	return std::nullopt;
+	return bestHit;
 }
 
 Box TriangleMesh::getAABB(size_type index) const
@@ -155,8 +168,8 @@ Box TriangleMesh::getAABB(size_type index) const
 	const auto[startX, endX] = std::minmax({ p1.x(), p2.x(), p3.x() });
 	const auto[startY, endY] = std::minmax({ p1.y(), p2.y(), p3.y() });
 	const auto[startZ, endZ] = std::minmax({ p1.z(), p2.z(), p3.z() });
-	const Point newStart(startX, startY, startZ);
-	const Point newEnd(endX, endY, endZ);
+	const Point newStart(startX - 1E-4, startY - 1E-4, startZ - 1E-4);
+	const Point newEnd(endX + 1E-4, endY + 1E-4, endZ + 1E-4);
 
 	return Box(newStart, newEnd);
 }
@@ -182,65 +195,28 @@ Point TriangleMesh::getCentroid(size_type index) const
 	return (p1 + p2 + p3)/3;
 }
 
-//From https://stackoverflow.com/questions/17074324/how-can-i-sort-two-vectors-in-the-same-way-with-criteria-that-uses-only-one-of
-//Wouldn't be needed if C++ supported SOA sorting...
-template <typename T>
-void apply_permutation_in_place(
-	const std::vector<uint32_t>& p,
-	int stride,
-	typename std::vector<T>::iterator vec1,
-	typename std::vector<T>::iterator vec2
-)
-{
-	std::vector<bool> done(p.size());
-
-	auto apply_permutation_in_place_impl = [](
-		const std::vector<uint32_t>& p,
-		int elementsPerItem,
-		typename std::vector<T>::iterator vec,
-		std::vector<bool>& done)
-	{
-		for (uint32_t i = 0; i < p.size(); i++)
-		{
-			if (done[i])
-			{
-				continue;
-			}
-			done[i] = true;
-			uint32_t prev_j = i;
-			uint32_t j = p[i];
-			while (i != j)
-			{
-				std::swap_ranges(
-					vec + (elementsPerItem * prev_j),
-					vec + (elementsPerItem * (prev_j + 1)),
-					vec + (elementsPerItem * j)
-				);
-				done[j] = true;
-				prev_j = j;
-				j = p[j];
-			}
-		}
-	};
-
-	apply_permutation_in_place_impl(p, stride, vec1, done);
-	std::fill(done.begin(), done.end(), false);
-	apply_permutation_in_place_impl(p, stride, vec2, done);
-}
-
 void TriangleMesh::sortByCentroid(Axis axis)
 {
-	std::vector<uint32_t> indices(this->count());
-	std::iota(indices.begin(), indices.end(), 0);
+	soa_sort::sort_cmp<std::vector<std::array<uint32_t, 3>>::iterator>(data->vertexIndices.begin() + this->beginIdx, data->vertexIndices.begin() + this->endIdx, [axis = axis, this](const auto a, const auto b)
+		{
+			Point c1;
+			{
+				const Point p1 = data->vertices[a[0]];
+				const Point p2 = data->vertices[a[1]];
+				const Point p3 = data->vertices[a[2]];
+				c1 = (p1 + p2 + p3) / 3;
+			}
 
-	std::sort(indices.begin(), indices.end(), [axis = axis, this](const uint32_t a, const uint32_t b)
-	{
-		auto c1 = getCentroid(a);
-		auto c2 = getCentroid(b);
-		return c1[static_cast<int>(axis)] < c2[static_cast<int>(axis)];
-	});
-
-	apply_permutation_in_place<std::array<uint32_t, 3>>(indices, 1, data->vertexIndices.begin() + this->beginIdx, data->normalIndices.begin() + this->beginIdx);
+			Point c2;
+			{
+				const Point p1 = data->vertices[b[0]];
+				const Point p2 = data->vertices[b[1]];
+				const Point p3 = data->vertices[b[2]];
+				c2 = (p1 + p2 + p3) / 3;
+			}
+			
+			return c1[static_cast<int>(axis)] < c2[static_cast<int>(axis)];
+		}, data->normalIndices.begin() + this->beginIdx);
 }
 
 std::optional<RayHitInfo> TriangleMesh::traceRay(const Ray& ray) const

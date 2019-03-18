@@ -5,6 +5,7 @@
 class Box : public IShape
 {
 public:
+	Box();
 	Box(Point start, Point end);
 
 	std::array<Point, 8> getCorners() const;

@@ -1,8 +1,19 @@
 #include "Box.h"
 
+Box::Box()
+	: start(Point(0, 0, 0)), end(Point(0, 0, 0))
+{
+}
+
 Box::Box(Point start, Point end)
 	: start(std::move(start)), end(std::move(end))
-{ }
+{
+	assert(!hasNaN(start));
+	assert(!hasNaN(end));
+	assert(start.x() != end.x());
+	assert(start.y() != end.y());
+	assert(start.z() != end.z());
+}
 
 std::array<Point, 8> Box::getCorners() const
 {
@@ -107,13 +118,15 @@ std::optional<RayHitInfo> Box::intersect(const Ray& ray) const
 	double t1 = std::min(tx_max, ty_max);
 	t1 = std::min(t1, tz_max);
 
+	Vector2 texCoord; //TODO
+
 	if (t0 > t1)
 	{
 		return std::nullopt;
 	}
 	else
 	{
-		return RayHitInfo(ray, t0, this->getNormal(ray, t0));
+		return RayHitInfo(ray, t0, this->getNormal(ray, t0), texCoord);
 	}
 }
 

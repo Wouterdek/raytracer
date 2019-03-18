@@ -1,13 +1,11 @@
-﻿
+﻿enable_testing()
+
 file(GLOB_RECURSE tests_SRC
     "*.h"
     "*.cpp"
 )
 
-add_executable(tests ${tests_SRC})
-
-#
-#include(GoogleTest)
+### GOOGLE TEST
 if(NOT EXISTS "${PROJECT_SOURCE_DIR}/../extern/googletest/CMakeLists.txt")
 	message(FATAL_ERROR "The submodules were not downloaded! GIT_SUBMODULE was turned off or failed. Please update submodules and try again.")
 endif()
@@ -25,16 +23,18 @@ set_target_properties(gtest PROPERTIES FOLDER extern)
 set_target_properties(gtest_main PROPERTIES FOLDER extern)
 set_target_properties(gmock PROPERTIES FOLDER extern)
 set_target_properties(gmock_main PROPERTIES FOLDER extern)
-
-
-target_include_directories(tests PRIVATE ${RAYTRACER_SOURCE_DIR}/src/lib)
-#target_link_libraries (tests PRIVATE GTest::GTest GTest::Main raytracer_lib)
-target_link_libraries (tests PRIVATE gtest gmock gtest_main raytracer_lib)
+###
 
 find_package(Eigen3 REQUIRED NO_MODULE)
-target_link_libraries(tests PRIVATE Eigen3::Eigen raytracer_lib)
+#find_package(Boost 1.69 REQUIRED COMPONENTS fiber)
+find_package(TBB CONFIG REQUIRED)
 
-find_package(GTest MODULE REQUIRED)
+add_executable(tests ${tests_SRC})
+
+target_include_directories(tests PRIVATE ${RAYTRACER_SOURCE_DIR}/src/lib)
+target_link_libraries (tests PRIVATE gmock gtest gtest_main Eigen3::Eigen raytracer_lib TBB::tbb)
+
+#find_package(GTest MODULE REQUIRED)
 
 #gtest_add_tests(TARGET tests tests_SRC)
-gtest_discover_tests(tests)
+#gtest_discover_tests(tests)

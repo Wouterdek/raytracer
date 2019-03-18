@@ -71,6 +71,14 @@ Ray Transformation::transformInverse(const Ray & ray) const
 	return Ray(point, direction);
 }
 
+std::pair<Ray, double> Transformation::transformInverseAndGetTScale(const Ray & ray) const
+{
+	auto point = transformInverse(ray.getOrigin());
+	auto direction = transformInverse(ray.getDirection());
+	auto scale = ray.getDirection().norm() / direction.norm();
+	return std::make_pair(Ray(point, direction), scale);
+}
+
 Transformation Transformation::translate(double x, double y, double z)
 {
 	Matrix transform {};

@@ -52,5 +52,7 @@ std::optional<RayHitInfo> Sphere::intersect(const Ray& ray) const
 	Point hitpoint = ray.getOrigin() + (t * ray.getDirection());
 	Vector3 normal = hitpoint /* - origin */;
 
-	return RayHitInfo(ray, t, normal);
+	Vector2 texCoord; //TODO
+
+	return RayHitInfo(ray, t, normal, texCoord);
 }

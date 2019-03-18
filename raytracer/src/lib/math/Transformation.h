@@ -21,6 +21,7 @@ public:
 	Vector3 transformNormal(const Vector3& normal) const;
 	Ray transform(const Ray& ray) const;
 	Ray transformInverse(const Ray& ray) const;
+	std::pair<Ray, double> transformInverseAndGetTScale(const Ray & ray) const;
 
 	static Transformation translate(double x, double y, double z);
 	static Transformation scale(double x, double y, double z);

@@ -25,6 +25,12 @@ public:
 	enum { value = sizeof(test<TContent, TRayHitInfo>(0)) == sizeof(Yes) };
 };*/
 
+/*class BVHDiag
+{
+public:
+	inline static int Levels = 0;
+};*/
+
 template<typename TContent, typename TRayHitInfo, size_t Arity>
 class BVHNode
 {
@@ -76,6 +82,8 @@ public:
 
 	std::optional<TRayHitInfo> traceRay(const Ray& ray) const
 	{
+		//BVHDiag::Levels++;
+
 		if(isLeafNode())
 		{
 			return leafData().traceRay(ray);
@@ -104,16 +112,18 @@ public:
 			 *   check all nodes for intersection, return smallest T
 			 */
 
-			std::optional<RayHitInfo> bestHit;
-			int bestHitI = 0;
+			std::optional<TRayHitInfo> bestHit;
 			for(int i = 0; i < Arity; i++)
 			{
 				const auto& subNode = getChild(i);
-				auto hit = subNode.boundingBox.intersect(ray);
-				if(hit.has_value() && (!bestHit.has_value() || bestHit->t < hit->t))
+				auto aabbHit = subNode.boundingBox.intersect(ray);
+				if(aabbHit.has_value())
 				{
-					bestHit = hit;
-					bestHitI = i;
+					auto hit = getChild(i).traceRay(ray);
+					if(hit.has_value() && (!bestHit.has_value() || bestHit->t > hit->t))
+					{
+						bestHit = hit;
+					}
 				}
 			}
 
@@ -122,7 +132,7 @@ public:
 				return std::nullopt;
 			}
 
-			return getChild(bestHitI).traceRay(ray);
+			return bestHit;
 		}
 	}
 
