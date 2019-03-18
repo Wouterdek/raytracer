@@ -18,6 +18,7 @@
 #include "shape/Box.h"
 #include "material/NormalMaterial.h"
 #include <iostream>
+#include "material/TexCoordMaterial.h"
 
 TriangleMesh loadMesh(std::string path)
 {
@@ -52,7 +53,7 @@ TriangleMesh loadMesh(std::string path)
 
 		for (int i = 0; i < attrib.texcoords.size(); i += 2)
 		{
-			texCoords.emplace_back(attrib.texcoords[i], attrib.texcoords[i + 1]);
+			texCoords.emplace_back(attrib.texcoords[i], 1-attrib.texcoords[i + 1]);
 		}
 
 		std::vector<std::array<uint32_t, 3>> indices;
@@ -143,13 +144,14 @@ void render(std::string filename)
 	double gamma = 2.2;
 	bool quiet = false;
 	Point origin(0, 0, 0);
-	Point destination(0, 0, -1);
+	Point destination(0, 0, 1);
 	Vector3 lookup(0, 1, 0);
-	double fov = 90;
+	double fov = 60;
 
 	//////
 
 	auto normalMat = std::make_shared<NormalMaterial>();
+	auto texCoordMat = std::make_shared<TexCoordMaterial>();
 
 	auto diffuseMat = std::make_shared<DiffuseMaterial>();
 	diffuseMat->ambientColor = RGB{ 0.7, 0.7, 1.0 };
@@ -182,13 +184,39 @@ void render(std::string filename)
 	//Model asianDragonModel(std::make_shared<TriangleMesh>(loadMesh("F:\models/xyzrgb_dragon.obj")), redDiffuseMat);
 
 
-	auto amDiffuseMat = std::make_shared<DiffuseMaterial>();
+	/*auto amDiffuseMat = std::make_shared<DiffuseMaterial>();
 	amDiffuseMat->ambientColor = RGB{ 0.7, 0.7, 1.0 };
 	amDiffuseMat->ambientIntensity = 0.7;
 	amDiffuseMat->albedo = std::make_shared<Texture>(Texture::load("F:/models/autumn_casualwoman/autumn_casualwoman_02_-diffuse.png"));
 	amDiffuseMat->diffuseColor = RGB{ 1.0, 0.2, 0.2 };
 	amDiffuseMat->diffuseIntensity = 1.0;
-	Model amModel(std::make_shared<TriangleMesh>(loadMesh("F:/models/autumn_casualwoman/autumn_casualwoman_02_highpoly.OBJ")), redDiffuseMat);
+	Model amModel(std::make_shared<TriangleMesh>(loadMesh("F:/models/autumn_casualwoman/autumn_casualwoman_02_highpoly.OBJ")), amDiffuseMat);*/
+
+	/*auto coffeeDiffuseMat = std::make_shared<DiffuseMaterial>();
+	coffeeDiffuseMat->ambientColor = RGB{ 0.7, 0.7, 1.0 };
+	coffeeDiffuseMat->ambientIntensity = 0.7;
+	coffeeDiffuseMat->albedoMap = std::make_shared<Texture>(Texture::load("F:/models/coffee/ark_coffee.png"));
+	coffeeDiffuseMat->diffuseColor = RGB{ 1.0, 0.2, 0.2 };
+	coffeeDiffuseMat->diffuseIntensity = 1.0;
+	Model coffeeModel(std::make_shared<TriangleMesh>(loadMesh("F:/models/coffee/ARK_COFFEE_CUP.obj")), coffeeDiffuseMat);*/
+
+	/*auto appleDiffuseMat = std::make_shared<DiffuseMaterial>();
+	appleDiffuseMat->ambientColor = RGB{ 0.7, 0.7, 1.0 };
+	appleDiffuseMat->ambientIntensity = 0.7;
+	appleDiffuseMat->albedoMap = std::make_shared<Texture>(Texture::load("F:/models/apple/apple_texture.png"));
+	appleDiffuseMat->normalMap = std::make_shared<Texture>(Texture::load("F:/models/apple/apple_normal.png"));
+	appleDiffuseMat->diffuseColor = RGB{ 1.0, 0.2, 0.2 };
+	appleDiffuseMat->diffuseIntensity = 1.0;
+	Model appleModel(std::make_shared<TriangleMesh>(loadMesh("F:/models/apple/apple.obj")), appleDiffuseMat);*/
+
+	auto handDiffuseMat = std::make_shared<DiffuseMaterial>();
+	handDiffuseMat->ambientColor = RGB{ 0.7, 0.7, 1.0 };
+	handDiffuseMat->ambientIntensity = 0.7;
+	handDiffuseMat->albedoMap = std::make_shared<Texture>(Texture::load("F:/models/hand/HAND_C.png"));
+	handDiffuseMat->normalMap = std::make_shared<Texture>(Texture::load("F:/models/hand/HAND_N.png"));
+	handDiffuseMat->diffuseColor = RGB{ 1.0, 0.2, 0.2 };
+	handDiffuseMat->diffuseIntensity = 1.0;
+	Model handModel(std::make_shared<TriangleMesh>(loadMesh("F:/models/hand/uneedahand.obj")), handDiffuseMat);
 
 	//Model teapotModel(std::make_shared<TriangleMesh>(loadMesh("F:\models/teapot.obj")), normalMat);
 
@@ -230,9 +258,14 @@ void render(std::string filename)
 	curNode->model = std::make_unique<Model>(asianDragonModel);
 	scene.root->children.emplace_back(std::move(curNode));*/
 
-	auto curNode = std::make_unique<DynamicSceneNode>();
+	/*auto curNode = std::make_unique<DynamicSceneNode>();
 	curNode->transform = Transformation::translate(1, -3, -12).append(Transformation::scale(6, 6, 6));
 	curNode->model = std::make_unique<Model>(amModel);
+	scene.root->children.emplace_back(std::move(curNode));*/
+
+	auto curNode = std::make_unique<DynamicSceneNode>();
+	curNode->transform = Transformation::translate(0, -7, 15).append(Transformation::rotateY(90)).append(Transformation::scale(60, 60, 60));
+	curNode->model = std::make_unique<Model>(handModel);
 	scene.root->children.emplace_back(std::move(curNode));
 
 	/*auto curNode = std::make_unique<DynamicSceneNode>();
@@ -262,7 +295,7 @@ void render(std::string filename)
 
 	{
 		auto curNode = std::make_unique<DynamicSceneNode>();
-		curNode->transform = Transformation::translate(0, -11.2, 0);
+		curNode->transform = Transformation::translate(0, -8.2, 0);
 		curNode->model = std::make_unique<Model>(planeModel);
 		scene.root->children.emplace_back(std::move(curNode));
 	}
@@ -299,8 +332,9 @@ void render(std::string filename)
 	{
 		auto curNode = std::make_unique<DynamicSceneNode>();
 		//curNode->transform = Transformation::translate(-10, 10, -15);
-		curNode->transform = Transformation::translate(0, 5, -3);
+		curNode->transform = Transformation::translate(1, 1, 0);
 		curNode->lamp = std::make_unique<PointLamp>();
+		//curNode->lamp->intensity *= 10;
 		scene.root->children.emplace_back(std::move(curNode));
 	}
 

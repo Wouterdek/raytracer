@@ -216,7 +216,7 @@ void TriangleMesh::sortByCentroid(Axis axis)
 			}
 			
 			return c1[static_cast<int>(axis)] < c2[static_cast<int>(axis)];
-		}, data->normalIndices.begin() + this->beginIdx);
+		}, data->normalIndices.begin() + this->beginIdx, data->texCoordIndices.begin() + this->beginIdx);
 }
 
 std::optional<RayHitInfo> TriangleMesh::traceRay(const Ray& ray) const

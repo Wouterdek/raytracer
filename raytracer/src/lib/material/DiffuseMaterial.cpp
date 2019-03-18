@@ -10,9 +10,20 @@ DiffuseMaterial::DiffuseMaterial()
 RGB DiffuseMaterial::getColorFor(const SceneRayHitInfo& hit, const Scene& scene, int depth) const
 {
 	auto diffuseColor = this->diffuseColor;
-	if(this->albedo != nullptr)
+	if(this->albedoMap != nullptr)
 	{
-		diffuseColor = this->albedo->get(hit.texCoord.x() * this->albedo->getWidth(), hit.texCoord.y() * this->albedo->getHeight());
+		float x = abs(fmod(hit.texCoord.x(), 1.0f));
+		float y = abs(fmod(hit.texCoord.y(), 1.0f));
+		diffuseColor = this->albedoMap->get(x * this->albedoMap->getWidth(), y * this->albedoMap->getHeight());
+	}
+
+	auto normal = hit.normal;
+	if(this->normalMap != nullptr)
+	{
+		float x = abs(fmod(hit.texCoord.x(), 1.0f));
+		float y = abs(fmod(hit.texCoord.y(), 1.0f));
+		auto normalColor = this->normalMap->get(x * this->albedoMap->getWidth(), y * this->albedoMap->getHeight());
+		normal = Vector3(normalColor.getRed(), normalColor.getGreen(), normalColor.getBlue()); //TODO: this is wrong (object space/world space)
 	}
 
 	RGB ambient = diffuseColor.scale(this->diffuseIntensity).multiply(this->ambientColor.scale(this->ambientIntensity));
@@ -35,7 +46,7 @@ RGB DiffuseMaterial::getColorFor(const SceneRayHitInfo& hit, const Scene& scene,
 
 		if (isVisible)
 		{
-			double angle = std::max(0.0f, hit.normal.dot(objectToLamp));
+			double angle = std::max(0.0f, normal.dot(objectToLamp));
 			auto cont = diffuseColor.scale(this->diffuseIntensity / PI).multiply(light.getData().color.scale(light.getData().intensity * angle));
 			direct = direct.add(cont);
 		}
