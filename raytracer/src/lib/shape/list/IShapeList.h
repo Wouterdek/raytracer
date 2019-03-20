@@ -18,7 +18,7 @@ private:
 public:
 	virtual ~IShapeList() = default;
 
-	virtual Box getAABB(size_type index) const = 0;
+	virtual AABB getAABB(size_type index) const = 0;
 	virtual size_type count() const = 0;
 
 	std::pair<std::unique_ptr<IShapeList<TRayHitInfo>>, std::unique_ptr<IShapeList<TRayHitInfo>>> split(size_type leftSideElemCount) const

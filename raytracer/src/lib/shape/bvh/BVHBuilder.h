@@ -140,7 +140,7 @@ std::variant<typename BVHBuilder<TRayHitInfo>::NodePtr, typename BVHBuilder<TRay
 	size_type bestSplit;
 	Axis bestAxis;
 	Axis currentSorting = presortedAxis;
-	Box totalAABB;
+	AABB totalAABB;
 
 	for (auto axis : getAxesStartingWith(presortedAxis))
 	{
@@ -151,7 +151,7 @@ std::variant<typename BVHBuilder<TRayHitInfo>::NodePtr, typename BVHBuilder<TRay
 		}
 
 		// Calculate the cumulative AABB surface area of the shapes, starting from the left
-		Box boxAcc = shapes.getAABB(0);
+		AABB boxAcc = shapes.getAABB(0);
 		leftArea[0] = static_cast<float>(boxAcc.getSurfaceArea());
 		for (size_type i = 1; i < shapeCount; i++)
 		{
@@ -233,7 +233,7 @@ BVH<IShapeList<TRayHitInfo>, TRayHitInfo, 2> BVHBuilder<TRayHitInfo>::buildBVH(I
 
 	std::lock_guard lock(exec_mutex);
 
-	BVHBuilder builder(1, 10);//TODO: intersect cost
+	BVHBuilder builder(1, 5);//TODO: intersect cost
 	auto rootNode = builder.buildTreeThreaded(shapes, Axis::x);
 	return BVH<ShapeList, TRayHitInfo, 2>(std::move(rootNode));
 }

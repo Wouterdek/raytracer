@@ -18,18 +18,18 @@ TEST(Box, TestCorners)
 TEST(Box, AABB)
 {
 	Box box(Point(-1, -2, -3), Point(4, 5, 6));
-	Box b2 = box.getAABB();
-	ASSERT_EQ(box.start, b2.start);
-	ASSERT_EQ(box.end, b2.end);
+	AABB b2 = box.getAABB();
+	ASSERT_EQ(box.getStart(), b2.getStart());
+	ASSERT_EQ(box.getEnd(), b2.getEnd());
 }
 
 TEST(Box, AABBTransformed)
 {
 	Transformation transformation = Transformation::translate(10, 10, 10);
-	Box box(Point(-1, -2, -1), Point(1, 2, 1));
-	Box b2 = box.getAABBOfTransformed(transformation);
-	ASSERT_EQ(b2.start, Point(9, 8, 9));
-	ASSERT_EQ(b2.end, Point(11, 12, 11));
+	AABB box(Point(-1, -2, -1), Point(1, 2, 1));
+	AABB b2 = box.getAABBOfTransformed(transformation);
+	ASSERT_EQ(b2.getStart(), Point(9, 8, 9));
+	ASSERT_EQ(b2.getEnd(), Point(11, 12, 11));
 }
 
 TEST(Box, Centroid)
@@ -44,13 +44,13 @@ TEST(Box, SurfaceArea)
 	ASSERT_EQ(box.getSurfaceArea(), 22);
 }
 
-TEST(Box, Merge)
+TEST(AABB, Merge)
 {
-	Box boxA(Point(-2, -1, -1), Point(2, 1, 1));
-	Box boxB(Point(-1, 2, -3), Point(1, 3, 3));
-	Box merged = boxA.merge(boxB);
-	ASSERT_EQ(merged.start, Point(-2, -1, -3));
-	ASSERT_EQ(merged.end, Point(2, 3, 3));
+	AABB boxA(Point(-2, -1, -1), Point(2, 1, 1));
+	AABB boxB(Point(-1, 2, -3), Point(1, 3, 3));
+	AABB merged = boxA.merge(boxB);
+	ASSERT_EQ(merged.getStart(), Point(-2, -1, -3));
+	ASSERT_EQ(merged.getEnd(), Point(2, 3, 3));
 }
 
 TEST(Box, Intersect)

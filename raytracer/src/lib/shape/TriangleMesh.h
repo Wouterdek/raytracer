@@ -24,10 +24,10 @@ public:
 	TriangleMesh(std::shared_ptr<TriangleMeshData> data, size_type begin, size_type end);
 
 	Point getCentroid() const override;
-	Box getAABB() const override;
+	AABB getAABB() const override;
 	std::optional<RayHitInfo> intersect(const Ray& ray) const override;
 
-	Box getAABB(size_type index) const override;
+	AABB getAABB(size_type index) const override;
 	size_type count() const override;
 	
 	Point getCentroid(size_type index) const;
@@ -40,7 +40,7 @@ private:
 	std::pair<IShapeList<RayHitInfo>*, IShapeList<RayHitInfo>*> splitImpl(size_type leftSideElemCount) const override;
 
 	std::shared_ptr<TriangleMeshData> data;
-	mutable std::optional<Box> aabb;
+	mutable std::optional<AABB> aabb;
 	mutable std::optional<Point> centroid;
 	size_type beginIdx;
 	size_type endIdx;

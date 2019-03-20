@@ -27,7 +27,7 @@ public:
 	InstancedModelList(ModelVector&& shapes);
 	InstancedModelList(std::shared_ptr<InstancedModelListData> data, ModelVector::iterator begin, ModelVector::iterator end);
 
-	Box getAABB(size_type index) const override;
+	AABB getAABB(size_type index) const override;
 	size_type count() const override;
 	
 	void sortByCentroid(Axis axis) override;

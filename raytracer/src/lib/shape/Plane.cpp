@@ -10,11 +10,11 @@ Point Plane::getCentroid() const
 	return Point(0, 0, 0);
 }
 
-Box Plane::getAABB() const
+AABB Plane::getAABB() const
 {
 	const auto inf = std::numeric_limits<float>::infinity();
 	auto maxFloat = std::numeric_limits<float>().max();
-	return Box(Point(-maxFloat, 0, -maxFloat), Point(maxFloat, 1E-6, maxFloat));
+	return AABB(Point(-maxFloat, 0, -maxFloat), Point(maxFloat, 1E-6, maxFloat));
 }
 
 std::optional<RayHitInfo> Plane::intersect(const Ray & ray) const

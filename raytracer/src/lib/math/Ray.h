@@ -10,8 +10,15 @@ class Ray {
 public:
 	Ray(Point origin, Vector3 dir);
 
-	const Point& getOrigin() const;
-	const Vector3 getDirection() const;
+	const Point& getOrigin() const
+	{
+		return this->origin;
+	}
+
+	const Vector3 getDirection() const
+	{
+		return this->direction;
+	}
 
 private:
 	Point origin;

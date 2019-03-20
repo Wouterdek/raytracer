@@ -8,7 +8,7 @@ Point Sphere::getCentroid() const
 	return Point(0, 0, 0);
 }
 
-Box Sphere::getAABB() const
+AABB Sphere::getAABB() const
 {
 	return Box(Point(-0.5, -0.5, -0.5), Point(0.5, 0.5, 0.5));
 }

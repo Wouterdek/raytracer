@@ -5,6 +5,10 @@
 
 add_executable(raytracer_exe ${raytracer_SRC})
 
+if(WIN32 AND PROFILE)
+	set (CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /PROFILE")
+endif()
+
 find_package(Eigen3 REQUIRED NO_MODULE)
 #find_package(Boost 1.69 REQUIRED COMPONENTS fiber)
 find_package(TBB CONFIG REQUIRED)

@@ -38,7 +38,7 @@ Point TriangleMesh::getCentroid() const
 	return this->centroid.value();
 }
 
-Box TriangleMesh::getAABB() const
+AABB TriangleMesh::getAABB() const
 {
 	if(!this->aabb.has_value())
 	{
@@ -158,7 +158,7 @@ std::optional<RayHitInfo> TriangleMesh::intersect(const Ray& ray) const
 	return bestHit;
 }
 
-Box TriangleMesh::getAABB(size_type index) const
+AABB TriangleMesh::getAABB(size_type index) const
 {
 	const auto& indices = data->vertexIndices[this->beginIdx + index];
 	Point p1 = data->vertices[indices[0]];
@@ -171,7 +171,7 @@ Box TriangleMesh::getAABB(size_type index) const
 	const Point newStart(startX - 1E-4, startY - 1E-4, startZ - 1E-4);
 	const Point newEnd(endX + 1E-4, endY + 1E-4, endZ + 1E-4);
 
-	return Box(newStart, newEnd);
+	return AABB(newStart, newEnd);
 }
 
 TriangleMesh::size_type TriangleMesh::count() const

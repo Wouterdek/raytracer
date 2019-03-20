@@ -1,23 +1,18 @@
 #pragma once
 
-#include "../shape/IShape.h"
+#include "IShape.h"
+#include "AABB.h"
 
-class Box : public IShape
+class Box : public IShape, public AABB
 {
 public:
 	Box();
 	Box(Point start, Point end);
 
-	std::array<Point, 8> getCorners() const;
 	Point getCentroid() const override;
-	Box getAABB() const override;
-	Box getAABBOfTransformed(const Transformation& transform) const;
-	double getSurfaceArea() const;
+	AABB getAABB() const override;
 	std::optional<RayHitInfo> intersect(const Ray& ray) const;
-	Box merge(const Box& b) const;
 
 //private:
 	Vector3 getNormal(const Ray& ray, double t) const;
-	Point start;
-	Point end;
 };

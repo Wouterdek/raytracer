@@ -41,11 +41,11 @@ public:
 
 	using size_type = typename BVHSubnodeArray::size_type;
 
-	explicit BVHNode(Box boundingBox)
+	explicit BVHNode(AABB boundingBox)
 		: boundingBox(std::move(boundingBox)), data(BVHSubnodeArray())
 	{ }
 
-	BVHNode(Box boundingBox, std::unique_ptr<TContent>&& leafData)
+	BVHNode(AABB boundingBox, std::unique_ptr<TContent>&& leafData)
 		: boundingBox(std::move(boundingBox)), data(std::move(leafData))
 	{}
 
@@ -116,8 +116,7 @@ public:
 			for(int i = 0; i < Arity; i++)
 			{
 				const auto& subNode = getChild(i);
-				auto aabbHit = subNode.boundingBox.intersect(ray);
-				if(aabbHit.has_value())
+				if(subNode.boundingBox.intersects(ray))
 				{
 					auto hit = getChild(i).traceRay(ray);
 					if(hit.has_value() && (!bestHit.has_value() || bestHit->t > hit->t))
@@ -137,6 +136,6 @@ public:
 	}
 
 private:
-	Box boundingBox;
+	AABB boundingBox;
 	std::variant<BVHSubnodeArray, TContentPtr> data;
 };

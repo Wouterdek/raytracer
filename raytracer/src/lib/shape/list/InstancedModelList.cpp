@@ -15,7 +15,7 @@ InstancedModelList::InstancedModelList(std::shared_ptr<InstancedModelListData> d
 	: data(std::move(data)), begin(std::move(begin)), end(std::move(end))
 { }
 
-Box InstancedModelList::getAABB(size_type index) const
+AABB InstancedModelList::getAABB(size_type index) const
 {
 	const auto& node = this->begin[index];
 	auto aabb = node.getData().getShape().getAABB();
