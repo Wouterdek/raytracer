@@ -142,6 +142,8 @@ std::variant<typename BVHBuilder<TRayHitInfo>::NodePtr, typename BVHBuilder<TRay
 	Axis currentSorting = presortedAxis;
 	AABB totalAABB;
 
+#define SAH
+#ifdef SAH
 	for (auto axis : getAxesStartingWith(presortedAxis))
 	{
 		if (currentSorting != axis)
@@ -179,6 +181,53 @@ std::variant<typename BVHBuilder<TRayHitInfo>::NodePtr, typename BVHBuilder<TRay
 			boxAcc = boxAcc.merge(shapes.getAABB(leftSideShapeCount - 1));
 		}
 	}
+#endif
+
+#ifdef OMS
+	currentSorting = static_cast<Axis>( (static_cast<int>(presortedAxis) + 1) % 3 );
+	shapes.sortByCentroid(currentSorting);
+	leavesAreCheapest = shapeCount <= 10;
+	bestSplit = shapeCount / 2;
+	bestAxis = currentSorting;
+	bestCost = 1;
+
+	AABB boxAcc = shapes.getAABB(0);
+	leftArea[0] = static_cast<float>(boxAcc.getSurfaceArea());
+	for (size_type i = 1; i < shapeCount; i++)
+	{
+		boxAcc = boxAcc.merge(shapes.getAABB(i));
+		leftArea[i] = static_cast<float>(boxAcc.getSurfaceArea());
+	}
+	totalAABB = boxAcc;
+#endif
+
+#ifdef SMS
+	AABB boxAcc = shapes.getAABB(0);
+	leftArea[0] = static_cast<float>(boxAcc.getSurfaceArea());
+	for (size_type i = 1; i < shapeCount; i++)
+	{
+		boxAcc = boxAcc.merge(shapes.getAABB(i));
+		leftArea[i] = static_cast<float>(boxAcc.getSurfaceArea());
+	}
+	totalAABB = boxAcc;
+
+	auto currentSortingI = (static_cast<int>(presortedAxis) + 1) % 3;
+	currentSorting = static_cast<Axis>(currentSortingI);
+	auto center = totalAABB.getStart() + ((totalAABB.getEnd() - totalAABB.getStart())/2);
+	auto middle = center[currentSortingI];
+	shapes.sortByCentroid(currentSorting);
+
+	bestSplit = 0;
+	while(bestSplit < shapeCount-1 && shapes.getCentroid(bestSplit)[currentSortingI] < middle)
+	{
+		bestSplit++;
+	}
+	leavesAreCheapest = shapeCount <= 10;
+	bestAxis = currentSorting;
+	bestCost = 1;
+
+	
+#endif
 
 	if (leavesAreCheapest)
 	{
