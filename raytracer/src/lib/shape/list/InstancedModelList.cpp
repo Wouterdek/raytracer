@@ -22,6 +22,13 @@ AABB InstancedModelList::getAABB(size_type index) const
 	return aabb.getAABBOfTransformed(node.getTransform());
 }
 
+Point InstancedModelList::getCentroid(size_type index) const
+{
+	const auto& node = this->begin[index];
+	const Point centroid = node.getData().getShape().getCentroid();
+	return node.getTransform().transform(centroid);
+}
+
 InstancedModelList::size_type InstancedModelList::count() const
 {
 	return std::distance(this->begin, this->end);

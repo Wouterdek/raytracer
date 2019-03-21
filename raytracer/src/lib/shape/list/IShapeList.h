@@ -19,6 +19,7 @@ public:
 	virtual ~IShapeList() = default;
 
 	virtual AABB getAABB(size_type index) const = 0;
+	virtual Point getCentroid(size_type index) const = 0;
 	virtual size_type count() const = 0;
 
 	std::pair<std::unique_ptr<IShapeList<TRayHitInfo>>, std::unique_ptr<IShapeList<TRayHitInfo>>> split(size_type leftSideElemCount) const
@@ -28,6 +29,6 @@ public:
 	}
 
 	virtual void sortByCentroid(Axis axis) = 0;
-
+	
 	virtual std::optional<TRayHitInfo> traceRay(const Ray& ray) const = 0;
 };

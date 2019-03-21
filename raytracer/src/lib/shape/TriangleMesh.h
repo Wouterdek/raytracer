@@ -30,7 +30,7 @@ public:
 	AABB getAABB(size_type index) const override;
 	size_type count() const override;
 	
-	Point getCentroid(size_type index) const;
+	Point getCentroid(size_type index) const override;
 	void sortByCentroid(Axis axis) override;
 
 	std::optional<RayHitInfo> traceRay(const Ray& ray) const override;

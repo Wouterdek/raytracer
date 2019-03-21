@@ -28,6 +28,7 @@ public:
 	InstancedModelList(std::shared_ptr<InstancedModelListData> data, ModelVector::iterator begin, ModelVector::iterator end);
 
 	AABB getAABB(size_type index) const override;
+	Point getCentroid(size_type index) const override;
 	size_type count() const override;
 	
 	void sortByCentroid(Axis axis) override;

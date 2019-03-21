@@ -24,9 +24,20 @@ public:
 	bool isBlack() const;
 	int toRGB() const;
 
-	double getRed() const;
-	double getGreen() const;
-	double getBlue() const;
+	double getRed() const
+	{
+		return this->red;
+	}
+
+	double getGreen() const
+	{
+		return this->green;
+	}
+
+	double getBlue() const
+	{
+		return this->blue;
+	}
 
 private:
 	double red;

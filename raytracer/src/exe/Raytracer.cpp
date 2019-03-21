@@ -12,6 +12,7 @@
 #include "scene/dynamic/DynamicScene.h"
 #include "scene/dynamic/DynamicSceneNode.h"
 #include "shape/TriangleMesh.h"
+#include "renderer/Renderer.h"
 
 #define TINYOBJLOADER_IMPLEMENTATION // define this in only *one* .cc
 #include "io/tiny_obj_loader.h"
@@ -19,6 +20,7 @@
 #include "material/NormalMaterial.h"
 #include <iostream>
 #include "material/TexCoordMaterial.h"
+#include "io/PNGWriter.h"
 
 TriangleMesh loadMesh(std::string path)
 {
@@ -88,58 +90,10 @@ TriangleMesh loadMesh(std::string path)
 	throw std::exception("bad file");
 }
 
-void render(const Scene& scene, FrameBuffer& buffer, const Tile& tile)
-{
-	const ICamera& camera = scene.getCameras()[0].getData();
-
-	double maxVal;
-
-	for (int y = tile.getYStart(); y < tile.getYEnd(); ++y) {
-		for (int x = tile.getXStart(); x < tile.getXEnd(); ++x) {
-			// create a ray through the center of the pixel.
-			Ray ray = camera.generateRay(Sample(x + 0.5, y + 0.5));
-
-			// test the scene on intersections
-			//auto start = std::chrono::high_resolution_clock::now();
-
-			auto hit = scene.traceRay(ray);
-
-			//auto finish = std::chrono::high_resolution_clock::now();
-			//double duration = std::chrono::duration_cast<std::chrono::nanoseconds>(finish - start).count()/1000.0;
-
-			//buffer.setPixel(x, y, RGB(duration));
-			//maxVal = std::max(maxVal, duration);
-
-			//RGB bvhMarker(0, std::max(0.0, ((double)BVHDiag::Levels)) / 50.0, 0);
-			//BVHDiag::Levels = 0;
-
-			// add a color contribution to the pixel
-			if (hit.has_value())
-			{
-				/*auto hitpoint = hit->getGeometryInfo().getHitpoint();
-				auto depth = std::log(hitpoint.norm())/4.0f;
-				depth = std::clamp<float>(depth, 0, 1);
-				buffer.setPixel(x, y, RGB(depth));*/
-				
-				buffer.setPixel(x, y, hit->getModelNode().getData().getMaterial().getColorFor(*hit, scene, 0));
-			}
-			//buffer.setPixel(x, y, bvhMarker.add(buffer.getPixel(x, y)));
-		}
-
-		std::cout << y * 100 / tile.getYEnd() << "% done\r";
-	}
-
-	/*for (int y = tile.getYStart(); y < tile.getYEnd(); ++y) {
-		for (int x = tile.getXStart(); x < tile.getXEnd(); ++x) {
-			buffer.setPixel(x, y, buffer.getPixel(x, y).divide(maxVal));
-		}
-	}*/
-}
-
 void render(std::string filename)
 {
-	int width = 1000;
-	int height = 1000;
+	int width = 500;
+	int height = 500;
 	double sensitivity = 1.0;
 	double gamma = 2.2;
 	bool quiet = false;
@@ -175,13 +129,13 @@ void render(std::string filename)
 	triangleModel.shape = std::make_shared<TriangleMesh>(triangleVertices, triangleIndices, triangleNormals, triangleNormalIndices);
 	triangleModel.material = redDiffuseMat;*/
 
-	//Model bunnyModel(std::make_shared<TriangleMesh>(loadMesh("F:\models/bunny_low.obj")), redDiffuseMat);
+	Model bunnyModel(std::make_shared<TriangleMesh>(loadMesh("F:/models/bunny_low.obj")), redDiffuseMat);
 
-	//Model dragonModel(std::make_shared<TriangleMesh>(loadMesh("F:\models/dragon_high.obj")), redDiffuseMat);
+	//Model dragonModel(std::make_shared<TriangleMesh>(loadMesh("F:\models/dragon_high.obj")), normalMat);
 
 	//Model lucyModel(std::make_shared<TriangleMesh>(loadMesh("F:\models/lucy.obj")), redDiffuseMat);
 
-	//Model asianDragonModel(std::make_shared<TriangleMesh>(loadMesh("F:\models/xyzrgb_dragon.obj")), redDiffuseMat);
+	//Model asianDragonModel(std::make_shared<TriangleMesh>(loadMesh("F:/models/xyzrgb_dragon.obj")), redDiffuseMat);
 
 
 	/*auto amDiffuseMat = std::make_shared<DiffuseMaterial>();
@@ -209,14 +163,14 @@ void render(std::string filename)
 	appleDiffuseMat->diffuseIntensity = 1.0;
 	Model appleModel(std::make_shared<TriangleMesh>(loadMesh("F:/models/apple/apple.obj")), appleDiffuseMat);*/
 
-	auto handDiffuseMat = std::make_shared<DiffuseMaterial>();
+	/*auto handDiffuseMat = std::make_shared<DiffuseMaterial>();
 	handDiffuseMat->ambientColor = RGB{ 0.7, 0.7, 1.0 };
 	handDiffuseMat->ambientIntensity = 0.7;
 	handDiffuseMat->albedoMap = std::make_shared<Texture>(Texture::load("F:/models/hand/HAND_C.png"));
 	handDiffuseMat->normalMap = std::make_shared<Texture>(Texture::load("F:/models/hand/HAND_N.png"));
 	handDiffuseMat->diffuseColor = RGB{ 1.0, 0.2, 0.2 };
 	handDiffuseMat->diffuseIntensity = 1.0;
-	Model handModel(std::make_shared<TriangleMesh>(loadMesh("F:/models/hand/uneedahand.obj")), handDiffuseMat);
+	Model handModel(std::make_shared<TriangleMesh>(loadMesh("F:/models/hand/uneedahand.obj")), handDiffuseMat);*/
 
 	//Model teapotModel(std::make_shared<TriangleMesh>(loadMesh("F:\models/teapot.obj")), normalMat);
 
@@ -232,64 +186,68 @@ void render(std::string filename)
 	DynamicScene scene{};
 
 	/*auto curNode = std::make_unique<DynamicSceneNode>();
-	curNode->transform = Transformation::translate(0, 0, -10).append(Transformation::scale(5, 5, 5));
+	curNode->transform = Transformation::translate(0, 0, 10).append(Transformation::scale(5, 5, 5));
 	curNode->model = std::make_unique<Model>(sphereModel);
 	scene.root->children.emplace_back(std::move(curNode));*/
 
 	/*auto curNode = std::make_unique<DynamicSceneNode>();
-	curNode->transform = Transformation::translate(0, 0, -10).append(Transformation::rotateX(-10)).append(Transformation::scale(2, 2, 2));
+	curNode->transform = Transformation::translate(0, 0, 10).append(Transformation::rotateX(-10)).append(Transformation::scale(2, 2, 2));
 	curNode->model = std::make_unique<Model>(planeMeshModel);
 	scene.root->children.emplace_back(std::move(curNode));*/
 
 	/*auto curNode = std::make_unique<DynamicSceneNode>();
-	Transformation dragonTransform = Transformation::translate(0, -5, -10).append(Transformation::rotateY(90)).append(Transformation::scale(6, 6, 6));;
+	Transformation dragonTransform = Transformation::translate(0, -5, 10).append(Transformation::rotateY(90)).append(Transformation::scale(6, 6, 6));;
 	curNode->transform = dragonTransform;
 	curNode->model = std::make_unique<Model>(dragonModel);
 	scene.root->children.emplace_back(std::move(curNode));*/
 
 	/*auto curNode = std::make_unique<DynamicSceneNode>();
-	Transformation lucyTransform = Transformation::translate(0, -5, -10).append(Transformation::rotateY(90)).append(Transformation::scale(6, 6, 6));;
+	Transformation lucyTransform = Transformation::translate(0, -5, 10).append(Transformation::rotateY(90)).append(Transformation::scale(6, 6, 6));;
 	curNode->transform = lucyTransform;
 	curNode->model = std::make_unique<Model>(lucyModel);
 	scene.root->children.emplace_back(std::move(curNode));*/
 
 	/*auto curNode = std::make_unique<DynamicSceneNode>();
-	curNode->transform = Transformation::translate(0, -5, -10).append(Transformation::rotateY(90)).append(Transformation::scale(6, 6, 6));
+	curNode->transform = Transformation::translate(0, -5, 10).append(Transformation::rotateY(90)).append(Transformation::scale(6, 6, 6));
 	curNode->model = std::make_unique<Model>(asianDragonModel);
 	scene.root->children.emplace_back(std::move(curNode));*/
 
 	/*auto curNode = std::make_unique<DynamicSceneNode>();
-	curNode->transform = Transformation::translate(1, -3, -12).append(Transformation::scale(6, 6, 6));
-	curNode->model = std::make_unique<Model>(amModel);
+	curNode->transform = Transformation::translate(0, -5, 10).append(Transformation::rotateY(90)).append(Transformation::scale(4, 4, 4));
+	curNode->model = std::make_unique<Model>(appleModel);
 	scene.root->children.emplace_back(std::move(curNode));*/
 
-	auto curNode = std::make_unique<DynamicSceneNode>();
+	/*auto curNode = std::make_unique<DynamicSceneNode>();
 	curNode->transform = Transformation::translate(0, -7, 15).append(Transformation::rotateY(90)).append(Transformation::scale(60, 60, 60));
 	curNode->model = std::make_unique<Model>(handModel);
-	scene.root->children.emplace_back(std::move(curNode));
-
-	/*auto curNode = std::make_unique<DynamicSceneNode>();
-	curNode->transform = Transformation::translate(0, -5, -10).append(Transformation::rotateY(0)).append(Transformation::scale(4, 4, 4));
-	curNode->model = std::make_unique<Model>(bunnyModel);
 	scene.root->children.emplace_back(std::move(curNode));*/
 
-	/*auto curNode = std::make_unique<DynamicSceneNode>();
-	curNode->transform = Transformation::translate(0, -5, -10).append(Transformation::rotateX(90)).append(Transformation::scale(6, 6, 6));
-	curNode->model = std::make_unique<Model>(teapotModel);
-	scene.root->children.emplace_back(std::move(curNode));*/
+	{
+		auto curNode = std::make_unique<DynamicSceneNode>();
+		curNode->transform = Transformation::translate(-2, -4, 10).append(Transformation::rotateY(0)).append(Transformation::scale(4, 4, 4));
+		curNode->model = std::make_unique<Model>(bunnyModel);
+		scene.root->children.emplace_back(std::move(curNode));
+	}
+	/*
+	{
+		auto curNode = std::make_unique<DynamicSceneNode>();
+		curNode->transform = Transformation::translate(2, -5, 14).append(Transformation::scale(6, 6, 6));
+		curNode->model = std::make_unique<Model>(teapotModel);
+		scene.root->children.emplace_back(std::move(curNode));
+	}*/
 
 	/*curNode = std::make_unique<DynamicSceneNode>();
-	curNode->transform = Transformation::translate(0, 0, -8).append(Transformation::scale(0.5, 0.5, 0.5));
+	curNode->transform = Transformation::translate(0, 0, 8).append(Transformation::scale(0.5, 0.5, 0.5));
 	curNode->model = std::make_unique<Model>(sphereModel);
 	scene.root->children.emplace_back(std::move(curNode));*/
 
 	/*auto curNode = std::make_unique<DynamicSceneNode>();
-	curNode->transform = Transformation::translate(3, 0, -20).append(Transformation::rotateX(30)).append(Transformation::scale(3, 3, 3));
+	curNode->transform = Transformation::translate(3, 0, 20).append(Transformation::rotateX(30)).append(Transformation::scale(3, 3, 3));
 	curNode->model = std::make_unique<Model>(boxModel);
 	scene.root->children.emplace_back(std::move(curNode));*/
 
 	/*auto curNode = std::make_unique<DynamicSceneNode>();
-	curNode->transform = Transformation::translate(0, -5, -6).append(Transformation::scale(6, 6, 6));
+	curNode->transform = Transformation::translate(0, -5, 6).append(Transformation::scale(6, 6, 6));
 	curNode->model = std::make_unique<Model>(triangleModel);
 	scene.root->children.emplace_back(std::move(curNode));*/
 
@@ -360,23 +318,23 @@ void render(std::string filename)
 	auto renderableScene = scene.build();
 	auto finish = std::chrono::high_resolution_clock::now();
 	double duration = std::chrono::duration_cast<std::chrono::microseconds>(finish - start).count() / 1000.0;
-	std::cout << "Done in " << duration << " milliseconds." << std::endl;
+	std::cout << "Scene build done in " << duration << " milliseconds." << std::endl;
 
 	FrameBuffer buffer(width, height);
 
-	//
+	start = std::chrono::high_resolution_clock::now();
 
-	// subdivide the buffer in equal sized tiles
 	std::cout << "Rendering..." << std::endl;
-	for (auto tile : buffer.subdivide(width, height)) {
-		render(renderableScene, buffer, tile);
-	}
 
-	/*
-	auto time = finish - start;
-	std::cout << "sphere count: " << sphereCount << " time: " << time.count() << std::endl;*/
+	RenderSettings settings;
+	settings.aaLevel = 1;
+	render(renderableScene, buffer, settings);
 
-	write_to_ppm(buffer, filename);
+	finish = std::chrono::high_resolution_clock::now();
+	duration = std::chrono::duration_cast<std::chrono::microseconds>(finish - start).count() / 1000.0;
+	std::cout << "Rendering time: " << duration << " milliseconds" << std::endl;
+
+	write_to_png_file(buffer, filename);
 }
 
 int main(char** argc, int argv)
@@ -391,6 +349,6 @@ int main(char** argc, int argv)
 	}
 	std::cin.get();*/
 	//render("C:/Users/Wouter/Desktop/render/dragon_normal.ppm");
-	render("C:/Users/Wouter/Desktop/render/render.ppm");
+	render("C:/Users/Wouter/Desktop/render/render.png");
 	//render("C:/Users/Wouter/Desktop/render/sphere.ppm");
 }

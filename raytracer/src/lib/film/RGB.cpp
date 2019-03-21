@@ -88,21 +88,6 @@ int RGB::toRGB() const
 	return (a << 24) + (r << 16) + (g << 8) + b;
 }
 
-double RGB::getRed() const
-{
-	return this->red;
-}
-
-double RGB::getGreen() const
-{
-	return this->green;
-}
-
-double RGB::getBlue() const
-{
-	return this->blue;
-}
-
 std::ostream & operator<<(std::ostream & in, const RGB & rgb)
 {
 	in << "(" << rgb.getRed() << ", " << rgb.getGreen() << ", " << rgb.getBlue() << ")";

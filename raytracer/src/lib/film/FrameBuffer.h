@@ -9,12 +9,27 @@ class FrameBuffer
 public:
 	FrameBuffer(int xResolution, int yResolution);
 
-	const RGB& getPixel(int x, int y) const;
-	void setPixel(int x, int y, RGB value);
 	std::vector<Tile> subdivide(int width, int height) const;
 
-	int getHorizontalResolution() const;
-	int getVerticalResolution() const;
+	const RGB& getPixel(int x, int y) const
+	{
+		return this->pixels[(y * horResolution) + x];
+	}
+
+	void setPixel(int x, int y, RGB value)
+	{
+		this->pixels[(y * horResolution) + x] = value;
+	}
+
+	int getHorizontalResolution() const
+	{
+		return this->horResolution;
+	}
+
+	int getVerticalResolution() const
+	{
+		return this->vertResolution;
+	}
 
 private:
 	/*
