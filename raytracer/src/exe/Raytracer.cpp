@@ -334,7 +334,8 @@ void render(std::string filename)
 	duration = std::chrono::duration_cast<std::chrono::microseconds>(finish - start).count() / 1000.0;
 	std::cout << "Rendering time: " << duration << " milliseconds" << std::endl;
 
-	write_to_png_file(buffer, filename);
+	write_to_png_file(buffer, filename, -2.5f, 2.2);
+	//write_to_exr_file(buffer, filename);
 }
 
 int main(char** argc, int argv)
