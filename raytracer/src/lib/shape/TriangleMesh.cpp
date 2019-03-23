@@ -2,6 +2,8 @@
 #include <Eigen/Dense>
 #include <numeric>
 #include "utility/soa_sort.h"
+#include "math/Triangle.h"
+//#include "utility/soa_sort_no_perm.h"
 
 TriangleMesh::TriangleMesh(
 	std::vector<Point> vertices, std::vector<std::array<uint32_t, 3>> vertexIndices, 
@@ -54,75 +56,6 @@ AABB TriangleMesh::getAABB() const
 	return this->aabb.value();
 }
 
-struct TriangleIntersection
-{
-	double beta, gamma, t;
-
-	TriangleIntersection(double beta, double gamma, double t)
-		: beta(beta), gamma(gamma), t(t)
-	{ }
-};
-
-std::optional<TriangleIntersection> intersectTriangle(const Ray& ray, const Vector3& a, const Vector3& b, const Vector3& c)
-{
-	auto& d = ray.getDirection();
-	Point x = a - ray.getOrigin();
-
-	Eigen::Matrix3f p;
-	p.col(0) = d;
-	p.col(1) = a - b;
-	p.col(2) = a - c;
-	auto pDet = p.determinant();
-
-	if(pDet == 0) //triangle is invalid
-	{
-		return std::nullopt;
-	}
-
-	Eigen::Matrix3f p0;
-	p0.col(0) = x;
-	p0.col(1) = a - b;
-	p0.col(2) = a - c;
-	auto p0Det = p0.determinant();
-	auto t = p0Det / pDet;
-
-	if(t < 0)
-	{
-		return std::nullopt;
-	}
-
-	Eigen::Matrix3f p1;
-	p1.col(0) = d;
-	p1.col(1) = x;
-	p1.col(2) = a - c;
-	auto p1Det = p1.determinant();
-	auto beta = p1Det / pDet;
-
-	if (beta < 0)
-	{
-		return std::nullopt;
-	}
-
-	Eigen::Matrix3f p2;
-	p2.col(0) = d;
-	p2.col(1) = a - b;
-	p2.col(2) = x;
-	auto p2Det = p2.determinant();
-	auto gamma = p2Det / pDet;
-
-	if (gamma < 0)
-	{
-		return std::nullopt;
-	}
-
-	if(gamma + beta > 1)
-	{
-		return std::nullopt;
-	}
-
-	return TriangleIntersection(beta, gamma, t);
-}
-
 std::optional<RayHitInfo> TriangleMesh::intersect(const Ray& ray) const
 {
 	std::optional<RayHitInfo> bestHit;
@@ -134,7 +67,7 @@ std::optional<RayHitInfo> TriangleMesh::intersect(const Ray& ray) const
 		auto& b = data->vertices[indices[1]];
 		auto& c = data->vertices[indices[2]];
 
-		auto intersection = intersectTriangle(ray, a, b, c);
+		auto intersection = Triangle::intersect(ray, a, b, c);
 		if(intersection.has_value() && (!bestHit.has_value() || bestHit->t > intersection->t))
 		{
 			double alfa = 1.0 - intersection->beta - intersection->gamma;
@@ -197,6 +130,7 @@ Point TriangleMesh::getCentroid(size_type index) const
 
 void TriangleMesh::sortByCentroid(Axis axis)
 {
+	//soa_sort_no_perm::sort_cmp(data->vertexIndices.begin() + this->beginIdx, data->vertexIndices.begin() + this->endIdx, [axis = axis, this](const auto a, const auto b)
 	soa_sort::sort_cmp<std::vector<std::array<uint32_t, 3>>::iterator>(data->vertexIndices.begin() + this->beginIdx, data->vertexIndices.begin() + this->endIdx, [axis = axis, this](const auto a, const auto b)
 		{
 			Point c1;
@@ -214,7 +148,7 @@ void TriangleMesh::sortByCentroid(Axis axis)
 				const Point p3 = data->vertices[b[2]];
 				c2 = (p1 + p2 + p3) / 3;
 			}
-			
+
 			return c1[static_cast<int>(axis)] < c2[static_cast<int>(axis)];
 		}, data->normalIndices.begin() + this->beginIdx, data->texCoordIndices.begin() + this->beginIdx);
 }
