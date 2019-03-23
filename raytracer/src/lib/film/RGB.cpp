@@ -61,7 +61,7 @@ RGB RGB::multiply(RGB spectrum) const
 
 RGB RGB::pow(double power) const
 {
-	return RGB(std::pow(this->red, 2.0), std::pow(this->green, 2.0), std::pow(this->blue, 2.0));
+	return RGB(std::pow(this->red, power), std::pow(this->green, power), std::pow(this->blue, power));
 }
 
 RGB RGB::clamp(double low, double high) const

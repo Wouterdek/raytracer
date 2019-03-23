@@ -12,6 +12,7 @@ public:
 	RGB(double red, double green, double blue);
 
 	bool isValidColorComponent(double value) const;
+
 	RGB add(RGB rgb) const;
 	RGB add(double r, double g, double b) const;
 	RGB subtract(RGB rgb) const;
@@ -23,6 +24,42 @@ public:
 	RGB clamp(double low, double high) const;
 	bool isBlack() const;
 	int toRGB() const;
+
+	RGB& operator+=(const RGB& rhs)
+	{
+		this->red += rhs.red;
+		this->green += rhs.green;
+		this->blue += rhs.blue;
+		return *this;
+	}
+
+	friend RGB operator+(RGB lhs, const RGB& rhs)
+	{
+		lhs += rhs;
+		return lhs;
+	}
+
+	RGB& operator-=(const RGB& rhs)
+	{
+		this->red -= rhs.red;
+		this->green -= rhs.green;
+		this->blue -= rhs.blue;
+		return *this;
+	}
+
+	friend RGB operator-(RGB lhs, const RGB& rhs)
+	{
+		lhs -= rhs;
+		return lhs;
+	}
+
+	friend RGB operator*(RGB lhs, double rhs)
+	{
+		lhs.red *= rhs;
+		lhs.green *= rhs;
+		lhs.blue *= rhs;
+		return lhs;
+	}
 
 	double getRed() const
 	{
