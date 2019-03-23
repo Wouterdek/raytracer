@@ -8,7 +8,8 @@
 #include "math/Transformation.h"
 #include "model/Model.h"
 #include "camera/ICamera.h"
-#include "lamp/PointLamp.h"
+#include "light/PointLight.h"
+#include "light/AreaLight.h"
 
 class DynamicSceneNode
 {
@@ -43,5 +44,6 @@ public:
 	
 	std::unique_ptr<Model> model;
 	std::unique_ptr<ICamera> camera;
-	std::unique_ptr<PointLamp> lamp;
+	std::unique_ptr<PointLight> pointLight;
+	std::unique_ptr<AreaLight> areaLight;
 };

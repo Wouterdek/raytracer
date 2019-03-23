@@ -44,7 +44,8 @@ void render(const Scene& scene, FrameBuffer& buffer, const Tile& tile, const Ren
 		const auto height = tile.getHeight() / taskCount;
 
 		tiles = tile.subdivide(width, height);
-	}else
+	}
+	else
 	{
 		tiles.push_back(tile);
 	}

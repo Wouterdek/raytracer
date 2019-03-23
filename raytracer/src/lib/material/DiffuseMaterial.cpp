@@ -26,17 +26,43 @@ RGB DiffuseMaterial::getColorFor(const SceneRayHitInfo& hit, const Scene& scene,
 		normal = Vector3(normalColor.getRed(), normalColor.getGreen(), normalColor.getBlue()); //TODO: this is wrong (object space/world space)
 	}
 
-	RGB ambient = diffuseColor.scale(this->diffuseIntensity).multiply(this->ambientColor.scale(this->ambientIntensity));
+	RGB ambient = (diffuseColor * this->diffuseIntensity).multiply(this->ambientColor * this->ambientIntensity);
 
 	RGB direct {};
 
-	for(const auto& light : scene.getLights())
-	{
-		Point lampLocalPos{ 0, 0, 0 };
-		Point lampPos = light.getTransform().transform(lampLocalPos);
+	Point hitpoint = hit.getHitpoint();
 
-		Point hitpoint = hit.getHitpoint();
-		Vector3 objectToLamp = lampPos - hitpoint;
+	for(const auto& light : scene.getAreaLights())
+	{
+		const int sampleCount = 16;
+		RGB contrib{};
+		for(int i = 0; i < sampleCount; i++)//todo
+		{
+			auto lampPoint = light->generateRandomPoint();
+			Vector3 objectToLamp = lampPoint - hitpoint;
+			double lampT = objectToLamp.norm();
+			objectToLamp.normalize();
+
+			Ray visibilityRay(hitpoint + (objectToLamp * 0.0001f), objectToLamp);
+			auto visibility = scene.traceRay(visibilityRay);
+			bool isVisible = !visibility.has_value() || visibility->t > lampT;
+
+			if (isVisible)
+			{
+				double lampAngle = std::max(0.0f, light->getNormal().dot(-objectToLamp));
+				double geometricFactor = lampAngle / pow(lampT, 2);
+				double angle = std::max(0.0f, normal.dot(objectToLamp));
+				auto lampRadiance = light->color * (light->intensity * angle) * geometricFactor * light->getSurfaceArea();
+				auto cont = (diffuseColor * (this->diffuseIntensity / PI)).multiply(lampRadiance);
+				contrib = contrib.add(cont);
+			}
+		}
+		direct = direct.add(contrib.divide(sampleCount));
+	}
+
+	for(const auto& light : scene.getPointLights())
+	{
+		Vector3 objectToLamp = light->pos - hitpoint;
 		double lampT = objectToLamp.norm();
 		objectToLamp.normalize();
 
@@ -47,7 +73,7 @@ RGB DiffuseMaterial::getColorFor(const SceneRayHitInfo& hit, const Scene& scene,
 		if (isVisible)
 		{
 			double angle = std::max(0.0f, normal.dot(objectToLamp));
-			auto cont = diffuseColor.scale(this->diffuseIntensity / PI).multiply(light.getData().color.scale(light.getData().intensity * angle));
+			auto cont = (diffuseColor * (this->diffuseIntensity / PI)).multiply(light->color * (light->intensity * angle));
 			direct = direct.add(cont);
 		}
 	}

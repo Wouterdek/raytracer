@@ -21,6 +21,7 @@
 #include <iostream>
 #include "material/TexCoordMaterial.h"
 #include "io/PNGWriter.h"
+#include "io/EXRWriter.h"
 
 TriangleMesh loadMesh(std::string path)
 {
@@ -92,8 +93,8 @@ TriangleMesh loadMesh(std::string path)
 
 void render(std::string filename)
 {
-	int width = 500;
-	int height = 500;
+	int width = 1000;
+	int height = 1000;
 	double sensitivity = 1.0;
 	double gamma = 2.2;
 	bool quiet = false;
@@ -109,15 +110,21 @@ void render(std::string filename)
 
 	auto diffuseMat = std::make_shared<DiffuseMaterial>();
 	diffuseMat->ambientColor = RGB{ 0.7, 0.7, 1.0 };
-	diffuseMat->ambientIntensity = 0.5;
+	diffuseMat->ambientIntensity = 0.1;
 	diffuseMat->diffuseColor = RGB{ 1.0, 1.0, 0.8 };
 	diffuseMat->diffuseIntensity = 1.0;
 
 	auto redDiffuseMat = std::make_shared<DiffuseMaterial>();
 	redDiffuseMat->ambientColor = RGB{ 0.7, 0.7, 1.0 };
-	redDiffuseMat->ambientIntensity = 0.7;
+	redDiffuseMat->ambientIntensity = 0.1;
 	redDiffuseMat->diffuseColor = RGB{ 1.0, 0.2, 0.2 };
 	redDiffuseMat->diffuseIntensity = 1.0;
+
+	auto whiteMat = std::make_shared<DiffuseMaterial>();
+	whiteMat->ambientColor = RGB{ 1.0, 1.0, 1.0 };
+	whiteMat->ambientIntensity = 1000;
+	whiteMat->diffuseColor = RGB{ 1.0, 1.0, 1.0 };
+	whiteMat->diffuseIntensity = 1.0;
 
 	Model sphereModel(std::make_shared<Sphere>(), diffuseMat);
 
@@ -130,6 +137,7 @@ void render(std::string filename)
 	triangleModel.material = redDiffuseMat;*/
 
 	Model bunnyModel(std::make_shared<TriangleMesh>(loadMesh("F:/models/bunny_low.obj")), redDiffuseMat);
+	Model triangleModel(std::make_shared<TriangleMesh>(loadMesh("F:/models/triangle.obj")), whiteMat);
 
 	//Model dragonModel(std::make_shared<TriangleMesh>(loadMesh("F:\models/dragon_high.obj")), normalMat);
 
@@ -222,12 +230,12 @@ void render(std::string filename)
 	curNode->model = std::make_unique<Model>(handModel);
 	scene.root->children.emplace_back(std::move(curNode));*/
 
-	{
+	/*{
 		auto curNode = std::make_unique<DynamicSceneNode>();
 		curNode->transform = Transformation::translate(-2, -4, 10).append(Transformation::rotateY(0)).append(Transformation::scale(4, 4, 4));
 		curNode->model = std::make_unique<Model>(bunnyModel);
 		scene.root->children.emplace_back(std::move(curNode));
-	}
+	}*/
 	/*
 	{
 		auto curNode = std::make_unique<DynamicSceneNode>();
@@ -287,12 +295,20 @@ void render(std::string filename)
 		scene.root->children.emplace_back(std::move(curNode));
 	}*/
 
-	{
+	/*{
 		auto curNode = std::make_unique<DynamicSceneNode>();
 		//curNode->transform = Transformation::translate(-10, 10, -15);
 		curNode->transform = Transformation::translate(1, 1, 0);
-		curNode->lamp = std::make_unique<PointLamp>();
-		//curNode->lamp->intensity *= 10;
+		curNode->pointLight = std::make_unique<PointLight>();
+		//curNode->pointLight->intensity *= 10;
+		scene.root->children.emplace_back(std::move(curNode));
+	}*/
+
+	{
+		auto curNode = std::make_unique<DynamicSceneNode>();
+		curNode->transform = Transformation::translate(7, -8.2, 35).append(Transformation::rotateY(225)).append(Transformation::scale(20, 20, 20));
+		curNode->areaLight = std::make_unique<AreaLight>();
+		//curNode->model = std::make_unique<Model>(triangleModel);
 		scene.root->children.emplace_back(std::move(curNode));
 	}
 
@@ -350,6 +366,7 @@ int main(char** argc, int argv)
 	}
 	std::cin.get();*/
 	//render("C:/Users/Wouter/Desktop/render/dragon_normal.ppm");
+	//render("C:/Users/Wouter/Desktop/render/render.exr");
 	render("C:/Users/Wouter/Desktop/render/render.png");
 	//render("C:/Users/Wouter/Desktop/render/sphere.ppm");
 }
