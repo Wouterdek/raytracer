@@ -23,7 +23,8 @@ RGB DiffuseMaterial::getColorFor(const SceneRayHitInfo& hit, const Scene& scene,
 		float x = abs(fmod(hit.texCoord.x(), 1.0f));
 		float y = abs(fmod(hit.texCoord.y(), 1.0f));
 		auto normalColor = this->normalMap->get(x * this->albedoMap->getWidth(), y * this->albedoMap->getHeight());
-		normal = Vector3(normalColor.getRed(), normalColor.getGreen(), normalColor.getBlue()); //TODO: this is wrong (object space/world space)
+		auto mapNormal = Vector3(normalColor.getRed(), normalColor.getGreen(), normalColor.getBlue());
+		normal = hit.getModelNode().getTransform().transformNormal(mapNormal);
 	}
 
 	RGB ambient = (diffuseColor * this->diffuseIntensity).multiply(this->ambientColor * this->ambientIntensity);
