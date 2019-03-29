@@ -19,7 +19,7 @@ public:
 	template<typename TState>
 	std::optional<TState> walkDepthFirst(std::function<std::pair<TState, bool>(const DynamicSceneNode&, const TState&)> visitor, const TState& init) const
 	{
-		auto&[state, shouldContinue] = visitor(*this, init);
+		auto[state, shouldContinue] = visitor(*this, init);
 		if (!shouldContinue)
 		{
 			return state;

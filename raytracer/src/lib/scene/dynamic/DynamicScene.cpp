@@ -33,7 +33,8 @@ Scene DynamicScene::build() const
 		}
 		if(node.camera != nullptr)
 		{
-			cameras.emplace_back(transform, node.camera->clone());
+			auto& camera = cameras.emplace_back(transform, node.camera->clone());
+			camera.getData().setTransform(transform);
 		}
 		if (node.model != nullptr)
 		{
