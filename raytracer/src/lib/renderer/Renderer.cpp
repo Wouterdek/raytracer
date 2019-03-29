@@ -64,7 +64,7 @@ void render(const Scene& scene, FrameBuffer& buffer, const Tile& tile, const Ren
 				for(int i = 0; i < renderSettings.aaLevel; i++)
 				{
 					// create a ray through the center of the pixel.
-					Ray ray = camera.generateRay(aa.generateSample(rd, x, y, i));
+					Ray ray = camera.generateRay(aa.generateSample(rd, x, y, i), buffer.getHorizontalResolution(), buffer.getVerticalResolution());
 
 					// test the scene on intersections
 					//auto start = std::chrono::high_resolution_clock::now();

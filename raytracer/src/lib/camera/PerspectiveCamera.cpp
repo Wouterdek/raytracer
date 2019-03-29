@@ -1,26 +1,32 @@
 #include "PerspectiveCamera.h"
 #include "math/OrthonormalBasis.h"
 #include "math/Constants.h"
+#include "math/Transformation.h"
 
-PerspectiveCamera::PerspectiveCamera(int xResolution, int yResolution, Point origin, Vector3 lookat, Vector3 up, double fov)
-  : origin(std::move(origin)), 
-	basis(OrthonormalBasis(-lookat, up)),
-	invxResolution(1.0/xResolution),
-	invyResolution(1.0/yResolution)
+PerspectiveCamera::PerspectiveCamera(double fov)
+  : basis(Vector3(0, 0, 1), Vector3(0, 1, 0))
 {
 	width = 2.0 * tan(0.5 * (fov * PI / 180.0));
-	height = yResolution * width * invxResolution;
 }
 
-PerspectiveCamera PerspectiveCamera::with_destination_point(int xResolution, int yResolution, Point origin, const Point & destination, Vector3 up, double fov)
+void PerspectiveCamera::setTransform(const Transformation& transform)
 {
-	return PerspectiveCamera(xResolution, yResolution, origin, destination - origin, up, fov);
+	this->origin = transform.transform(Point(0, 0, 0));
+	auto lookat = transform.transform(Vector3(0, 0, -1));
+	auto up = transform.transform(Vector3(0, 1, 0));
+	this->basis = OrthonormalBasis(-lookat, up);
 }
 
-Ray PerspectiveCamera::generateRay(const Sample& sample) const
+void PerspectiveCamera::pointAt(Point worldSpaceTarget, Vector3 up)
 {
-	auto u = this->width * (sample.x() * invxResolution - 0.5);
-	auto v = -this->height * (sample.y() * invyResolution - 0.5);
+	this->basis = OrthonormalBasis(-(worldSpaceTarget - origin), up);
+}
+
+Ray PerspectiveCamera::generateRay(const Sample& sample, int xResolution, int yResolution) const
+{
+	auto height = yResolution * width / xResolution;
+	auto u = this->width * (sample.x() / xResolution - 0.5);
+	auto v = -height * (sample.y() / yResolution - 0.5);
 
 	auto direction = (basis.getU() * u) + (basis.getV() * v) - basis.getW();
 
