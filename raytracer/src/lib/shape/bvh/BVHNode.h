@@ -25,11 +25,10 @@ public:
 	enum { value = sizeof(test<TContent, TRayHitInfo>(0)) == sizeof(Yes) };
 };*/
 
-/*class BVHDiag
+namespace BVHDiag
 {
-public:
-	inline static int Levels = 0;
-};*/
+	inline thread_local int Levels = 0;
+};
 
 template<typename TContent, typename TRayHitInfo, size_t Arity>
 class BVHNode
