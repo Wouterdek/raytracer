@@ -1,5 +1,6 @@
 #include "Transformation.h"
 #include "Constants.h"
+#include "OrthonormalBasis.h"
 
 const Transformation Transformation::IDENTITY = Transformation(Matrix::Identity(), Matrix::Identity());
 
@@ -96,6 +97,11 @@ Transformation Transformation::translate(double x, double y, double z)
 	return Transformation(transform, inverse);
 }
 
+Transformation Transformation::translate(Vector3 vect)
+{
+	return translate(vect[0], vect[1], vect[2]);
+}
+
 Transformation Transformation::scale(double x, double y, double z)
 {
 	Matrix transform{};
@@ -185,3 +191,32 @@ Transformation Transformation::rotate(const Vector3 & axis, double angle)
 
 	return Transformation(transform, inverse);
 }
+
+Transformation Transformation::rotateQuaternion(double i, double j, double k, double r)
+{
+	auto s = 1.0 / Eigen::Vector4d(r, i, j, k).squaredNorm();
+
+	Matrix transform{};
+	transform << 
+		1 - 2 * s * (pow(j, 2) + pow(k, 2)), 2 * s * (i * j - k * r),                       2 * s * (i * k + j * r), 0,
+		2 * s * (i * j + k * r),					 1.0 - 2 * s * (pow(i, 2) + pow(k, 2)), 2 * s * (j * k - i * r), 0,
+		2 * s * (i * k - j * r),					 2 * s * (j * k + i * r),                       1 - 2 * s * (pow(i, 2) + pow(j, 2)), 0,
+		0, 0, 0, 1;
+	Matrix inverse = transform.inverse();
+
+	return Transformation(transform, inverse);
+}
+
+Transformation Transformation::lookat(Vector3 direction, Vector3 up)
+{
+	OrthonormalBasis basis(-direction, up);
+
+	Matrix transMat = Matrix::Zero();
+	transMat.block<3, 1>(0, 0) = basis.getU().cast<double>();
+	transMat.block<3, 1>(0, 1) = basis.getV().cast<double>();
+	transMat.block<3, 1>(0, 2) = basis.getW().cast<double>();
+	transMat(3, 3) = 1;
+
+	return Transformation(transMat, transMat.inverse());
+}
+
