@@ -20,10 +20,25 @@ void AreaLight::applyTransform(const Transformation& transform)
 
 Point AreaLight::generateRandomPoint() const
 {
-	auto u = dist(random);
-	auto v = dist(random);
+	auto u = 1.0 - sqrt(dist(random));
+	auto v = (1.0 - u) * dist(random);
 
 	return this->a + u*(c - a) + v*(b - a);
+}
+
+Point AreaLight::generateStratifiedJitteredRandomPoint(int level, int i) const
+{
+	int n = sqrt(level);
+	Vector3 v1 = (c - a) / n;
+	Vector3 v2 = (b - a) / n;
+
+	auto u = 1.0 - sqrt(dist(random));
+	auto v = (1.0 - u) * dist(random);
+
+	auto y = i / n;
+	auto x = i % n;
+
+	return this->a + ((u+x) * v1) + ((v+y) * v2);
 }
 
 Vector3 AreaLight::getNormal() const
