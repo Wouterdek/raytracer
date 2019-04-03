@@ -8,7 +8,7 @@ OrthonormalBasis::OrthonormalBasis(Vector3 u, Vector3 v, Vector3 w)
 
 OrthonormalBasis::OrthonormalBasis(const Vector3 & a)
 {
-	auto length = u.norm();
+	auto length = a.norm();
 	if(length == 0)
 	{
 		throw std::invalid_argument("The given vector has length zero.");

@@ -78,11 +78,15 @@ std::optional<RayHitInfo> TriangleMesh::intersect(const Ray& ray) const
 			auto& cNormal = data->normals[normalIndices[2]];
 			Vector3 normal = (alfa * aNormal) + (intersection->beta * bNormal) + (intersection->gamma * cNormal);
 
-			const auto& texCoordIndices = data->texCoordIndices[triangleI];
-			auto& aTexCoord = data->texCoords[texCoordIndices[0]];
-			auto& bTexCoord = data->texCoords[texCoordIndices[1]];
-			auto& cTexCoord = data->texCoords[texCoordIndices[2]];
-			Vector2 texcoord = (alfa * aTexCoord) + (intersection->beta * bTexCoord) + (intersection->gamma * cTexCoord);
+			Vector2 texcoord;
+			if(data->texCoordIndices.size() > 0 && data->texCoords.size() > 0)
+			{
+				const auto& texCoordIndices = data->texCoordIndices[triangleI];
+				auto& aTexCoord = data->texCoords[texCoordIndices[0]];
+				auto& bTexCoord = data->texCoords[texCoordIndices[1]];
+				auto& cTexCoord = data->texCoords[texCoordIndices[2]];
+				texcoord = (alfa * aTexCoord) + (intersection->beta * bTexCoord) + (intersection->gamma * cTexCoord);
+			}
 
 			bestHit = RayHitInfo(ray, intersection->t, normal, texcoord);
 		}
@@ -151,6 +155,11 @@ void TriangleMesh::sortByCentroid(Axis axis)
 
 			return c1[static_cast<int>(axis)] < c2[static_cast<int>(axis)];
 		}, data->normalIndices.begin() + this->beginIdx, data->texCoordIndices.begin() + this->beginIdx);
+}
+
+const TriangleMeshData& TriangleMesh::getData() const
+{
+	return *this->data;
 }
 
 std::optional<RayHitInfo> TriangleMesh::traceRay(const Ray& ray) const

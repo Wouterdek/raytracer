@@ -33,6 +33,8 @@ public:
 	Point getCentroid(size_type index) const override;
 	void sortByCentroid(Axis axis) override;
 
+	const TriangleMeshData& getData() const;
+
 	std::optional<RayHitInfo> traceRay(const Ray& ray) const override;
 
 private:

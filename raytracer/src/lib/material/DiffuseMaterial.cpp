@@ -39,7 +39,7 @@ RGB DiffuseMaterial::getColorFor(const SceneRayHitInfo& hit, const Scene& scene,
 		RGB contrib{};
 		for(int i = 0; i < sampleCount; i++)//todo
 		{
-			auto lampPoint = light->generateRandomPoint();
+			auto lampPoint = light->generateStratifiedJitteredRandomPoint(sampleCount, i);
 			Vector3 objectToLamp = lampPoint - hitpoint;
 			double lampT = objectToLamp.norm();
 			objectToLamp.normalize();
