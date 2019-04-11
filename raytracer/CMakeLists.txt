@@ -18,6 +18,11 @@ if(GIT_FOUND AND EXISTS "${PROJECT_SOURCE_DIR}/../.git")
   endif()
 endif()
 
+if(WIN32)
+	set (CMAKE_CXX_FLAGS_RELWITHDEBINFO  "${CMAKE_CXX_FLAGS_RELWITHDEBINFO} /fp:fast")
+	set (CMAKE_CXX_FLAGS_RELEASE  "${CMAKE_CXX_FLAGS_RELEASE} /GS- /fp:fast")
+endif()
+
 add_subdirectory (src) 
 add_subdirectory (test)
 
