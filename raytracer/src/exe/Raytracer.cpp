@@ -14,109 +14,39 @@
 #include "shape/TriangleMesh.h"
 #include "renderer/Renderer.h"
 
-#define TINYOBJLOADER_IMPLEMENTATION // define this in only *one* .cc
-#include "io/tiny_obj_loader.h"
 #include "shape/Box.h"
 #include "material/NormalMaterial.h"
 #include <iostream>
 #include "material/TexCoordMaterial.h"
 #include "io/PNGWriter.h"
 #include "io/EXRWriter.h"
+#include "io/gltf/gltf.h"
+#include "io/OBJLoader.h"
+#include "io/TileFile.h"
 
-TriangleMesh loadMesh(std::string path)
+#include <boost/program_options.hpp>
+#include <filesystem>
+#include <exception>
+
+Scene buildScene(std::string workDir)
 {
-	tinyobj::attrib_t attrib;
-	std::vector<tinyobj::shape_t> shapes;
-	std::vector<tinyobj::material_t> materials;
-
-	std::string warn;
-	std::string err;
-	bool ret = tinyobj::LoadObj(&attrib, &shapes, &materials, &err, path.c_str());
-
-	if(ret)
-	{
-		std::vector<Point> vertices;
-		vertices.reserve(attrib.vertices.size() / 3);
-		
-		for(int i = 0; i < attrib.vertices.size(); i += 3)
-		{
-			vertices.emplace_back(attrib.vertices[i], attrib.vertices[i+1], attrib.vertices[i+2]);
-		}
-
-		std::vector<Vector3> normals;
-		normals.reserve(attrib.normals.size() / 3);
-
-		for (int i = 0; i < attrib.normals.size(); i += 3)
-		{
-			normals.emplace_back(attrib.normals[i], attrib.normals[i + 1], attrib.normals[i + 2]);
-		}
-
-		std::vector<Vector2> texCoords;
-		texCoords.reserve(attrib.texcoords.size() / 2);
-
-		for (int i = 0; i < attrib.texcoords.size(); i += 2)
-		{
-			texCoords.emplace_back(attrib.texcoords[i], 1-attrib.texcoords[i + 1]);
-		}
-
-		std::vector<std::array<uint32_t, 3>> indices;
-		std::vector<std::array<uint32_t, 3>> normalIndices;
-		std::vector<std::array<uint32_t, 3>> texCoordIndices;
-		auto& objIndices = shapes[0].mesh.indices;
-		indices.reserve(objIndices.size() / 3);
-		normalIndices.reserve(objIndices.size() / 3);
-		texCoordIndices.reserve(objIndices.size() / 3);
-		for (int i = 0; i < objIndices.size(); i += 3)
-		{
-			indices.emplace_back<std::array<uint32_t, 3>>({
-				static_cast<uint32_t>(objIndices[i].vertex_index),
-				static_cast<uint32_t>(objIndices[i+1].vertex_index),
-				static_cast<uint32_t>(objIndices[i+2].vertex_index)
-			});
-			normalIndices.emplace_back<std::array<uint32_t, 3>>({
-				static_cast<uint32_t>(objIndices[i].normal_index),
-				static_cast<uint32_t>(objIndices[i + 1].normal_index),
-				static_cast<uint32_t>(objIndices[i + 2].normal_index)
-			});
-			texCoordIndices.emplace_back<std::array<uint32_t, 3>>({
-				static_cast<uint32_t>(objIndices[i].texcoord_index),
-				static_cast<uint32_t>(objIndices[i + 1].texcoord_index),
-				static_cast<uint32_t>(objIndices[i + 2].texcoord_index)
-			});
-		}
-
-		return TriangleMesh(vertices, indices, normals, normalIndices, texCoords, texCoordIndices);
-	}
-
-	throw std::exception("bad file");
-}
-
-void render(std::string filename)
-{
-	int width = 1000;
-	int height = 1000;
-	double sensitivity = 1.0;
-	double gamma = 2.2;
-	bool quiet = false;
-	Point origin(0, 0, 0);
-	Point destination(0, 0, 1);
+	Point origin(0, 1.5, 0);
+	Point destination(0, 1.5, 1);
 	Vector3 lookup(0, 1, 0);
-	double fov = 60;
-
-	//////
+	double fov = 90;
 
 	auto normalMat = std::make_shared<NormalMaterial>();
 	auto texCoordMat = std::make_shared<TexCoordMaterial>();
 
 	auto diffuseMat = std::make_shared<DiffuseMaterial>();
 	diffuseMat->ambientColor = RGB{ 0.7, 0.7, 1.0 };
-	diffuseMat->ambientIntensity = 0.1;
+	diffuseMat->ambientIntensity = 0.01;
 	diffuseMat->diffuseColor = RGB{ 1.0, 1.0, 0.8 };
 	diffuseMat->diffuseIntensity = 1.0;
 
 	auto redDiffuseMat = std::make_shared<DiffuseMaterial>();
 	redDiffuseMat->ambientColor = RGB{ 0.7, 0.7, 1.0 };
-	redDiffuseMat->ambientIntensity = 0.1;
+	redDiffuseMat->ambientIntensity = 0.01;
 	redDiffuseMat->diffuseColor = RGB{ 1.0, 0.2, 0.2 };
 	redDiffuseMat->diffuseIntensity = 1.0;
 
@@ -136,57 +66,57 @@ void render(std::string filename)
 	triangleModel.shape = std::make_shared<TriangleMesh>(triangleVertices, triangleIndices, triangleNormals, triangleNormalIndices);
 	triangleModel.material = redDiffuseMat;*/
 
-	Model bunnyModel(std::make_shared<TriangleMesh>(loadMesh("F:/models/bunny_low.obj")), redDiffuseMat);
-	Model triangleModel(std::make_shared<TriangleMesh>(loadMesh("F:/models/triangle.obj")), whiteMat);
+	Model bunnyModel(std::make_shared<TriangleMesh>(loadOBJMesh(workDir + "/models/bunny_low.obj")), redDiffuseMat);
+	Model triangleModel(std::make_shared<TriangleMesh>(loadOBJMesh(workDir + "/models/triangle.obj")), whiteMat);
 
-	//Model dragonModel(std::make_shared<TriangleMesh>(loadMesh("F:\models/dragon_high.obj")), normalMat);
+	//Model dragonModel(std::make_shared<TriangleMesh>(loadMesh(workDir + "/models/dragon_high.obj")), normalMat);
 
-	//Model lucyModel(std::make_shared<TriangleMesh>(loadMesh("F:\models/lucy.obj")), redDiffuseMat);
+	//Model lucyModel(std::make_shared<TriangleMesh>(loadMesh(workDir + "/models/lucy.obj")), redDiffuseMat);
 
-	//Model asianDragonModel(std::make_shared<TriangleMesh>(loadMesh("F:/models/xyzrgb_dragon.obj")), redDiffuseMat);
+	//Model asianDragonModel(std::make_shared<TriangleMesh>(loadMesh(workDir + "/models/xyzrgb_dragon.obj")), redDiffuseMat);
 
 
 	/*auto amDiffuseMat = std::make_shared<DiffuseMaterial>();
 	amDiffuseMat->ambientColor = RGB{ 0.7, 0.7, 1.0 };
 	amDiffuseMat->ambientIntensity = 0.7;
-	amDiffuseMat->albedo = std::make_shared<Texture>(Texture::load("F:/models/autumn_casualwoman/autumn_casualwoman_02_-diffuse.png"));
+	amDiffuseMat->albedo = std::make_shared<Texture>(Texture::load(workDir + "/models/autumn_casualwoman/autumn_casualwoman_02_-diffuse.png"));
 	amDiffuseMat->diffuseColor = RGB{ 1.0, 0.2, 0.2 };
 	amDiffuseMat->diffuseIntensity = 1.0;
-	Model amModel(std::make_shared<TriangleMesh>(loadMesh("F:/models/autumn_casualwoman/autumn_casualwoman_02_highpoly.OBJ")), amDiffuseMat);*/
+	Model amModel(std::make_shared<TriangleMesh>(loadMesh(workDir + "/models/autumn_casualwoman/autumn_casualwoman_02_highpoly.OBJ")), amDiffuseMat);*/
 
 	/*auto coffeeDiffuseMat = std::make_shared<DiffuseMaterial>();
 	coffeeDiffuseMat->ambientColor = RGB{ 0.7, 0.7, 1.0 };
 	coffeeDiffuseMat->ambientIntensity = 0.7;
-	coffeeDiffuseMat->albedoMap = std::make_shared<Texture>(Texture::load("F:/models/coffee/ark_coffee.png"));
+	coffeeDiffuseMat->albedoMap = std::make_shared<Texture>(Texture::load(workDir + "/models/coffee/ark_coffee.png"));
 	coffeeDiffuseMat->diffuseColor = RGB{ 1.0, 0.2, 0.2 };
 	coffeeDiffuseMat->diffuseIntensity = 1.0;
-	Model coffeeModel(std::make_shared<TriangleMesh>(loadMesh("F:/models/coffee/ARK_COFFEE_CUP.obj")), coffeeDiffuseMat);*/
+	Model coffeeModel(std::make_shared<TriangleMesh>(loadMesh(workDir + "/models/coffee/ARK_COFFEE_CUP.obj")), coffeeDiffuseMat);*/
 
 	/*auto appleDiffuseMat = std::make_shared<DiffuseMaterial>();
 	appleDiffuseMat->ambientColor = RGB{ 0.7, 0.7, 1.0 };
 	appleDiffuseMat->ambientIntensity = 0.7;
-	appleDiffuseMat->albedoMap = std::make_shared<Texture>(Texture::load("F:/models/apple/apple_texture.png"));
-	appleDiffuseMat->normalMap = std::make_shared<Texture>(Texture::load("F:/models/apple/apple_normal.png"));
+	appleDiffuseMat->albedoMap = std::make_shared<Texture>(Texture::load(workDir + "/models/apple/apple_texture.png"));
+	appleDiffuseMat->normalMap = std::make_shared<Texture>(Texture::load(workDir + "/models/apple/apple_normal.png"));
 	appleDiffuseMat->diffuseColor = RGB{ 1.0, 0.2, 0.2 };
 	appleDiffuseMat->diffuseIntensity = 1.0;
-	Model appleModel(std::make_shared<TriangleMesh>(loadMesh("F:/models/apple/apple.obj")), appleDiffuseMat);*/
+	Model appleModel(std::make_shared<TriangleMesh>(loadMesh(workDir + "/models/apple/apple.obj")), appleDiffuseMat);*/
 
 	/*auto handDiffuseMat = std::make_shared<DiffuseMaterial>();
 	handDiffuseMat->ambientColor = RGB{ 0.7, 0.7, 1.0 };
 	handDiffuseMat->ambientIntensity = 0.7;
-	handDiffuseMat->albedoMap = std::make_shared<Texture>(Texture::load("F:/models/hand/HAND_C.png"));
-	handDiffuseMat->normalMap = std::make_shared<Texture>(Texture::load("F:/models/hand/HAND_N.png"));
+	handDiffuseMat->albedoMap = std::make_shared<Texture>(Texture::load(workDir + "/models/hand/HAND_C.png"));
+	handDiffuseMat->normalMap = std::make_shared<Texture>(Texture::load(workDir + "/models/hand/HAND_N.png"));
 	handDiffuseMat->diffuseColor = RGB{ 1.0, 0.2, 0.2 };
 	handDiffuseMat->diffuseIntensity = 1.0;
-	Model handModel(std::make_shared<TriangleMesh>(loadMesh("F:/models/hand/uneedahand.obj")), handDiffuseMat);*/
+	Model handModel(std::make_shared<TriangleMesh>(loadMesh(workDir + "/models/hand/uneedahand.obj")), handDiffuseMat);*/
 
-	//Model teapotModel(std::make_shared<TriangleMesh>(loadMesh("F:\models/teapot.obj")), normalMat);
+	//Model teapotModel(std::make_shared<TriangleMesh>(loadMesh(workDir + "/models/teapot.obj")), normalMat);
 
 	Model planeModel(std::make_shared<Plane>(), diffuseMat);
 
 	//Model boxModel(std::make_shared<Box>(Vector3(0, 0, 0), Vector3(1, 1, 1)), redDiffuseMat);
 
-	//Model planeMeshModel(std::make_shared<TriangleMesh>(loadMesh("F:\models/plane.obj")), redDiffuseMat);
+	//Model planeMeshModel(std::make_shared<TriangleMesh>(loadMesh(workDir + "/models/plane.obj")), redDiffuseMat);
 
 
 	////////
@@ -221,7 +151,7 @@ void render(std::string filename)
 	scene.root->children.emplace_back(std::move(curNode));*/
 
 	/*auto curNode = std::make_unique<DynamicSceneNode>();
-	curNode->transform = Transformation::translate(0, -5, 10).append(Transformation::rotateY(90)).append(Transformation::scale(4, 4, 4));
+	curNode->transform = Transformation::translate(0, -2, 10).append(Transformation::rotateY(90)).append(Transformation::scale(4, 4, 4));
 	curNode->model = std::make_unique<Model>(appleModel);
 	scene.root->children.emplace_back(std::move(curNode));*/
 
@@ -232,10 +162,46 @@ void render(std::string filename)
 
 	/*{
 		auto curNode = std::make_unique<DynamicSceneNode>();
-		curNode->transform = Transformation::translate(-2, -4, 10).append(Transformation::rotateY(0)).append(Transformation::scale(4, 4, 4));
+		curNode->transform = Transformation::translate(0, 0, 7).append(Transformation::rotateY(0)).append(Transformation::scale(1.5, 1.5, 1.5));
 		curNode->model = std::make_unique<Model>(bunnyModel);
 		scene.root->children.emplace_back(std::move(curNode));
 	}*/
+
+	{
+		auto curNode = std::make_unique<DynamicSceneNode>();
+		curNode->transform = Transformation::translate(3, 0, 9).append(Transformation::rotateY(0));
+		curNode->model = std::make_unique<Model>(bunnyModel);
+		scene.root->children.emplace_back(std::move(curNode));
+	}
+
+	{
+		auto curNode = std::make_unique<DynamicSceneNode>();
+		curNode->transform = Transformation::translate(1, 0, 10).append(Transformation::rotateY(0));
+		curNode->model = std::make_unique<Model>(bunnyModel);
+		scene.root->children.emplace_back(std::move(curNode));
+	}
+
+	{
+		auto curNode = std::make_unique<DynamicSceneNode>();
+		curNode->transform = Transformation::translate(-1, 0, 11).append(Transformation::rotateY(0));
+		curNode->model = std::make_unique<Model>(bunnyModel);
+		scene.root->children.emplace_back(std::move(curNode));
+	}
+
+	{
+		auto curNode = std::make_unique<DynamicSceneNode>();
+		curNode->transform = Transformation::translate(-3, 0, 12).append(Transformation::rotateY(0));
+		curNode->model = std::make_unique<Model>(bunnyModel);
+		scene.root->children.emplace_back(std::move(curNode));
+	}
+
+	{
+		auto curNode = std::make_unique<DynamicSceneNode>();
+		curNode->transform = Transformation::translate(-5, 0, 13).append(Transformation::rotateY(0));
+		curNode->model = std::make_unique<Model>(bunnyModel);
+		scene.root->children.emplace_back(std::move(curNode));
+	}
+
 	/*
 	{
 		auto curNode = std::make_unique<DynamicSceneNode>();
@@ -261,7 +227,7 @@ void render(std::string filename)
 
 	{
 		auto curNode = std::make_unique<DynamicSceneNode>();
-		curNode->transform = Transformation::translate(0, -8.2, 0);
+		curNode->transform = Transformation::translate(0, 0, 0);
 		curNode->model = std::make_unique<Model>(planeModel);
 		scene.root->children.emplace_back(std::move(curNode));
 	}
@@ -306,7 +272,7 @@ void render(std::string filename)
 
 	{
 		auto curNode = std::make_unique<DynamicSceneNode>();
-		curNode->transform = Transformation::translate(7, -8.2, 35).append(Transformation::rotateY(225)).append(Transformation::scale(20, 20, 20));
+		curNode->transform = Transformation::translate(5, 0, 17).append(Transformation::rotateY(225)).append(Transformation::scale(20, 20, 20));
 		curNode->areaLight = std::make_unique<AreaLight>();
 		//curNode->model = std::make_unique<Model>(triangleModel);
 		scene.root->children.emplace_back(std::move(curNode));
@@ -322,10 +288,36 @@ void render(std::string filename)
 	Transformation t4 = Transformation::translate(4, 4, -12).append(Transformation::scale(4, 4, 4));
 	Transformation t5 = Transformation::translate(-4, 4, -12).append(Transformation::scale(4, 4, 4));
 	*/
+	{
+		auto cameraNode = std::make_unique<DynamicSceneNode>();
+		//cameraNode.transform = 
+		//cameraNode.camera->pointAt(destination, lookup);
+		cameraNode->camera = std::make_unique<PerspectiveCamera>(fov);
+		cameraNode->transform = Transformation::translate(origin).append(Transformation::lookat(destination - origin, lookup));
+		scene.root->children.emplace_back(std::move(cameraNode));
+	}
+	
 
-	DynamicSceneNode& cameraNode = *(scene.root->children.emplace_back(std::make_unique<DynamicSceneNode>()));
-	cameraNode.camera = std::make_unique<PerspectiveCamera>(width, height, origin, destination, lookup, fov);
-	auto& camera = *(cameraNode.camera);
+	//auto gltfScene = loadGLTFScene(workDir + "/models/kitchen/kitchen.glb");
+
+	/*{
+		auto curNode = std::make_unique<DynamicSceneNode>();
+		curNode->transform = Transformation::translate(-11.916, .28301, .34278).append(Transformation::rotateY(90)).append(Transformation::scale(7.5, 7.5, 7.5));
+		curNode->areaLight = std::make_unique<AreaLight>();
+		//curNode->model = std::make_unique<Model>(triangleModel);
+		gltfScene.root->children.emplace_back(std::move(curNode));
+	}*/
+
+	/*{
+		auto curNode = std::make_unique<DynamicSceneNode>();
+		curNode->transform = Transformation::translate(-11.916, .28301, .34278).append(Transformation::rotateY(90));
+		curNode->pointLight = std::make_unique<PointLight>();
+		curNode->pointLight->intensity *= 10;
+		gltfScene.root->children.emplace_back(std::move(curNode));
+	}*/
+	/*DynamicSceneNode& cameraNode2 = *(gltfScene.root->children.emplace_back(std::make_unique<DynamicSceneNode>()));
+	cameraNode2.camera = std::make_unique<PerspectiveCamera>(width, height, origin, destination, lookup, fov);*/
+	//auto gltfSceneRenderable = gltfScene.build();
 
 	//////
 
@@ -335,38 +327,146 @@ void render(std::string filename)
 	auto finish = std::chrono::high_resolution_clock::now();
 	double duration = std::chrono::duration_cast<std::chrono::microseconds>(finish - start).count() / 1000.0;
 	std::cout << "Scene build done in " << duration << " milliseconds." << std::endl;
+	
+	return renderableScene;
+}
+
+int main(int argc, char** argv)
+{
+	// Parse input arguments
+	namespace po = boost::program_options;
+	po::options_description desc("Program options");
+	desc.add_options()
+		("help", "Show help")
+		("workdir", po::value<std::string>()->default_value(std::filesystem::current_path().string()), "Workdir")
+		("width", po::value<int>()->default_value(500), "Frame width")
+		("height", po::value<int>()->default_value(500), "Frame height")
+		("xstart", po::value<int>()->default_value(0), "Tile start x-coordinate")
+		("ystart", po::value<int>()->default_value(0), "Tile start y-coordinate")
+		("xend", po::value<int>(), "Tile end x-coordinate")
+		("yend", po::value<int>(), "Tile end y-coordinate")
+		("exposure", po::value<double>()->default_value(-2.5), "Exposure value to apply (png only)")
+		("gamma", po::value<double>()->default_value(2.2), "Gamma value to apply (png only)")
+		("outputtype", po::value<std::string>()->default_value("exr"), "Type of output file to write. [exr, png, ppm, tile]")
+		("output", po::value<std::string>()->default_value("output"), "Output file path")
+		("mergetiles", po::value<std::vector<std::string>>()->multitoken(), "Load the specified tile files, merge them and output the result")
+		;
+
+	po::variables_map vm;
+	try
+	{
+		po::store(po::parse_command_line(argc, argv, desc), vm);
+		po::notify(vm);
+	}catch(std::exception& e)
+	{
+		std::cerr << e.what() << std::endl;
+		return -1;
+	}
+
+	if (vm.count("help")) {
+		std::cout << desc << "\n";
+		return 0;
+	}
+
+	auto workDir = vm["workdir"].as<std::string>();
+	std::filesystem::path workDirPath(workDir);
+	if(!std::filesystem::is_directory(workDirPath))
+	{
+		std::cerr << "The specified work directory does not exist or is not a folder." << std::endl;
+	}
+
+	int width = vm["width"].as<int>();
+	int height = vm["height"].as<int>();
+
+	int xstart = vm["xstart"].as<int>();
+	int ystart = vm["ystart"].as<int>();
+	int xend = vm.count("xend") > 0 ? vm["xend"].as<int>() : (width - xstart);
+	int yend = vm.count("yend") > 0 ? vm["yend"].as<int>() : (height - ystart);
+	Tile tile(xstart, ystart, xend, yend);
+
+	double exposure = vm["exposure"].as<double>();
+	double gamma = vm["gamma"].as<double>();
+
+	auto outputtype = vm["outputtype"].as<std::string>();
+	if(outputtype != "exr" && outputtype != "png" && outputtype != "ppm" && outputtype != "tile")
+	{
+		throw std::runtime_error("Invalid output type: " + outputtype);
+	}
+
+	auto outputfileStr = vm["output"].as<std::string>();
+	std::filesystem::path outputfile(outputfileStr);
+	if(outputfile.is_relative())
+	{
+		outputfile = workDirPath / outputfile;
+	}
+	if (!outputfile.has_filename())
+	{
+		outputfile.replace_filename("output");
+	}
+	if(!outputfile.has_extension())
+	{
+		outputfile.replace_extension(outputtype);
+	}
+
+	auto tileFilesToMerge = vm["mergetiles"].as<std::vector<std::string>>();
+
+	// Create picture
 
 	FrameBuffer buffer(width, height);
 
-	start = std::chrono::high_resolution_clock::now();
+	if (tileFilesToMerge.size() > 0) // Merge tiles
+	{
+		std::cout << "Merging tile files..." << std::endl;
 
-	std::cout << "Rendering..." << std::endl;
-
-	RenderSettings settings;
-	settings.aaLevel = 1;
-	render(renderableScene, buffer, settings);
-
-	finish = std::chrono::high_resolution_clock::now();
-	duration = std::chrono::duration_cast<std::chrono::microseconds>(finish - start).count() / 1000.0;
-	std::cout << "Rendering time: " << duration << " milliseconds" << std::endl;
-
-	write_to_png_file(buffer, filename, -2.5f, 2.2);
-	//write_to_exr_file(buffer, filename);
-}
-
-int main(char** argc, int argv)
-{
-	/*for (int k = 0; k < 50; k++) {
-		for (int i = 1; i < 10001; i *= 10) {
-			std::ostringstream s;
-			s << "C:/Users/Wouter/Desktop/render/" << i << ".ppm";
-			render(i, s.str());
+		for (const auto& file : tileFilesToMerge)
+		{
+			std::cout << file << std::endl;
+			try
+			{
+				load_from_tile_file(buffer, file);
+			}catch(const std::runtime_error& err)
+			{
+				std::cerr << err.what() << std::endl;
+				return -1;
+			}
 		}
-		std::cout << std::endl;
 	}
-	std::cin.get();*/
-	//render("C:/Users/Wouter/Desktop/render/dragon_normal.ppm");
-	//render("C:/Users/Wouter/Desktop/render/render.exr");
-	render("C:/Users/Wouter/Desktop/render/render.png");
-	//render("C:/Users/Wouter/Desktop/render/sphere.ppm");
+	else // Render
+	{
+		// Build scene
+		auto scene = buildScene(workDir);
+
+		auto start = std::chrono::high_resolution_clock::now();
+
+		std::cout << "Rendering..." << std::endl;
+
+		RenderSettings settings;
+		settings.aaLevel = 8;
+		render(scene, buffer, tile, settings);
+
+		auto finish = std::chrono::high_resolution_clock::now();
+		auto duration = std::chrono::duration_cast<std::chrono::microseconds>(finish - start).count() / 1000.0;
+		std::cout << "Rendering time: " << duration << " milliseconds" << std::endl;
+	}
+	
+	// Write output
+	std::cout << "Writing output to " << outputfile.string() << std::endl;
+	if(outputtype == "exr")
+	{
+		write_to_exr_file(buffer, outputfile.string());
+	}
+	else if (outputtype == "png")
+	{
+		write_to_png_file(buffer, outputfile.string(), exposure, gamma);
+	}
+	else if (outputtype == "ppm")
+	{
+		write_to_ppm(buffer, outputfile.string());
+	}
+	else if (outputtype == "tile")
+	{
+		write_to_tile_file(buffer, tile, outputfile.string());
+	}
+
+	return 0;
 }

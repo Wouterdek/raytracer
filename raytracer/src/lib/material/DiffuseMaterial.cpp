@@ -40,7 +40,7 @@ RGB DiffuseMaterial::getColorFor(const SceneRayHitInfo& hit, const Scene& scene,
 
 	for(const auto& light : scene.getAreaLights())
 	{
-		const int sampleCount = 32;
+		const int sampleCount = 4;
 		RGB contrib{};
 		for(int i = 0; i < sampleCount; i++)
 		{

@@ -6,6 +6,7 @@ class Tile
 {
 public:
 	Tile(int xStart, int yStart, int xEnd, int yEnd);
+	Tile();
 	int getWidth() const;
 	int getHeight() const;
 	std::vector<Tile> subdivide(int preferredWidth, int preferredHeight) const;

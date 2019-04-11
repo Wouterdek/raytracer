@@ -12,6 +12,11 @@ Tile::Tile(int xStart, int yStart, int xEnd, int yEnd)
 	}
 }
 
+Tile::Tile()
+	: xStart(0), yStart(0), xEnd(0), yEnd(0)
+{}
+
+
 int Tile::getWidth() const
 {
 	return this->xEnd - this->xStart;
