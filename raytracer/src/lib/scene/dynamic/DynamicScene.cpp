@@ -1,6 +1,7 @@
 #include "DynamicScene.h"
 #include "shape/list/InstancedModelList.h"
 #include "shape/bvh/BVHBuilder.h"
+#include <iostream>
 
 DynamicScene::DynamicScene()
 {
@@ -49,5 +50,6 @@ Scene DynamicScene::build() const
 	modelList.buildShapeBVHCache();
 
 	auto sceneBVH = BVHBuilder<SceneRayHitInfo>::buildBVH(modelList);
+	std::cout << "Top level BVH: " << sceneBVH.getSize() << std::endl;
 	return Scene(std::move(pointLights), std::move(areaLights), std::move(cameras), std::move(sceneBVH));
 }
