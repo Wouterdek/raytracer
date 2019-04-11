@@ -289,7 +289,7 @@ BVH<IShapeList<TRayHitInfo>, TRayHitInfo, 2> BVHBuilder<TRayHitInfo>::buildBVH(I
 
 	std::lock_guard lock(exec_mutex);
 
-	BVHBuilder builder(1, 5);//TODO: intersect cost
+	BVHBuilder builder(1, 3);//TODO: intersect cost
 	auto [rootNode, size] = builder.buildTreeThreaded(shapes, Axis::x);
 	return BVH<ShapeList, TRayHitInfo, 2>(std::move(rootNode), size);
 }
