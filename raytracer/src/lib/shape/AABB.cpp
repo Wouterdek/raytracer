@@ -46,6 +46,11 @@ AABB AABB::getAABBOfTransformed(const Transformation & transform) const
 
 bool AABB::intersects(const Ray & ray) const
 {
+	return this->getIntersection(ray) != -1;
+}
+
+float AABB::getIntersection(const Ray& ray) const
+{
 	Vector3 o = ray.getOrigin();
 	Vector3 d = ray.getDirection();
 	Vector3 s = this->start;
@@ -95,7 +100,14 @@ bool AABB::intersects(const Ray & ray) const
 	float t1 = std::min(tx_max, ty_max);
 	t1 = std::min(t1, tz_max);
 
-	return t0 <= t1;
+	if (t0 > t1)
+	{
+		return -1;
+	}
+	else
+	{
+		return std::max(0.0f, t0);
+	}
 }
 
 double AABB::getSurfaceArea() const

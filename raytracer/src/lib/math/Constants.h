@@ -1,3 +1,3 @@
 #pragma once
 
-const double PI = 3.14159265358979323;
+constexpr double PI = 3.14159265358979323;

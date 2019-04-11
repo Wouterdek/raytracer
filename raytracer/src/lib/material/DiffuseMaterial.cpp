@@ -2,7 +2,12 @@
 #include "scene/dynamic/DynamicScene.h"
 #include "math/Constants.h"
 #include "math/Transformation.h"
+#include "math/OrthonormalBasis.h"
 #include "scene/renderable/SceneRayHitInfo.h"
+#include <random>
+
+thread_local std::random_device randDev;
+std::uniform_real_distribution<float> randAngle(-90, 90);
 
 DiffuseMaterial::DiffuseMaterial()
 { }
@@ -27,7 +32,7 @@ RGB DiffuseMaterial::getColorFor(const SceneRayHitInfo& hit, const Scene& scene,
 		normal = hit.getModelNode().getTransform().transformNormal(mapNormal);
 	}
 
-	RGB ambient = (diffuseColor * this->diffuseIntensity).multiply(this->ambientColor * this->ambientIntensity);
+	//RGB ambient = (diffuseColor * this->diffuseIntensity).multiply(this->ambientColor * this->ambientIntensity);
 
 	RGB direct {};
 
@@ -35,9 +40,9 @@ RGB DiffuseMaterial::getColorFor(const SceneRayHitInfo& hit, const Scene& scene,
 
 	for(const auto& light : scene.getAreaLights())
 	{
-		const int sampleCount = 16;
+		const int sampleCount = 32;
 		RGB contrib{};
-		for(int i = 0; i < sampleCount; i++)//todo
+		for(int i = 0; i < sampleCount; i++)
 		{
 			auto lampPoint = light->generateStratifiedJitteredRandomPoint(sampleCount, i);
 			Vector3 objectToLamp = lampPoint - hitpoint;
@@ -54,11 +59,10 @@ RGB DiffuseMaterial::getColorFor(const SceneRayHitInfo& hit, const Scene& scene,
 				double geometricFactor = lampAngle / pow(lampT, 2);
 				double angle = std::max(0.0f, normal.dot(objectToLamp));
 				auto lampRadiance = light->color * (light->intensity * angle) * geometricFactor * light->getSurfaceArea();
-				auto cont = (diffuseColor * (this->diffuseIntensity / PI)).multiply(lampRadiance);
-				contrib = contrib.add(cont);
+				contrib = contrib.add(lampRadiance);
 			}
 		}
-		direct = direct.add(contrib.divide(sampleCount));
+		direct += contrib.divide(sampleCount);
 	}
 
 	for(const auto& light : scene.getPointLights())
@@ -74,10 +78,29 @@ RGB DiffuseMaterial::getColorFor(const SceneRayHitInfo& hit, const Scene& scene,
 		if (isVisible)
 		{
 			double angle = std::max(0.0f, normal.dot(objectToLamp));
-			auto cont = (diffuseColor * (this->diffuseIntensity / PI)).multiply(light->color * (light->intensity * angle));
-			direct = direct.add(cont);
+			direct += light->color * (light->intensity * angle);
 		}
 	}
 
-	return ambient.add(direct);
+	// Indirect lighting
+	RGB indirect {};
+	int maxDepth = 3;
+	if(depth < maxDepth)
+	{
+		auto angleA = randAngle(randDev);
+		auto angleB = randAngle(randDev);
+		OrthonormalBasis basis(hit.normal);
+		auto transform = Transformation::rotate(basis.getV(), angleB).append(Transformation::rotate(basis.getU(), angleA));
+		Vector3 direction = transform.transform(hit.normal);
+
+		Ray ray(hitpoint + (direction * 0.0001f), direction);
+		auto nextHit = scene.traceRay(ray);
+		if(nextHit.has_value())
+		{
+			double angle = std::max(0.0f, normal.dot(direction));
+			indirect += nextHit->getModelNode().getData().getMaterial().getColorFor(*nextHit, scene, depth + 1).scale(angle);
+		}
+	}
+
+	return diffuseColor.multiply(direct.scale(this->diffuseIntensity / PI) + indirect.scale(this->diffuseIntensity * 2));
 }

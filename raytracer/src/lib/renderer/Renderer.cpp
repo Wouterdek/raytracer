@@ -59,7 +59,7 @@ void render(const Scene& scene, FrameBuffer& buffer, const Tile& tile, const Ren
 
 		for (int y = curTile.getYStart(); y < curTile.getYEnd(); ++y) {
 			for (int x = curTile.getXStart(); x < curTile.getXEnd(); ++x) {
-				RGB pixelValue;
+				RGB pixelValue{};
 
 				for(int i = 0; i < renderSettings.aaLevel; i++)
 				{
@@ -77,8 +77,9 @@ void render(const Scene& scene, FrameBuffer& buffer, const Tile& tile, const Ren
 					//buffer.setPixel(x, y, RGB(duration));
 					//maxVal = std::max(maxVal, duration);
 
-					//RGB bvhMarker(0, std::max(0.0, ((double)BVHDiag::Levels)) / 50.0, 0);
-					//BVHDiag::Levels = 0;
+					/*RGB bvhMarker(0, BVHDiag::Levels, 0);
+					pixelValue = pixelValue.add(bvhMarker);
+					BVHDiag::Levels = 0;*/
 
 					// add a color contribution to the pixel
 					if (hit.has_value())
@@ -90,10 +91,8 @@ void render(const Scene& scene, FrameBuffer& buffer, const Tile& tile, const Ren
 
 						pixelValue = pixelValue.add(hit->getModelNode().getData().getMaterial().getColorFor(*hit, scene, 0));
 					}
-					//buffer.setPixel(x, y, bvhMarker.add(buffer.getPixel(x, y)));
 				}
 				
-
 				buffer.setPixel(x, y, pixelValue.divide(renderSettings.aaLevel));
 			}
 

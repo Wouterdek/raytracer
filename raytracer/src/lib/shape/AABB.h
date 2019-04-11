@@ -13,6 +13,7 @@ public:
 	AABB getAABBOfTransformed(const Transformation& transform) const;
 	double getSurfaceArea() const;
 	bool intersects(const Ray& ray) const;
+	float getIntersection(const Ray& ray) const;
 	AABB merge(const AABB& b) const;
 	
 	const Point& getStart() const

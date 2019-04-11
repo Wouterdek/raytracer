@@ -23,7 +23,7 @@ private:
 	using size_type = typename IShapeList<TRayHitInfo>::size_type;
 	using ShapeList = IShapeList<TRayHitInfo>;
 	using ShapeListPtr = std::unique_ptr<ShapeList>;
-	using Node = BVHNode<ShapeList, TRayHitInfo, 2>;
+	using Node = BVHNode<ShapeList, TRayHitInfo, 2, std::unique_ptr>;
 	using NodePtr = std::unique_ptr<Node>;
 
 	struct IncompleteNode
@@ -43,8 +43,8 @@ private:
 
 	std::variant<NodePtr, IncompleteNode> buildNode(IShapeList<TRayHitInfo>& shapes, Axis presortedAxis);
 
-	std::unique_ptr<Node> buildTree(IShapeList<TRayHitInfo>& shapes, Axis presortedAxis);
-	std::unique_ptr<Node> buildTreeThreaded(IShapeList<TRayHitInfo>& shapes, Axis presortedAxis);
+	NodePtr buildTree(IShapeList<TRayHitInfo>& shapes, Axis presortedAxis);
+	std::pair<NodePtr, size_t> buildTreeThreaded(IShapeList<TRayHitInfo>& shapes, Axis presortedAxis);
 
 	inline static std::mutex exec_mutex;
 };
@@ -62,28 +62,33 @@ public:
 	std::reference_wrapper<IShapeList<TRayHitInfo>> shapes;
 	Axis presortedAxis;
 	NodePtr* outputTreePtr;
+	size_t* treeSizePtr;
 
-	NodeBuildingTask(BVHBuilder<TRayHitInfo>& builder, IShapeList<TRayHitInfo>& shapes, Axis presortedAxis, /* OUTPUT PARAMETER */ NodePtr* outputTree)
-		: builder(std::ref(builder)), shapes(std::ref(shapes)), presortedAxis(presortedAxis), outputTreePtr(outputTree)
+	NodeBuildingTask(BVHBuilder<TRayHitInfo>& builder, IShapeList<TRayHitInfo>& shapes, Axis presortedAxis, /* OUTPUT */ NodePtr* outputTree, /* OUTPUT */ size_t* treeSize)
+		: builder(std::ref(builder)), shapes(std::ref(shapes)), presortedAxis(presortedAxis), outputTreePtr(outputTree), treeSizePtr(treeSize)
 	{ }
 
 	task* execute() override
 	{
 		auto& tree = *outputTreePtr;
+		auto& treeSize = *treeSizePtr;
 
 		auto result = builder.get().buildNode(shapes.get(), presortedAxis);
 		if (std::holds_alternative<NodePtr>(result))
 		{
 			tree = std::move(std::get<NodePtr>(result));
+			treeSize = 1;
 		}
 		else
 		{
 			auto& incompleteNode = std::get<BVHBuilder<TRayHitInfo>::IncompleteNode>(result);
 
 			NodePtr subNodeA;
+			size_t subNodeSizeA;
 			NodePtr subNodeB;
-			NodeBuildingTask& a = *new(allocate_child()) NodeBuildingTask(builder, *incompleteNode.leftSubList, incompleteNode.presortedAxis, &subNodeA);
-			NodeBuildingTask& b = *new(allocate_child()) NodeBuildingTask(builder, *incompleteNode.rightSubList, incompleteNode.presortedAxis, &subNodeB);
+			size_t subNodeSizeB;
+			NodeBuildingTask& a = *new(allocate_child()) NodeBuildingTask(builder, *incompleteNode.leftSubList, incompleteNode.presortedAxis, &subNodeA, &subNodeSizeA);
+			NodeBuildingTask& b = *new(allocate_child()) NodeBuildingTask(builder, *incompleteNode.rightSubList, incompleteNode.presortedAxis, &subNodeB, &subNodeSizeB);
 
 			set_ref_count(3);
 			spawn(b);
@@ -92,6 +97,7 @@ public:
 			tree = std::move(incompleteNode.node);
 			tree->setChild(0, std::move(subNodeA));
 			tree->setChild(1, std::move(subNodeB));
+			treeSize = subNodeSizeA + subNodeSizeB + 1;
 		}
 		return nullptr;
 	}
@@ -243,7 +249,7 @@ std::variant<typename BVHBuilder<TRayHitInfo>::NodePtr, typename BVHBuilder<TRay
 
 		// Split objects in [0 .. bestSplit) and [bestSplit .. shapeCount)
 		auto [listA, listB] = shapes.split(bestSplit);
-		return IncompleteNode{ std::make_unique<Node>(totalAABB), std::move(listA), std::move(listB), currentSorting };
+		return IncompleteNode{ std::make_unique<Node>(totalAABB, currentSorting), std::move(listA), std::move(listB), currentSorting };
 	}
 }
 
@@ -267,12 +273,13 @@ std::unique_ptr<typename BVHBuilder<TRayHitInfo>::Node> BVHBuilder<TRayHitInfo>:
 }
 
 template <typename TRayHitInfo>
-std::unique_ptr<typename BVHBuilder<TRayHitInfo>::Node> BVHBuilder<TRayHitInfo>::buildTreeThreaded(IShapeList<TRayHitInfo>& shapes, Axis presortedAxis)
+std::pair<std::unique_ptr<typename BVHBuilder<TRayHitInfo>::Node>, size_t> BVHBuilder<TRayHitInfo>::buildTreeThreaded(IShapeList<TRayHitInfo>& shapes, Axis presortedAxis)
 {
 	NodePtr node;
-	auto& task = *new(tbb::task::allocate_root()) NodeBuildingTask<TRayHitInfo>(*this, shapes, presortedAxis, &node);
+	size_t size;
+	auto& task = *new(tbb::task::allocate_root()) NodeBuildingTask<TRayHitInfo>(*this, shapes, presortedAxis, &node, &size);
 	tbb::task::spawn_root_and_wait(task);
-	return node;
+	return std::make_pair(std::move(node), size);
 }
 
 template <typename TRayHitInfo>
@@ -283,6 +290,6 @@ BVH<IShapeList<TRayHitInfo>, TRayHitInfo, 2> BVHBuilder<TRayHitInfo>::buildBVH(I
 	std::lock_guard lock(exec_mutex);
 
 	BVHBuilder builder(1, 5);//TODO: intersect cost
-	auto rootNode = builder.buildTreeThreaded(shapes, Axis::x);
-	return BVH<ShapeList, TRayHitInfo, 2>(std::move(rootNode));
+	auto [rootNode, size] = builder.buildTreeThreaded(shapes, Axis::x);
+	return BVH<ShapeList, TRayHitInfo, 2>(std::move(rootNode), size);
 }

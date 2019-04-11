@@ -1,6 +1,7 @@
 #include "InstancedModelList.h"
 #include <utility>
 #include "shape/bvh/BVHBuilder.h"
+#include <iostream>
 
 InstancedModelListData::InstancedModelListData(std::vector<SceneNode<Model>>&& shapes)
 	: shapes(std::move(shapes)), shapeBVHs()
@@ -64,6 +65,8 @@ void InstancedModelList::buildShapeBVHCache() const
 		{
 			auto shape = modelNode.getData().getShapePtr();
 			auto bvh = BVHBuilder<RayHitInfo>::buildBVH(*list);
+			bvh.pack();
+			std::cout << "Second level BVH: " << bvh.getSize() << std::endl;
 			this->data->shapeBVHs.insert({ shape, std::move(bvh) });
 		}
 	}
