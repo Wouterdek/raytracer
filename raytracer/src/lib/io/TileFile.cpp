@@ -53,7 +53,7 @@ void load_from_tile_file(FrameBuffer& buffer, std::string filepath)
 
 	if (tile.getXStart() > tile.getXEnd() || tile.getYStart() > tile.getYEnd() ||
 		tile.getXStart() < 0 || tile.getXEnd() < 0 || tile.getYStart() < 0 || tile.getYEnd() < 0 ||
-		tile.getXEnd() >= buffer.getHorizontalResolution() || tile.getYEnd() >= buffer.getVerticalResolution())
+		tile.getXEnd() > buffer.getHorizontalResolution() || tile.getYEnd() > buffer.getVerticalResolution())
 	{
 		throw std::runtime_error("Invalid tile geometry specification");
 	}
