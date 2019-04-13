@@ -2,6 +2,7 @@
 #include "lodepng.h"
 #include "film/FrameBuffer.h"
 #include <algorithm>
+#include <cmath>
 
 void write_to_png_file(const FrameBuffer& buffer, std::string filepath, double exposure, double gamma)
 {

@@ -2,6 +2,7 @@
 
 #include "IMaterial.h"
 #include "Texture.h"
+#include <memory>
 
 class DiffuseMaterial : public IMaterial
 {

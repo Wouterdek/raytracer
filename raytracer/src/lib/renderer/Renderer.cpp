@@ -1,6 +1,7 @@
 #include "Renderer.h"
 #include <thread>
-#include <execution>
+//#include <execution>
+#include "tbb/tbb.h"
 #include <random>
 #include "math/Ray.h"
 #include "camera/ICamera.h"
@@ -12,7 +13,7 @@ public:
 		: dist(0, 1.0 / aaLevel), aaLevel(aaLevel)
 	{}
 
-	Sample generateSample(std::random_device& rd, int pixelX, int pixelY, int sampleI) const
+	Sample generateSample(std::random_device& rd, int pixelX, int pixelY, int sampleI)
 	{
 		if(aaLevel == 1)
 		{
@@ -51,8 +52,8 @@ void render(const Scene& scene, FrameBuffer& buffer, const Tile& tile, const Ren
 	}
 
 	const ICamera& camera = scene.getCameras()[0].getData();
-
-	std::for_each(std::execution::par_unseq, tiles.begin(), tiles.end(), [&scene, &buffer, &renderSettings, &camera](const Tile& curTile)
+	//std::for_each(std::execution::par_unseq, tiles.begin(), tiles.end(), [&scene, &buffer, &renderSettings, &camera](const Tile& curTile)
+    tbb::parallel_for_each(tiles.begin(), tiles.end(), [&scene, &buffer, &renderSettings, &camera](const Tile& curTile)
 	{
 		std::random_device rd;
 		AASampleGenerator aa(renderSettings.aaLevel);

@@ -7,7 +7,7 @@
 class RayHitInfo
 {
 public:
-	RayHitInfo::RayHitInfo(Ray ray, double t, Vector3 normal, Vector2 texCoord)
+	RayHitInfo(Ray ray, double t, Vector3 normal, Vector2 texCoord)
 		: ray(std::move(ray)), t(t), normal(std::move(normal)), texCoord(std::move(texCoord))
 	{
 		assert(!std::isnan(t));

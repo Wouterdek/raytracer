@@ -43,9 +43,9 @@ std::vector<Tile> Tile::subdivide(int preferredWidth, int preferredHeight) const
 
 	for (int y = this->yStart; y < this->yEnd; y += preferredHeight) {
 		for (int x = this->xStart; x < this->xEnd; x += preferredWidth) {
-			int xEnd = std::min(this->xEnd, x + preferredWidth);
-			int yEnd = std::min(this->yEnd, y + preferredHeight);
-			subtiles.push_back(Tile(x, y, xEnd, yEnd));
+			int newXEnd = std::min(this->xEnd, x + preferredWidth);
+			int newYEnd = std::min(this->yEnd, y + preferredHeight);
+			subtiles.emplace_back(x, y, newXEnd, newYEnd);
 		}
 	}
 

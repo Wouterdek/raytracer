@@ -1,6 +1,9 @@
-﻿#include <math/ray.h>
-#include <random>
-#include <chrono>
+﻿#include <chrono>
+#include <iostream>
+#include <boost/program_options.hpp>
+#include <filesystem>
+#include <exception>
+
 #include "film/FrameBuffer.h"
 #include "io/PPMFile.h"
 #include "math/Transformation.h"
@@ -16,17 +19,13 @@
 
 #include "shape/Box.h"
 #include "material/NormalMaterial.h"
-#include <iostream>
+
 #include "material/TexCoordMaterial.h"
 #include "io/PNGWriter.h"
 #include "io/EXRWriter.h"
 #include "io/gltf/gltf.h"
 #include "io/OBJLoader.h"
 #include "io/TileFile.h"
-
-#include <boost/program_options.hpp>
-#include <filesystem>
-#include <exception>
 
 Scene buildScene(std::string workDir)
 {
@@ -408,7 +407,10 @@ int main(int argc, char** argv)
 		outputfile.replace_extension(outputtype);
 	}
 
-	auto tileFilesToMerge = vm["mergetiles"].as<std::vector<std::string>>();
+    std::vector<std::string> tileFilesToMerge;
+	if(vm.count("mergetiles") > 0){
+        tileFilesToMerge = vm["mergetiles"].as<std::vector<std::string>>();
+	}
 
 	// Create picture
 

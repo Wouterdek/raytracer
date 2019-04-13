@@ -5,7 +5,7 @@
 #include <iostream>
 #include <future>
 #include <mutex>
-
+#include "utility/unique_ptr_template.h"
 #include <tbb/task.h>
 
 template<typename TRayHitInfo>
@@ -23,7 +23,7 @@ private:
 	using size_type = typename IShapeList<TRayHitInfo>::size_type;
 	using ShapeList = IShapeList<TRayHitInfo>;
 	using ShapeListPtr = std::unique_ptr<ShapeList>;
-	using Node = BVHNode<ShapeList, TRayHitInfo, 2, std::unique_ptr>;
+	using Node = BVHNode<ShapeList, TRayHitInfo, 2, unique_pointer>;
 	using NodePtr = std::unique_ptr<Node>;
 
 	struct IncompleteNode
@@ -81,7 +81,7 @@ public:
 		}
 		else
 		{
-			auto& incompleteNode = std::get<BVHBuilder<TRayHitInfo>::IncompleteNode>(result);
+			auto& incompleteNode = std::get<typename BVHBuilder<TRayHitInfo>::IncompleteNode>(result);
 
 			NodePtr subNodeA;
 			size_t subNodeSizeA;

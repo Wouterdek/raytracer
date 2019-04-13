@@ -16,7 +16,7 @@ struct InstancedModelListData
 
 	explicit InstancedModelListData(std::vector<SceneNode<Model>>&& shapes);
 
-	std::optional<std::reference_wrapper<ShapeBVH>> InstancedModelListData::findShapeBVH(IShape& shape);
+	std::optional<std::reference_wrapper<ShapeBVH>> findShapeBVH(IShape& shape);
 };
 
 class InstancedModelList : public IShapeList<SceneRayHitInfo>

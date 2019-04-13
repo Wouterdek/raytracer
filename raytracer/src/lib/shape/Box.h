@@ -11,7 +11,7 @@ public:
 
 	Point getCentroid() const override;
 	AABB getAABB() const override;
-	std::optional<RayHitInfo> intersect(const Ray& ray) const;
+	std::optional<RayHitInfo> intersect(const Ray& ray) const override;
 
 //private:
 	Vector3 getNormal(const Ray& ray, double t) const;

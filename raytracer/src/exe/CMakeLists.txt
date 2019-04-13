@@ -10,8 +10,8 @@ if(WIN32 AND PROFILE)
 endif()
 
 find_package(Eigen3 REQUIRED NO_MODULE)
-find_package(Boost 1.69 REQUIRED COMPONENTS program_options)
+find_package(Boost 1.65 REQUIRED COMPONENTS program_options)
 find_package(TBB CONFIG REQUIRED)
 
 target_include_directories(raytracer_exe PRIVATE ${RAYTRACER_SOURCE_DIR}/src/lib)
-target_link_libraries(raytracer_exe PRIVATE Eigen3::Eigen raytracer_lib TBB::tbb Boost::program_options)
+target_link_libraries(raytracer_exe PRIVATE Eigen3::Eigen raytracer_lib Boost::program_options TBB::tbb)

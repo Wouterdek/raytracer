@@ -67,5 +67,5 @@ TriangleMesh loadOBJMesh(std::string path)
 		return TriangleMesh(vertices, indices, normals, normalIndices, texCoords, texCoordIndices);
 	}
 
-	throw std::exception("bad file");
+	throw std::runtime_error("bad file");
 }

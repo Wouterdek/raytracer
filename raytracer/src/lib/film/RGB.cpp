@@ -1,6 +1,7 @@
 #include "RGB.h"
 #include <exception>
 #include <algorithm>
+#include <cmath>
 
 RGB::RGB()
 	: red(0), green(0), blue(0)

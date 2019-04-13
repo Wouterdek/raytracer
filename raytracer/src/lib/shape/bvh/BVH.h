@@ -4,13 +4,13 @@
 #include "BVHNode.h"
 #include <queue>
 #include "utility/raw_pointer.h"
-
+#include "utility/unique_ptr_template.h"
 
 template<typename TContent, typename TRayHitInfo, size_t Arity>
 class BVH
 {
 public:
-	using LinkedNode = BVHNode<TContent, TRayHitInfo, Arity, std::unique_ptr>;
+	using LinkedNode = BVHNode<TContent, TRayHitInfo, Arity, unique_pointer>;
 	using PackedNode = BVHNode<TContent, TRayHitInfo, Arity, raw_pointer>;
 
 	explicit BVH(std::unique_ptr<LinkedNode> rootNode, size_t treeSize)

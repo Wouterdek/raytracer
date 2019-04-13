@@ -9,7 +9,7 @@
 #include "shape/TriangleMesh.h"
 #include "material/DiffuseMaterial.h"
 #include "camera/PerspectiveCamera.h"
-#include <eigen/Dense>
+#include <Eigen/Dense>
 
 template <typename T>
 void loadIndicesImpl(tinygltf::Model& file, tinygltf::Accessor& accessor, std::vector<std::array<uint32_t, 3>>& indices)

@@ -1,5 +1,6 @@
 #pragma once
 #include "math/Transformation.h"
+#include <memory>
 
 template <typename T>
 class SceneNode

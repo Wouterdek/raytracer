@@ -3,7 +3,7 @@
 #include "math/Triangle.h"
 #include <random>
 
-thread_local std::random_device random;
+thread_local std::random_device randomDevice;
 std::uniform_real_distribution<double> dist(0, 1);
 
 AreaLight::AreaLight()
@@ -20,8 +20,8 @@ void AreaLight::applyTransform(const Transformation& transform)
 
 Point AreaLight::generateRandomPoint() const
 {
-	auto u = 1.0 - sqrt(dist(random));
-	auto v = (1.0 - u) * dist(random);
+	auto u = 1.0 - sqrt(dist(randomDevice));
+	auto v = (1.0 - u) * dist(randomDevice);
 
 	return this->a + u*(c - a) + v*(b - a);
 }
@@ -32,8 +32,8 @@ Point AreaLight::generateStratifiedJitteredRandomPoint(int level, int i) const
 	Vector3 v1 = (c - a) / n;
 	Vector3 v2 = (b - a) / n;
 
-	auto u = 1.0 - sqrt(dist(random));
-	auto v = (1.0 - u) * dist(random);
+	auto u = 1.0 - sqrt(dist(randomDevice));
+	auto v = (1.0 - u) * dist(randomDevice);
 
 	auto y = i / n;
 	auto x = i % n;
