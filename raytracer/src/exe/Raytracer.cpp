@@ -3,6 +3,7 @@
 #include <boost/program_options.hpp>
 #include <filesystem>
 #include <exception>
+#include <material/PositionMaterial.h>
 
 #include "film/FrameBuffer.h"
 #include "io/PPMFile.h"
@@ -11,6 +12,7 @@
 #include "shape/Plane.h"
 #include "camera/PerspectiveCamera.h"
 #include "material/DiffuseMaterial.h"
+#include "material/GlossyMaterial.h"
 
 #include "scene/dynamic/DynamicScene.h"
 #include "scene/dynamic/DynamicSceneNode.h"
@@ -27,7 +29,7 @@
 #include "io/OBJLoader.h"
 #include "io/TileFile.h"
 
-Scene buildScene(std::string workDir)
+Scene buildScene(const std::string& workDir, float imageAspectRatio)
 {
 	Point origin(0, 1.5, 0);
 	Point destination(0, 1.5, 1);
@@ -36,22 +38,18 @@ Scene buildScene(std::string workDir)
 
 	auto normalMat = std::make_shared<NormalMaterial>();
 	auto texCoordMat = std::make_shared<TexCoordMaterial>();
+    auto glossyMat = std::make_shared<GlossyMaterial>();
+    glossyMat->roughness = 0.2;
 
 	auto diffuseMat = std::make_shared<DiffuseMaterial>();
-	diffuseMat->ambientColor = RGB{ 0.7, 0.7, 1.0 };
-	diffuseMat->ambientIntensity = 0.01;
 	diffuseMat->diffuseColor = RGB{ 1.0, 1.0, 0.8 };
 	diffuseMat->diffuseIntensity = 1.0;
 
 	auto redDiffuseMat = std::make_shared<DiffuseMaterial>();
-	redDiffuseMat->ambientColor = RGB{ 0.7, 0.7, 1.0 };
-	redDiffuseMat->ambientIntensity = 0.01;
 	redDiffuseMat->diffuseColor = RGB{ 1.0, 0.2, 0.2 };
 	redDiffuseMat->diffuseIntensity = 1.0;
 
 	auto whiteMat = std::make_shared<DiffuseMaterial>();
-	whiteMat->ambientColor = RGB{ 1.0, 1.0, 1.0 };
-	whiteMat->ambientIntensity = 1000;
 	whiteMat->diffuseColor = RGB{ 1.0, 1.0, 1.0 };
 	whiteMat->diffuseIntensity = 1.0;
 
@@ -65,8 +63,17 @@ Scene buildScene(std::string workDir)
 	triangleModel.shape = std::make_shared<TriangleMesh>(triangleVertices, triangleIndices, triangleNormals, triangleNormalIndices);
 	triangleModel.material = redDiffuseMat;*/
 
-	Model bunnyModel(std::make_shared<TriangleMesh>(loadOBJMesh(workDir + "/models/bunny_low.obj")), redDiffuseMat);
-	Model triangleModel(std::make_shared<TriangleMesh>(loadOBJMesh(workDir + "/models/triangle.obj")), whiteMat);
+	/*auto bunnyMesh = std::make_shared<TriangleMesh>(loadOBJMesh(workDir + "/models/bunny_low.obj"));
+    auto sphereMesh = std::make_shared<TriangleMesh>(loadOBJMesh(workDir + "/models/sphere.obj"));
+	Model bunnyModel(bunnyMesh, redDiffuseMat);
+    Model glossyBunnyModel(bunnyMesh, glossyMat);
+    auto triangleMesh = std::make_shared<TriangleMesh>(loadOBJMesh(workDir + "/models/triangle.obj"));
+	Model triangleModel(triangleMesh, whiteMat);
+    Model glossyTriangleModel(triangleMesh, glossyMat);
+    Model glossySphere(sphereMesh, glossyMat);
+    auto teapotMesh = std::make_shared<TriangleMesh>(loadOBJMesh(workDir + "/models/teapot.obj"));
+    auto positionMat = std::make_shared<PositionMaterial>();
+    Model glossyTeapot(teapotMesh, glossyMat);*/
 
 	//Model dragonModel(std::make_shared<TriangleMesh>(loadMesh(workDir + "/models/dragon_high.obj")), normalMat);
 
@@ -112,6 +119,7 @@ Scene buildScene(std::string workDir)
 	//Model teapotModel(std::make_shared<TriangleMesh>(loadMesh(workDir + "/models/teapot.obj")), normalMat);
 
 	Model planeModel(std::make_shared<Plane>(), diffuseMat);
+    Model glossyPlaneModel(std::make_shared<Plane>(), glossyMat);
 
 	//Model boxModel(std::make_shared<Box>(Vector3(0, 0, 0), Vector3(1, 1, 1)), redDiffuseMat);
 
@@ -166,7 +174,7 @@ Scene buildScene(std::string workDir)
 		scene.root->children.emplace_back(std::move(curNode));
 	}*/
 
-	{
+	/*{
 		auto curNode = std::make_unique<DynamicSceneNode>();
 		curNode->transform = Transformation::translate(3, 0, 9).append(Transformation::rotateY(0));
 		curNode->model = std::make_unique<Model>(bunnyModel);
@@ -178,14 +186,21 @@ Scene buildScene(std::string workDir)
 		curNode->transform = Transformation::translate(1, 0, 10).append(Transformation::rotateY(0));
 		curNode->model = std::make_unique<Model>(bunnyModel);
 		scene.root->children.emplace_back(std::move(curNode));
-	}
+	}*/
 
-	{
+	/*{
 		auto curNode = std::make_unique<DynamicSceneNode>();
 		curNode->transform = Transformation::translate(-1, 0, 11).append(Transformation::rotateY(0));
-		curNode->model = std::make_unique<Model>(bunnyModel);
+		curNode->model = std::make_unique<Model>(glossyBunnyModel);
 		scene.root->children.emplace_back(std::move(curNode));
-	}
+	}*/
+
+    /*{
+        auto curNode = std::make_unique<DynamicSceneNode>();
+        curNode->transform = Transformation::translate(-1, 1, 11).append(Transformation::rotateY(0));
+        curNode->model = std::make_unique<Model>(glossySphere);
+        scene.root->children.emplace_back(std::move(curNode));
+    }
 
 	{
 		auto curNode = std::make_unique<DynamicSceneNode>();
@@ -200,6 +215,13 @@ Scene buildScene(std::string workDir)
 		curNode->model = std::make_unique<Model>(bunnyModel);
 		scene.root->children.emplace_back(std::move(curNode));
 	}
+
+    {
+        auto curNode = std::make_unique<DynamicSceneNode>();
+        curNode->transform = Transformation::translate(0, 0, 30).append(Transformation::rotateX(90));
+        curNode->model = std::make_unique<Model>(planeModel);
+        scene.root->children.emplace_back(std::move(curNode));
+    }*/
 
 	/*
 	{
@@ -295,9 +317,24 @@ Scene buildScene(std::string workDir)
 		cameraNode->transform = Transformation::translate(origin).append(Transformation::lookat(destination - origin, lookup));
 		scene.root->children.emplace_back(std::move(cameraNode));
 	}
-	
 
-	//auto gltfScene = loadGLTFScene(workDir + "/models/kitchen/kitchen.glb");
+    //auto cornell = loadGLTFScene(workDir + "/models/cornell.glb");
+    /*{
+        auto cameraNode = std::make_unique<DynamicSceneNode>();
+        //cameraNode.transform =
+        //cameraNode.camera->pointAt(destination, lookup);
+        cameraNode->camera = std::make_unique<PerspectiveCamera>(fov);
+        cameraNode->transform = Transformation::translate(0,0,0).append(Transformation::lookat(Vector3(0,0,-1), Vector3(0,1,0)));
+        //cornell.root->children.emplace_back(std::move(cameraNode));
+    }
+    {
+        auto curNode = std::make_unique<DynamicSceneNode>();
+        curNode->transform = Transformation::translate(3, -4, -15).append(Transformation::scale(2, 2, 2));
+        curNode->model = std::make_unique<Model>(glossyTeapot);
+        //cornell.root->children.emplace_back(std::move(curNode));
+    }*/
+
+	auto kitchen = loadGLTFScene(workDir + "/models/kitchen.glb", imageAspectRatio);
 
 	/*{
 		auto curNode = std::make_unique<DynamicSceneNode>();
@@ -322,7 +359,7 @@ Scene buildScene(std::string workDir)
 
 	std::cout << "Building scene." << std::endl;
 	auto start = std::chrono::high_resolution_clock::now();
-	auto renderableScene = scene.build();
+	auto renderableScene = kitchen.build();
 	auto finish = std::chrono::high_resolution_clock::now();
 	double duration = std::chrono::duration_cast<std::chrono::microseconds>(finish - start).count() / 1000.0;
 	std::cout << "Scene build done in " << duration << " milliseconds." << std::endl;
@@ -436,14 +473,14 @@ int main(int argc, char** argv)
 	else // Render
 	{
 		// Build scene
-		auto scene = buildScene(workDir);
+		auto scene = buildScene(workDir, static_cast<float>(width)/height);
 
 		auto start = std::chrono::high_resolution_clock::now();
 
 		std::cout << "Rendering..." << std::endl;
 
 		RenderSettings settings;
-		settings.aaLevel = 8;
+		settings.aaLevel = 40;
 		render(scene, buffer, tile, settings);
 
 		auto finish = std::chrono::high_resolution_clock::now();

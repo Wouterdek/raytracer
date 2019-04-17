@@ -10,6 +10,14 @@
 #include "material/DiffuseMaterial.h"
 #include "camera/PerspectiveCamera.h"
 #include <Eigen/Dense>
+#include <material/MixMaterial.h>
+#include <math/Constants.h>
+#include "material/GlossyMaterial.h"
+#include "material/NormalMaterial.h"
+#include "material/PositionMaterial.h"
+#include "material/Texture.h"
+
+namespace {
 
 template <typename T>
 void loadIndicesImpl(tinygltf::Model& file, tinygltf::Accessor& accessor, std::vector<std::array<uint32_t, 3>>& indices)
@@ -85,11 +93,9 @@ void loadVec3s(tinygltf::Model& file, tinygltf::Accessor& accessor, std::vector<
 	auto& buffer = file.buffers[bufferView.buffer];
 	for (auto i = start; i < end; i += stride)
 	{
-		float x, y, z;
-		memcpy(&x, &buffer.data[i], sizeof(float));
-		memcpy(&y, &buffer.data[i + sizeof(float)], sizeof(float));
-		memcpy(&z, &buffer.data[i + 2 * sizeof(float)], sizeof(float));
-		vectors.emplace_back(x, y, z);
+		float coord[3];
+		memcpy(coord, &buffer.data[i], sizeof(coord));
+		vectors.emplace_back(coord[0], coord[1], coord[2]);
 	}
 }
 
@@ -137,7 +143,6 @@ std::shared_ptr<TriangleMesh> loadPrimitiveShape(tinygltf::Model & file, tinyglt
 		loadIndices(file, indicesAcc, indices);
 	}
 
-	//auto& accessor = file.accessors[primitive.indices];
 	std::map<std::string, int>::iterator vertPosEntry;
 	if ((vertPosEntry = primitive.attributes.find("POSITION")) != primitive.attributes.end())
 	{
@@ -166,14 +171,70 @@ std::shared_ptr<TriangleMesh> loadPrimitiveShape(tinygltf::Model & file, tinyglt
 	return std::make_shared<TriangleMesh>(vertices, indices, normals, indices, texCoords, indices);
 }
 
+std::shared_ptr<Texture> loadImage(tinygltf::Model& file, tinygltf::Image& img)
+{
+    if(img.component != 4) {
+        throw std::runtime_error("Image data must be in RGBA format");
+    }
+
+    if(img.image.size() != img.width * img.height * img.component){
+        throw std::runtime_error("Can't load image data");
+    }
+
+    return std::make_shared<Texture>(img.image, img.width, img.height);
+}
+
+
+std::shared_ptr<Texture> loadTexture(tinygltf::Model& file, tinygltf::Texture& tex)
+{
+    return loadImage(file, file.images[tex.source]);
+}
+
 std::shared_ptr<IMaterial> loadMaterial(tinygltf::Model & file, tinygltf::Material & mat)
 {
-	auto result = std::make_shared<DiffuseMaterial>();
-	result->diffuseColor = { 1.0, 1.0, 1.0 };
-	result->ambientColor = { 1.0, 1.0, 1.0 };
-	result->ambientIntensity = 0;
-	result->diffuseIntensity = 0.8;
-	return result;
+    auto mixMat = std::make_shared<MixMaterial>();
+    auto diffuse = std::make_shared<DiffuseMaterial>();
+    auto glossy = std::make_shared<GlossyMaterial>();
+    mixMat->first = diffuse;
+    mixMat->second = glossy;
+
+    auto baseColorTextureIt = mat.values.find("baseColorTexture");
+    if(baseColorTextureIt != mat.values.end()){
+        int index = static_cast<int>(baseColorTextureIt->second.json_double_value["index"]);
+        auto tex = loadTexture(file, file.textures[index]);
+        diffuse->albedoMap = tex;
+        //baseColorTextureIt->second.json_double_value["texCoord"]
+    }
+
+    auto baseColorFactorIt = mat.values.find("baseColorFactor");
+    if(baseColorFactorIt != mat.values.end()){
+        auto baseColorFactor = baseColorFactorIt->second.number_array;
+        RGB baseColor(baseColorFactor[0], baseColorFactor[1], baseColorFactor[2]);
+        diffuse->diffuseColor = baseColor;
+    }
+
+    auto metallicFactorIt = mat.values.find("metallicFactor");
+    if(metallicFactorIt != mat.values.end()){
+        auto metallicFactor = metallicFactorIt->second.number_value;
+        mixMat->mixFactor = metallicFactor;
+    }
+
+    auto roughnessFactorIt = mat.values.find("roughnessFactor");
+    if(roughnessFactorIt != mat.values.end()){
+        auto roughnessFactor = roughnessFactorIt ->second.number_value;
+        glossy->roughness = roughnessFactor;
+    }
+
+    auto normalTextureIt = mat.additionalValues.find("normalTexture");
+    if(normalTextureIt != mat.additionalValues.end()){
+        int index = static_cast<int>(normalTextureIt->second.json_double_value["index"]);
+        auto tex = loadTexture(file, file.textures[index]);
+        //diffuse->normalMap = tex;
+        //glossy->normalMap = tex;
+        //normalTextureIt->second.json_double_value["texCoord"]
+    }
+
+    return mixMat;
 }
 
 std::unique_ptr<Model> loadPrimitive(tinygltf::Model & file, tinygltf::Primitive & primitive)
@@ -187,20 +248,18 @@ std::unique_ptr<Model> loadPrimitive(tinygltf::Model & file, tinygltf::Primitive
 	{
 		auto diff = std::make_shared<DiffuseMaterial>();
 		diff->diffuseColor = { 1.0, 1.0, 1.0 };
-		diff->ambientColor = { 1.0, 1.0, 1.0 };
-		diff->ambientIntensity = 0;
 		diff->diffuseIntensity = 0.8;
 		mat = diff;
 	}
 	return std::make_unique<Model>(loadPrimitiveShape(file, primitive), mat);
 }
 
-std::unique_ptr<DynamicSceneNode> loadNode(tinygltf::Model & file, int nodeI)
+std::unique_ptr<DynamicSceneNode> loadNode(tinygltf::Model & file, int nodeI, float imageAspectRatio)
 {
 	auto& node = file.nodes[nodeI];
 	auto result = std::make_unique<DynamicSceneNode>();
 
-	auto transform = Transformation::IDENTITY;
+    auto transform = Transformation::IDENTITY;
 	if (!node.matrix.empty())
 	{
 		Matrix transMat(node.matrix.data());
@@ -246,6 +305,7 @@ std::unique_ptr<DynamicSceneNode> loadNode(tinygltf::Model & file, int nodeI)
 		result->areaLight->a = primData.vertices[primData.vertexIndices[0][0]];
 		result->areaLight->b = primData.vertices[primData.vertexIndices[0][1]];
 		result->areaLight->c = primData.vertices[primData.vertexIndices[0][2]];
+		result->areaLight->intensity = 30;
 	}
 	else if (node.mesh != -1)
 	{
@@ -271,20 +331,23 @@ std::unique_ptr<DynamicSceneNode> loadNode(tinygltf::Model & file, int nodeI)
 		auto& cameraDef = file.cameras[node.camera];
 		if (cameraDef.type == "perspective")
 		{
-			double fov = 60; //TODO: fix camera
-			result->camera = std::make_unique<PerspectiveCamera>(fov);
+		    double xFOVRad = std::atan(std::tan(cameraDef.perspective.yfov/2.0) * imageAspectRatio)*2.0;
+		    double xFOV = (xFOVRad / PI) * 180.0;
+			result->camera = std::make_unique<PerspectiveCamera>(xFOV);
 		}
 	}
 
 	for (auto subNodeI : node.children)
 	{
-		result->children.push_back(loadNode(file, subNodeI));
+		result->children.push_back(loadNode(file, subNodeI, imageAspectRatio));
 	}
 
 	return result;
 }
 
-DynamicScene loadGLTFScene(std::string file)
+};
+
+DynamicScene loadGLTFScene(const std::string& file, float imageAspectRatio)
 {
 	tinygltf::Model model;
 	tinygltf::TinyGLTF loader;
@@ -309,7 +372,7 @@ DynamicScene loadGLTFScene(std::string file)
 	scene.root = std::make_unique<DynamicSceneNode>();
 	for (auto nodeI : model.scenes[model.defaultScene].nodes)
 	{
-		scene.root->children.push_back(loadNode(model, nodeI));
+		scene.root->children.push_back(loadNode(model, nodeI, imageAspectRatio));
 	}
 	return scene;
 }

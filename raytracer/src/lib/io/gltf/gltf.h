@@ -2,4 +2,4 @@
 
 #include "scene/dynamic/DynamicScene.h"
 
-DynamicScene loadGLTFScene(std::string file);
+DynamicScene loadGLTFScene(const std::string& file, float imageAspectRatio);
