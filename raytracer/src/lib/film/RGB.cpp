@@ -3,6 +3,8 @@
 #include <algorithm>
 #include <cmath>
 
+const RGB RGB::BLACK(0,0,0);
+
 RGB::RGB()
 	: red(0), green(0), blue(0)
 { }
