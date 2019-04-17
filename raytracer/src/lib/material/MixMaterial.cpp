@@ -1,7 +1,3 @@
-//
-// Created by wouter on 17/04/19.
-//
-
 #include "MixMaterial.h"
 
 RGB MixMaterial::getColorFor(const SceneRayHitInfo &hit, const Scene &scene, int depth) const {
