@@ -4,13 +4,15 @@
 #include "math/Transformation.h"
 #include "math/OrthonormalBasis.h"
 #include "scene/renderable/SceneRayHitInfo.h"
+#include "NormalMapSampler.h"
 #include <random>
 
-thread_local std::random_device randDev;
-std::uniform_real_distribution<float> randAngle(-90, 90);
+namespace {
+    thread_local std::random_device randDev;
+    std::uniform_real_distribution<float> randAngle(-90, 90);
+};
 
-DiffuseMaterial::DiffuseMaterial()
-{ }
+DiffuseMaterial::DiffuseMaterial() = default;
 
 RGB DiffuseMaterial::getColorFor(const SceneRayHitInfo& hit, const Scene& scene, int depth) const
 {
@@ -25,10 +27,7 @@ RGB DiffuseMaterial::getColorFor(const SceneRayHitInfo& hit, const Scene& scene,
 	auto normal = hit.normal;
 	if(this->normalMap != nullptr)
 	{
-		float x = abs(fmod(hit.texCoord.x(), 1.0f));
-		float y = abs(fmod(hit.texCoord.y(), 1.0f));
-		auto normalColor = this->normalMap->get(x * this->albedoMap->getWidth(), y * this->albedoMap->getHeight());
-		auto mapNormal = Vector3(normalColor.getRed(), normalColor.getGreen(), normalColor.getBlue());
+        auto mapNormal = sample_normal_map(hit, *this->normalMap);
 		normal = hit.getModelNode().getTransform().transformNormal(mapNormal);
 	}
 
