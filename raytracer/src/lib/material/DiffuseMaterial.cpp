@@ -39,7 +39,7 @@ RGB DiffuseMaterial::getColorFor(const SceneRayHitInfo& hit, const Scene& scene,
 
 	for(const auto& light : scene.getAreaLights())
 	{
-		const int sampleCount = 4;
+		const int sampleCount = 1;
 		RGB contrib{};
 		for(int i = 0; i < sampleCount; i++)
 		{
@@ -83,7 +83,7 @@ RGB DiffuseMaterial::getColorFor(const SceneRayHitInfo& hit, const Scene& scene,
 
 	// Indirect lighting
 	RGB indirect {};
-	int maxDepth = 3;
+	int maxDepth = 4;
 	if(depth < maxDepth)
 	{
 		auto angleA = randAngle(randDev);

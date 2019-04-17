@@ -17,7 +17,7 @@ GlossyMaterial::GlossyMaterial() = default;
 
 RGB GlossyMaterial::getColorFor(const SceneRayHitInfo& hit, const Scene& scene, int depth) const
 {
-    int maxDepth = 7;
+    int maxDepth = 4;
     if(depth >= maxDepth){
         return RGB::BLACK;
     }
