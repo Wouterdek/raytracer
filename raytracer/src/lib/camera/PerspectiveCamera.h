@@ -21,5 +21,5 @@ private:
 
 	Point origin;
 	OrthonormalBasis basis;
-	int width;
+	double width;
 };
