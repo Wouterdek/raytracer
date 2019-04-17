@@ -54,7 +54,7 @@ Vector3 Transformation::transformInverse(const Vector3 & vector) const
 
 Vector3 Transformation::transformNormal(const Vector3& normal) const
 {
-	Eigen::Vector4f val = (Eigen::Vector4d{ normal.x(), normal.y(), normal.z(), 0.0 }.transpose() *this->matrix).cast<float>();
+	Eigen::Vector4f val = (Eigen::Vector4d{ normal.x(), normal.y(), normal.z(), 0.0 }.transpose() * this->inverse).cast<float>();
 	return Vector3{ val.x(), val.y(), val.z() };
 }
 
