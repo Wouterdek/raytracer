@@ -10,14 +10,14 @@ class Transformation;
 class PerspectiveCamera : public ICamera
 {
 public:
-	PerspectiveCamera(double fov);
+	explicit PerspectiveCamera(double fov);
 	Ray generateRay(const Sample& sample, int xResolution, int yResolution) const override;
 
 	void setTransform(const Transformation& transform) override;
 	void pointAt(Point worldSpaceTarget, Vector3 up);
 
 private:
-	PerspectiveCamera* cloneImpl() override;
+	PerspectiveCamera* cloneImpl() const override;
 
 	Point origin;
 	OrthonormalBasis basis;

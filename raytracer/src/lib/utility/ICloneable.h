@@ -9,11 +9,11 @@ class ICloneable
 public:
 	virtual ~ICloneable() = default;
 
-	std::unique_ptr<Derived> clone()
+	std::unique_ptr<Derived> clone() const
 	{
 		return std::unique_ptr<Derived>(this->cloneImpl());
 	}
 
 private:
-	virtual Derived* cloneImpl() = 0;
+	virtual Derived* cloneImpl() const = 0;
 };

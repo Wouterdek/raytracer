@@ -167,7 +167,7 @@ std::optional<RayHitInfo> TriangleMesh::traceRay(const Ray& ray) const
 	return this->intersect(ray);
 }
 
-TriangleMesh* TriangleMesh::cloneImpl()
+TriangleMesh* TriangleMesh::cloneImpl() const
 {
 	return new TriangleMesh(*this);
 }

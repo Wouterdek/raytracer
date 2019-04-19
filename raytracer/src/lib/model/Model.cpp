@@ -24,7 +24,7 @@ const IMaterial& Model::getMaterial() const
 	return *this->material;
 }
 
-Model* Model::cloneImpl()
+Model* Model::cloneImpl() const
 {
 	return new Model(*this);
 }

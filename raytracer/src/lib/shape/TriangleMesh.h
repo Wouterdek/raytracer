@@ -38,7 +38,7 @@ public:
 	std::optional<RayHitInfo> traceRay(const Ray& ray) const override;
 
 private:
-	TriangleMesh* cloneImpl() override;
+	TriangleMesh* cloneImpl() const override;
 	std::pair<IShapeList<RayHitInfo>*, IShapeList<RayHitInfo>*> splitImpl(size_type leftSideElemCount) const override;
 
 	std::shared_ptr<TriangleMeshData> data;

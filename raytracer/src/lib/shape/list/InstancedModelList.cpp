@@ -127,7 +127,7 @@ std::optional<SceneRayHitInfo> InstancedModelList::traceRay(const Ray & ray) con
 	}
 }
 
-InstancedModelList* InstancedModelList::cloneImpl()
+InstancedModelList* InstancedModelList::cloneImpl() const
 {
 	return new InstancedModelList(*this);
 }

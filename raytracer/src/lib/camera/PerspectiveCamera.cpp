@@ -33,7 +33,7 @@ Ray PerspectiveCamera::generateRay(const Sample& sample, int xResolution, int yR
 	return Ray(origin, direction);
 }
 
-PerspectiveCamera* PerspectiveCamera::cloneImpl()
+PerspectiveCamera* PerspectiveCamera::cloneImpl() const
 {
 	return new PerspectiveCamera(*this);
 }

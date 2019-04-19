@@ -53,7 +53,7 @@ double AreaLight::getSurfaceArea() const
 	return Triangle::getSurfaceArea(a, b, c);
 }
 
-AreaLight* AreaLight::cloneImpl()
+AreaLight* AreaLight::cloneImpl() const
 {
 	return new AreaLight(*this);
 }

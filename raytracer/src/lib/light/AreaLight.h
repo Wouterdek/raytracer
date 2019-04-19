@@ -27,5 +27,5 @@ public:
 	double intensity;
 
 private:
-	AreaLight* cloneImpl() override;
+	AreaLight* cloneImpl() const override;
 };

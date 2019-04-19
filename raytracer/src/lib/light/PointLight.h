@@ -18,5 +18,5 @@ public:
 	void applyTransform(const Transformation& transform);
 
 private:
-	PointLight* cloneImpl() override;
+	PointLight* cloneImpl() const override;
 };

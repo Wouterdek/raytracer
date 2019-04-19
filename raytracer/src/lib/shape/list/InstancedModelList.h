@@ -38,7 +38,7 @@ public:
 	std::optional<SceneRayHitInfo> traceRay(const Ray& ray) const override;
 
 private:
-	InstancedModelList* cloneImpl() override;
+	InstancedModelList* cloneImpl() const override;
 	std::pair<IShapeList<SceneRayHitInfo>*, IShapeList<SceneRayHitInfo>*> splitImpl(size_type leftSideElemCount) const override;
 
 	std::shared_ptr<InstancedModelListData> data;

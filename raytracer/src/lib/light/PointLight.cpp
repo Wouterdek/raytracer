@@ -12,7 +12,7 @@ void PointLight::applyTransform(const Transformation& transform)
 	this->pos = transform.transform(this->pos);
 }
 
-PointLight* PointLight::cloneImpl()
+PointLight* PointLight::cloneImpl() const
 {
 	return new PointLight(*this);
 }

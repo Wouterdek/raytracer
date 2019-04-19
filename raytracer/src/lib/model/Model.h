@@ -20,5 +20,5 @@ private:
 	std::shared_ptr<IShape> shape;
 	std::shared_ptr<IMaterial> material;
 
-	Model* cloneImpl() override;
+	Model* cloneImpl() const override;
 };
