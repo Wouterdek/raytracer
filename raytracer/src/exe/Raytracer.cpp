@@ -1,4 +1,4 @@
-﻿#include <chrono>
+#include <chrono>
 #include <iostream>
 #include <boost/program_options.hpp>
 #include <filesystem>
@@ -481,7 +481,11 @@ int main(int argc, char** argv)
 
 		RenderSettings settings;
 		settings.aaLevel = 40;
-		render(scene, buffer, tile, settings);
+		render(scene, buffer, tile, settings, [](float progress){
+		    std::cout << "" << progress*100 << "%\r";
+		    std::cout.flush();
+		});
+        std::cout << "Done" << std::endl;
 
 		auto finish = std::chrono::high_resolution_clock::now();
 		auto duration = std::chrono::duration_cast<std::chrono::microseconds>(finish - start).count() / 1000.0;

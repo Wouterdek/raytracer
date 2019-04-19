@@ -5,6 +5,7 @@
 #include <random>
 #include "math/Ray.h"
 #include "camera/ICamera.h"
+#include "ProgressMonitor.h"
 
 class AASampleGenerator
 {
@@ -30,7 +31,9 @@ private:
 	int aaLevel;
 };
 
-void render(const Scene& scene, FrameBuffer& buffer, const Tile& tile, const RenderSettings& renderSettings, bool multithreaded)
+thread_local std::random_device rd;
+
+void render(const Scene& scene, FrameBuffer& buffer, const Tile& tile, const RenderSettings& renderSettings, ProgressMonitor progressMon, bool multithreaded)
 {
 	std::vector<Tile> tiles;
 
@@ -51,11 +54,12 @@ void render(const Scene& scene, FrameBuffer& buffer, const Tile& tile, const Ren
 		tiles.push_back(tile);
 	}
 
+	ProgressTracker progress(progressMon, tiles.size());
+
 	const ICamera& camera = scene.getCameras()[0].getData();
 	//std::for_each(std::execution::par_unseq, tiles.begin(), tiles.end(), [&scene, &buffer, &renderSettings, &camera](const Tile& curTile)
-    tbb::parallel_for_each(tiles.begin(), tiles.end(), [&scene, &buffer, &renderSettings, &camera](const Tile& curTile)
+    tbb::parallel_for_each(tiles.begin(), tiles.end(), [&scene, &buffer, &renderSettings, &progress, &camera](const Tile& curTile)
 	{
-		std::random_device rd;
 		AASampleGenerator aa(renderSettings.aaLevel);
 
 		for (int y = curTile.getYStart(); y < curTile.getYEnd(); ++y) {
@@ -99,10 +103,11 @@ void render(const Scene& scene, FrameBuffer& buffer, const Tile& tile, const Ren
 
 			//std::cout << y * 100 / curTile.getYEnd() << "% done\r";
 		}
+        progress.signalJobFinished();
 	});
 }
 
-void render(const Scene& scene, FrameBuffer& buffer, const RenderSettings& renderSettings)
+void render(const Scene& scene, FrameBuffer& buffer, const RenderSettings& renderSettings, ProgressMonitor progressMon)
 {
-	render(scene, buffer, Tile(0, 0, buffer.getHorizontalResolution(), buffer.getVerticalResolution()), renderSettings);
+	render(scene, buffer, Tile(0, 0, buffer.getHorizontalResolution(), buffer.getVerticalResolution()), renderSettings, progressMon);
 }
