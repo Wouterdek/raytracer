@@ -24,11 +24,24 @@ TriangleMesh::TriangleMesh(std::shared_ptr<TriangleMeshData> data, size_type beg
 {
 }
 
+TriangleMesh::TriangleMesh()
+    : data(std::make_shared<TriangleMeshData>()), beginIdx(0), endIdx(0)
+{}
+
+TriangleMeshData* TriangleMeshData::cloneImpl() const {
+    return new TriangleMeshData(*this);
+}
+
 Point TriangleMesh::getCentroid() const
 {
-	if (!this->centroid.has_value())
+    if (!this->centroid.has_value())
 	{
-		const auto count = this->count();
+        const auto count = this->count();
+
+        if(count == 0){
+            throw std::runtime_error("mesh is empty");
+        }
+
 		Point newCentroid = this->getCentroid(0) / count;
 		for (size_type i = 1; i < count; i++)
 		{
@@ -44,8 +57,13 @@ AABB TriangleMesh::getAABB() const
 {
 	if(!this->aabb.has_value())
 	{
-		auto newAABB = this->getAABB(0);
 		const auto count = this->count();
+
+        if(count == 0){
+            throw std::runtime_error("mesh is empty");
+        }
+
+        auto newAABB = this->getAABB(0);
 		for(size_type i = 1; i < count; i++)
 		{
 			newAABB = newAABB.merge(this->getAABB(i));
@@ -79,7 +97,7 @@ std::optional<RayHitInfo> TriangleMesh::intersect(const Ray& ray) const
 			Vector3 normal = (alfa * aNormal) + (intersection->beta * bNormal) + (intersection->gamma * cNormal);
 
 			Vector2 texcoord;
-			if(data->texCoordIndices.size() > 0 && data->texCoords.size() > 0)
+			if(!data->texCoordIndices.empty() && !data->texCoords.empty())
 			{
 				const auto& texCoordIndices = data->texCoordIndices[triangleI];
 				auto& aTexCoord = data->texCoords[texCoordIndices[0]];
@@ -170,4 +188,50 @@ std::optional<RayHitInfo> TriangleMesh::traceRay(const Ray& ray) const
 TriangleMesh* TriangleMesh::cloneImpl() const
 {
 	return new TriangleMesh(*this);
+}
+
+void TriangleMesh::applyTransform(const Transformation& transform) {
+    if(this->count() != this->data->vertexIndices.size()){
+        throw std::runtime_error("Cannot apply transform to partial mesh");
+    }
+
+    for(auto& vert : this->data->vertices){
+        vert = transform.transform(vert);
+    }
+
+    for(auto& normal : this->data->normals){
+        normal = transform.transformNormal(normal);
+    }
+}
+
+std::array<uint32_t, 3> offsetArray(const std::array<uint32_t, 3>& in, uint32_t offset){
+    return {in[0] + offset, in[1] + offset, in[2] + offset};
+}
+
+void TriangleMesh::appendMesh(const TriangleMesh &mesh) {
+    if(this->count() != this->data->vertexIndices.size()){
+        throw std::runtime_error("Cannot append mesh to partial mesh");
+    }
+
+    this->data->vertices.reserve(this->data->vertices.size() + mesh.data->vertices.size());
+    this->data->normals.reserve(this->data->normals.size() + mesh.data->normals.size());
+    this->data->texCoords.reserve(this->data->texCoords.size() + mesh.data->texCoords.size());
+    this->data->vertexIndices.reserve(this->data->vertexIndices.size() + mesh.count());
+    this->data->normalIndices.reserve(this->data->normalIndices.size() + mesh.count());
+    this->data->texCoordIndices.reserve(this->data->texCoordIndices.size() + mesh.count());
+
+    auto offset = this->data->vertices.size();
+    this->data->vertices.insert(this->data->vertices.end(), mesh.data->vertices.cbegin(), mesh.data->vertices.cend());
+    this->data->normals.insert(this->data->normals.end(), mesh.data->normals.cbegin(), mesh.data->normals.cend());
+    this->data->texCoords.insert(this->data->texCoords.end(), mesh.data->texCoords.cbegin(), mesh.data->texCoords.cend());
+    std::transform(mesh.data->vertexIndices.cbegin()+mesh.beginIdx, mesh.data->vertexIndices.cbegin()+mesh.endIdx,
+            std::back_inserter(this->data->vertexIndices), [offset](const auto& idx){return offsetArray(idx, offset);});
+    std::transform(mesh.data->normalIndices.cbegin()+mesh.beginIdx, mesh.data->normalIndices.cbegin()+mesh.endIdx,
+                   std::back_inserter(this->data->normalIndices), [offset](const auto& idx){return offsetArray(idx, offset);});
+    std::transform(mesh.data->texCoordIndices.cbegin()+mesh.beginIdx, mesh.data->texCoordIndices.cbegin()+mesh.endIdx,
+                   std::back_inserter(this->data->texCoordIndices), [offset](const auto& idx){return offsetArray(idx, offset);});
+
+    this->aabb = std::nullopt;
+    this->centroid = std::nullopt;
+    this->endIdx += mesh.count();
 }

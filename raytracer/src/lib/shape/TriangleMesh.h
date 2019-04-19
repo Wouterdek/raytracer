@@ -5,14 +5,18 @@
 #include "shape/list/IShapeList.h"
 #include "math/Vector2.h"
 
-struct TriangleMeshData
+class TriangleMeshData : public ICloneable<TriangleMeshData>
 {
+public:
 	std::vector<Point> vertices;
 	std::vector<std::array<uint32_t, 3>> vertexIndices;
 	std::vector<Vector3> normals;
 	std::vector<std::array<uint32_t, 3>> normalIndices;
 	std::vector<Vector2> texCoords;
 	std::vector<std::array<uint32_t, 3>> texCoordIndices;
+
+private:
+    TriangleMeshData* cloneImpl() const override;
 };
 
 class TriangleMesh : public IShape, public IShapeList<RayHitInfo>
@@ -22,6 +26,7 @@ public:
 		std::vector<Vector3> normals, std::vector<std::array<uint32_t, 3>> normalIndices,
 		std::vector<Vector2> texCoords, std::vector<std::array<uint32_t, 3>> texCoordIndices);
 	TriangleMesh(std::shared_ptr<TriangleMeshData> data, size_type begin, size_type end);
+    TriangleMesh();
 
 	Point getCentroid() const override;
 	AABB getAABB() const override;
@@ -29,6 +34,14 @@ public:
 
 	AABB getAABB(size_type index) const override;
 	size_type count() const override;
+    size_type getBeginIndex() const
+    {
+        return this->beginIdx;
+    }
+    size_type getEndIndex() const
+    {
+        return this->endIdx;
+    }
 	
 	Point getCentroid(size_type index) const override;
 	void sortByCentroid(Axis axis) override;
@@ -36,6 +49,9 @@ public:
 	const TriangleMeshData& getData() const;
 
 	std::optional<RayHitInfo> traceRay(const Ray& ray) const override;
+
+	void applyTransform(const Transformation& transform);
+	void appendMesh(const TriangleMesh& mesh);
 
 private:
 	TriangleMesh* cloneImpl() const override;
