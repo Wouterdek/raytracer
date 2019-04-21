@@ -118,7 +118,7 @@ std::optional<SceneRayHitInfo> InstancedModelList::traceRay(const Ray & ray) con
 	{
 		auto normal = node->getTransform().transformNormal(closestHit->normal);
 		normal.normalize();
-		RayHitInfo realHit(ray, closestHit->t, normal, closestHit->texCoord);
+		RayHitInfo realHit(ray, closestHit->t, normal, closestHit->texCoord, std::move(closestHit->annex));
 		return SceneRayHitInfo(realHit, *node);
 	}
 	else

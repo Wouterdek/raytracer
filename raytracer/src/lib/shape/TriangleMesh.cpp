@@ -8,7 +8,7 @@
 TriangleMesh::TriangleMesh(
 	std::vector<Point> vertices, std::vector<std::array<uint32_t, 3>> vertexIndices, 
 	std::vector<Vector3> normals, std::vector<std::array<uint32_t, 3>> normalIndices,
-	std::vector<Vector2> texCoords, std::vector<std::array<uint32_t, 3>> texCoordIndices)
+	std::vector<Vector2> texCoords, std::vector<std::array<uint32_t, 3>> texCoordIndices, bool storePermutation)
 	: data(std::make_shared<TriangleMeshData>()), beginIdx(0), endIdx(vertexIndices.size())
 {
 	data->vertices = std::move(vertices);
@@ -17,6 +17,10 @@ TriangleMesh::TriangleMesh(
 	data->normalIndices = std::move(normalIndices);
 	data->texCoords = std::move(texCoords);
 	data->texCoordIndices = std::move(texCoordIndices);
+	if(storePermutation){
+        data->permutation = std::vector<uint32_t>(data->vertexIndices.size());
+        std::iota(data->permutation->begin(), data->permutation->end(), 0);
+	}
 }
 
 TriangleMesh::TriangleMesh(std::shared_ptr<TriangleMeshData> data, size_type begin, size_type end)
@@ -24,9 +28,13 @@ TriangleMesh::TriangleMesh(std::shared_ptr<TriangleMeshData> data, size_type beg
 {
 }
 
-TriangleMesh::TriangleMesh()
+TriangleMesh::TriangleMesh(bool storePermutation)
     : data(std::make_shared<TriangleMeshData>()), beginIdx(0), endIdx(0)
-{}
+{
+    if(storePermutation){
+        this->data->permutation = std::vector<uint32_t>();
+    }
+}
 
 TriangleMeshData* TriangleMeshData::cloneImpl() const {
     return new TriangleMeshData(*this);
@@ -77,8 +85,9 @@ AABB TriangleMesh::getAABB() const
 std::optional<RayHitInfo> TriangleMesh::intersect(const Ray& ray) const
 {
 	std::optional<RayHitInfo> bestHit;
+    size_type bestHitTriangle;
 
-	for(size_type triangleI = this->beginIdx; triangleI < this->endIdx; triangleI++)
+    for(size_type triangleI = this->beginIdx; triangleI < this->endIdx; triangleI++)
 	{
 		const auto& indices = data->vertexIndices[triangleI];
 		auto& a = data->vertices[indices[0]];
@@ -104,11 +113,18 @@ std::optional<RayHitInfo> TriangleMesh::intersect(const Ray& ray) const
 				auto& bTexCoord = data->texCoords[texCoordIndices[1]];
 				auto& cTexCoord = data->texCoords[texCoordIndices[2]];
 				texcoord = (alfa * aTexCoord) + (intersection->beta * bTexCoord) + (intersection->gamma * cTexCoord);
+			}else{
+			    texcoord = Vector2(0, 0);
 			}
 
 			bestHit = RayHitInfo(ray, intersection->t, normal, texcoord);
+            bestHitTriangle = triangleI;
 		}
 	}
+
+    if(bestHit.has_value()){
+        bestHit->annex = std::make_unique<TriangleMeshHitAnnex>(bestHitTriangle);
+    }
 
 	return bestHit;
 }
@@ -153,26 +169,56 @@ Point TriangleMesh::getCentroid(size_type index) const
 void TriangleMesh::sortByCentroid(Axis axis)
 {
 	//soa_sort_no_perm::sort_cmp(data->vertexIndices.begin() + this->beginIdx, data->vertexIndices.begin() + this->endIdx, [axis = axis, this](const auto a, const auto b)
-	soa_sort::sort_cmp<std::vector<std::array<uint32_t, 3>>::iterator>(data->vertexIndices.begin() + this->beginIdx, data->vertexIndices.begin() + this->endIdx, [axis = axis, this](const auto a, const auto b)
-		{
-			Point c1;
-			{
-				const Point p1 = data->vertices[a[0]];
-				const Point p2 = data->vertices[a[1]];
-				const Point p3 = data->vertices[a[2]];
-				c1 = (p1 + p2 + p3) / 3;
-			}
+	auto comparator = [axis = axis, this](const auto a, const auto b)
+    {
+        Point c1;
+        {
+            const Point p1 = data->vertices[a[0]];
+            const Point p2 = data->vertices[a[1]];
+            const Point p3 = data->vertices[a[2]];
+            c1 = (p1 + p2 + p3) / 3;
+        }
 
-			Point c2;
-			{
-				const Point p1 = data->vertices[b[0]];
-				const Point p2 = data->vertices[b[1]];
-				const Point p3 = data->vertices[b[2]];
-				c2 = (p1 + p2 + p3) / 3;
-			}
+        Point c2;
+        {
+            const Point p1 = data->vertices[b[0]];
+            const Point p2 = data->vertices[b[1]];
+            const Point p3 = data->vertices[b[2]];
+            c2 = (p1 + p2 + p3) / 3;
+        }
 
-			return c1[static_cast<int>(axis)] < c2[static_cast<int>(axis)];
-		}, data->normalIndices.begin() + this->beginIdx, data->texCoordIndices.begin() + this->beginIdx);
+        return c1[static_cast<int>(axis)] < c2[static_cast<int>(axis)];
+    };
+
+	auto vertBegin = data->vertexIndices.begin() + this->beginIdx;
+	auto vertEnd = data->vertexIndices.begin() + this->endIdx;
+	auto normBegin = data->normalIndices.begin() + this->beginIdx;
+	if(data->permutation.has_value()){
+        if(data->texCoordIndices.size() > 0){
+            soa_sort::sort_cmp(
+                    vertBegin, vertEnd,
+                    comparator,
+                    normBegin, data->texCoordIndices.begin() + this->beginIdx, data->permutation->begin() + this->beginIdx);
+        }else{
+            soa_sort::sort_cmp(
+                    vertBegin, vertEnd,
+                    comparator,
+                    normBegin, data->permutation->begin() + this->beginIdx);
+        }
+	}else{
+	    if(data->texCoordIndices.size() > 0){
+            soa_sort::sort_cmp(
+                    vertBegin, vertEnd,
+                    comparator,
+                    normBegin, data->texCoordIndices.begin() + this->beginIdx);
+	    }else{
+            soa_sort::sort_cmp(
+                    vertBegin, vertEnd,
+                    comparator,
+                    normBegin);
+	    }
+	}
+
 }
 
 const TriangleMeshData& TriangleMesh::getData() const
@@ -220,16 +266,35 @@ void TriangleMesh::appendMesh(const TriangleMesh &mesh) {
     this->data->normalIndices.reserve(this->data->normalIndices.size() + mesh.count());
     this->data->texCoordIndices.reserve(this->data->texCoordIndices.size() + mesh.count());
 
-    auto offset = this->data->vertices.size();
+    auto verticesOffset = this->data->vertices.size();
     this->data->vertices.insert(this->data->vertices.end(), mesh.data->vertices.cbegin(), mesh.data->vertices.cend());
-    this->data->normals.insert(this->data->normals.end(), mesh.data->normals.cbegin(), mesh.data->normals.cend());
-    this->data->texCoords.insert(this->data->texCoords.end(), mesh.data->texCoords.cbegin(), mesh.data->texCoords.cend());
     std::transform(mesh.data->vertexIndices.cbegin()+mesh.beginIdx, mesh.data->vertexIndices.cbegin()+mesh.endIdx,
-            std::back_inserter(this->data->vertexIndices), [offset](const auto& idx){return offsetArray(idx, offset);});
+                   std::back_inserter(this->data->vertexIndices), [verticesOffset](const auto& idx){return offsetArray(idx, verticesOffset);});
+
+    this->data->normals.insert(this->data->normals.end(), mesh.data->normals.cbegin(), mesh.data->normals.cend());
     std::transform(mesh.data->normalIndices.cbegin()+mesh.beginIdx, mesh.data->normalIndices.cbegin()+mesh.endIdx,
-                   std::back_inserter(this->data->normalIndices), [offset](const auto& idx){return offsetArray(idx, offset);});
-    std::transform(mesh.data->texCoordIndices.cbegin()+mesh.beginIdx, mesh.data->texCoordIndices.cbegin()+mesh.endIdx,
-                   std::back_inserter(this->data->texCoordIndices), [offset](const auto& idx){return offsetArray(idx, offset);});
+                   std::back_inserter(this->data->normalIndices), [verticesOffset](const auto& idx){return offsetArray(idx, verticesOffset);});
+
+    auto texCoordsOffset = this->data->texCoords.size();
+    if(mesh.data->texCoords.size() == 0){
+        this->data->texCoords.emplace_back(0, 0);
+        auto dummyTexCoordIdx = static_cast<uint32_t>(this->data->texCoords.size()-1);
+        auto idxStart = this->data->texCoordIndices.end();
+        this->data->texCoordIndices.resize(this->data->texCoordIndices.size() + mesh.count());
+        std::fill(idxStart, this->data->texCoordIndices.end(), std::array<uint32_t, 3>{dummyTexCoordIdx, dummyTexCoordIdx, dummyTexCoordIdx});
+    }else{
+        this->data->texCoords.insert(this->data->texCoords.end(), mesh.data->texCoords.cbegin(), mesh.data->texCoords.cend());
+        std::transform(mesh.data->texCoordIndices.cbegin()+mesh.beginIdx, mesh.data->texCoordIndices.cbegin()+mesh.endIdx,
+                       std::back_inserter(this->data->texCoordIndices), [texCoordsOffset](const auto& idx){return offsetArray(idx, texCoordsOffset);});
+    }
+
+    assert(data->vertexIndices.size() == data->normalIndices.size() && data->vertexIndices.size() == data->texCoordIndices.size());
+
+    if(data->permutation.has_value()){
+        auto oldTriangleCount = this->data->permutation->size();
+        data->permutation->resize(this->data->permutation->size() + mesh.count());
+        std::iota(data->permutation->begin() + oldTriangleCount, data->permutation->end(), oldTriangleCount);
+    }
 
     this->aabb = std::nullopt;
     this->centroid = std::nullopt;

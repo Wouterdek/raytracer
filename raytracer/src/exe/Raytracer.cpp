@@ -4,6 +4,7 @@
 #include <filesystem>
 #include <exception>
 #include <material/PositionMaterial.h>
+#include <material/CompositeMaterial.h>
 
 #include "film/FrameBuffer.h"
 #include "io/PPMFile.h"
@@ -28,47 +29,6 @@
 #include "io/gltf/gltf.h"
 #include "io/OBJLoader.h"
 #include "io/TileFile.h"
-
-DynamicScene soupifyScene(const DynamicScene& scene){
-    DynamicScene result {};
-    result.root = std::make_unique<DynamicSceneNode>();
-
-    auto mergedMesh = std::make_shared<TriangleMesh>();
-    using Accumulator = std::pair<DynamicSceneNode*, Transformation>;
-    scene.walkDepthFirst<Accumulator>([&mergedMesh](const DynamicSceneNode& node, const Accumulator& acc){
-        auto& [parentResult, parentTransform] = acc;
-
-        auto resultNode = std::make_unique<DynamicSceneNode>();
-        auto resultNodePtr = &(*resultNode);
-        resultNode->transform = node.transform;
-
-        resultNode->camera = node.camera == nullptr ? nullptr : node.camera->clone();
-        resultNode->areaLight = node.areaLight == nullptr ? nullptr : node.areaLight->clone();
-        resultNode->pointLight = node.pointLight == nullptr ? nullptr : node.pointLight->clone();
-
-        auto transform = parentTransform.append(node.transform);
-        if(node.model != nullptr){
-            TriangleMesh* curMesh = dynamic_cast<TriangleMesh*>(node.model->getShapePtr().get());
-            if(curMesh != nullptr){
-                std::shared_ptr<TriangleMeshData> clonedMeshData = curMesh->getData().clone();
-                TriangleMesh meshClone(clonedMeshData, curMesh->getBeginIndex(), curMesh->getEndIndex());
-                meshClone.applyTransform(transform);
-                mergedMesh->appendMesh(meshClone);
-            }
-        }
-        parentResult->children.push_back(std::move(resultNode));
-
-        return std::make_pair(std::make_pair(resultNodePtr, transform), true);
-    }, Accumulator(&(*result.root), Transformation::IDENTITY));
-
-    auto meshNode = std::make_unique<DynamicSceneNode>();
-    auto diffuseMat = std::make_shared<DiffuseMaterial>();
-    diffuseMat->diffuseColor = RGB(1.0, 1.0, 1.0);
-    diffuseMat->diffuseIntensity = 1.0;
-    meshNode->model = std::make_unique<Model>(mergedMesh, diffuseMat);
-    result.root->children.push_back(std::move(meshNode));
-    return result;
-}
 
 Scene buildScene(const std::string& workDir, float imageAspectRatio)
 {
@@ -378,7 +338,8 @@ Scene buildScene(const std::string& workDir, float imageAspectRatio)
     }*/
 
 	auto kitchen = loadGLTFScene(workDir + "/models/kitchen.glb", imageAspectRatio);
-	//kitchen = soupifyScene(kitchen);
+    //auto kitchen = loadGLTFScene(workDir + "/models/test.glb", imageAspectRatio);
+	kitchen = kitchen.soupifyScene();
 
 
 	/*{

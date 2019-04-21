@@ -24,7 +24,7 @@ class InstancedModelList : public IShapeList<SceneRayHitInfo>
 public:
 	using ModelVector = std::vector<SceneNode<Model>>;
 
-	InstancedModelList(ModelVector&& shapes);
+	explicit InstancedModelList(ModelVector&& shapes);
 	InstancedModelList(std::shared_ptr<InstancedModelListData> data, ModelVector::iterator begin, ModelVector::iterator end);
 
 	AABB getAABB(size_type index) const override;

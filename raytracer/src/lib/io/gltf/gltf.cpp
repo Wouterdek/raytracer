@@ -12,6 +12,7 @@
 #include <Eigen/Dense>
 #include <material/MixMaterial.h>
 #include <math/Constants.h>
+#include <material/TexCoordMaterial.h>
 #include "material/GlossyMaterial.h"
 #include "material/NormalMaterial.h"
 #include "material/PositionMaterial.h"
@@ -168,7 +169,14 @@ std::shared_ptr<TriangleMesh> loadPrimitiveShape(tinygltf::Model & file, tinyglt
 		loadVec2s(file, vertTexCoord, texCoords);
 	}
 
-	return std::make_shared<TriangleMesh>(vertices, indices, normals, indices, texCoords, indices);
+	if(texCoords.size() == 0)
+	{
+        return std::make_shared<TriangleMesh>(vertices, indices, normals, indices, texCoords, std::vector<std::array<uint32_t,3>>());
+	}
+	else
+    {
+        return std::make_shared<TriangleMesh>(vertices, indices, normals, indices, texCoords, indices);
+	}
 }
 
 std::shared_ptr<Texture> loadImage(tinygltf::Model& file, tinygltf::Image& img)

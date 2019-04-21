@@ -17,7 +17,8 @@ public:
 		return this->root->walkDepthFirst(visitor, init);
 	}
 
-	Scene build() const;
+    DynamicScene soupifyScene() const;
+    Scene build() const;
 
 //private:
 	std::unique_ptr<DynamicSceneNode> root;

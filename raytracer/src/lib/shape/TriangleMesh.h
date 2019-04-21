@@ -14,9 +14,25 @@ public:
 	std::vector<std::array<uint32_t, 3>> normalIndices;
 	std::vector<Vector2> texCoords;
 	std::vector<std::array<uint32_t, 3>> texCoordIndices;
+    std::optional<std::vector<uint32_t>> permutation;
 
 private:
     TriangleMeshData* cloneImpl() const override;
+};
+
+class TriangleMeshHitAnnex : public IRayHitAnnex
+{
+public:
+    explicit TriangleMeshHitAnnex(uint32_t triangleIndex)
+        : triangleIndex(triangleIndex)
+    {}
+
+    uint32_t triangleIndex;
+
+private:
+    IRayHitAnnex *cloneImpl() const override {
+        return new TriangleMeshHitAnnex(*this);
+    }
 };
 
 class TriangleMesh : public IShape, public IShapeList<RayHitInfo>
@@ -24,9 +40,9 @@ class TriangleMesh : public IShape, public IShapeList<RayHitInfo>
 public:
 	TriangleMesh(std::vector<Point> vertices, std::vector<std::array<uint32_t, 3>> vertexIndices,
 		std::vector<Vector3> normals, std::vector<std::array<uint32_t, 3>> normalIndices,
-		std::vector<Vector2> texCoords, std::vector<std::array<uint32_t, 3>> texCoordIndices);
+		std::vector<Vector2> texCoords, std::vector<std::array<uint32_t, 3>> texCoordIndices, bool storePermutation = false);
 	TriangleMesh(std::shared_ptr<TriangleMeshData> data, size_type begin, size_type end);
-    TriangleMesh();
+    explicit TriangleMesh(bool storePermutation = false);
 
 	Point getCentroid() const override;
 	AABB getAABB() const override;
