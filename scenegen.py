@@ -1,0 +1,224 @@
+import struct
+import json
+import pywavefront
+
+class Chunk:
+	def __init__(self, header, paddingValue, data):
+		self.header = header
+		self.paddingValue = paddingValue
+		self.data = data
+
+	def getBytes(self, offset):
+		datalen = offset+len(self.data)
+		padding = b''
+		if datalen % 4 != 0:
+			padding = self.paddingValue * (4 - (datalen % 4))
+		return struct.pack("<i", len(self.data) + len(padding)) + self.header + self.data + padding
+
+def createJSONChunk(jsonStr):
+	return Chunk(bytes("JSON", "ASCII"), b'\x20', bytes(jsonStr, "UTF-8"))
+
+def createBinaryChunk(binaryData):
+	return Chunk(struct.pack("<3sx", bytes("BIN", "ASCII")), b'\x00', binaryData)
+
+def writeGLB(file, chunks):
+	data = b''
+	for chunk in chunks:
+		data += chunk.getBytes(12+len(data))
+	f = open(file, 'w+b')
+	f.write(struct.pack('<4s', bytes("glTF", "ASCII")))
+	f.write(struct.pack('<i', 2))
+	f.write(struct.pack('<i', 12+len(data)))
+	f.write(data)
+	f.close()
+
+def generateAssetInfo():
+	return {
+		"asset": {
+			"generator": "WDK Scene Generator",
+			"version": "2.0"
+		},
+		"scene": 0
+	}
+
+def generateMaterials():
+	return {
+		"materials": [
+			{
+				"pbrMetallicRoughness": {
+					"baseColorFactor": [
+						1.0, 1.0, 1.0, 1.0
+					]
+				}
+			}
+		]
+	}
+
+def spliceArray(arr, sectionStart, sectionSize, stride):
+		result = []
+		i = sectionStart
+		while i < len(arr):
+			for j in range(sectionSize):
+				result.append(arr[i+j])
+			i += stride
+		return result
+
+class Mesh:
+	def __init__(self):
+		self.vertices = []
+		self.normals = []
+		self.tex_coords = []
+		self.indices = []
+
+	def loadOBJ(self, file):
+		wavefront = pywavefront.Wavefront(file)
+		for matName in wavefront.materials:
+			mat = wavefront.materials[matName]
+			if mat.vertex_format == 'V3F':
+				self.vertices += mat.vertices
+			elif mat.vertex_format == 'N3F_V3F':
+				self.normals += spliceArray(mat.vertices, 0, 3, 6)
+				self.vertices += spliceArray(mat.vertices, 3, 3, 6)
+			elif mat.vertex_format == 'T2F_V3F':
+				self.tex_coords += spliceArray(mat.vertices, 0, 2, 5)
+				self.vertices += spliceArray(mat.vertices, 2, 3, 5)
+			elif mat.vertex_format == 'T2F_N3F_V3F':
+				self.tex_coords += spliceArray(mat.vertices, 0, 2, 8)
+				self.normals += spliceArray(mat.vertices, 2, 3, 8)
+				self.vertices += spliceArray(mat.vertices, 5, 3, 8)
+			else:
+				print("Unsupported vertex format "+mat.vertex_format)
+				continue
+			self.indices += list(range(int(len(self.vertices)/3)))
+
+	def getArrays(self):
+		result = []
+		if len(self.vertices) > 0:
+			result.append(("vert", self.vertices))
+		if len(self.normals) > 0:
+			result.append(("norm", self.normals))
+		if len(self.tex_coords) > 0:
+			result.append(("tex", self.tex_coords))
+		result.append(("idx", self.indices))
+		return result
+
+def generateMeshDescriptor(mesh):
+	buffers = [{
+		"byteLength": 4*(sum([len(arr) for (typename, arr) in mesh.getArrays()]))
+	}]
+
+	bufferViews = []
+	offset = 0
+	for (typename, arr) in mesh.getArrays():
+		byteLength = len(arr*4)
+		bufferViews.append({
+			"buffer": 0,
+			"byteOffset": offset,
+			"byteLength": byteLength
+		})
+		offset += byteLength
+
+	accessors = []
+	attributes = {}
+	indicesAccI = -1
+	i = 0
+	for (typename, arr) in mesh.getArrays():
+		elem_per_vert = 3
+		componentTypeName = "VEC3"
+		if typename == "tex":
+			elem_per_vert = 2
+			componentTypeName = "VEC2"
+		elif typename == "idx":
+			elem_per_vert = 1
+			componentTypeName = "SCALAR"
+		accessors.append({
+			"bufferView": i,
+			"componentType": 5125 if typename == "idx" else 5126,
+			"count": len(arr)/elem_per_vert,
+			"type": componentTypeName
+		})
+		if typename == "vert":
+			attributes["POSITION"] = i
+		elif typename == "norm":
+			attributes["NORMAL"] = i
+		elif typename == "tex":
+			attributes["TEXCOORD_0"] = i
+		elif typename == "idx":
+			indicesAccI = i
+		i += 1
+
+	return {
+		"buffers": buffers,
+		"bufferViews": bufferViews,
+		"accessors": accessors,
+		"meshes": [
+			{
+
+				"primitives": [
+					{
+						"attributes": attributes,
+						"material": 0,
+						"indices": indicesAccI
+					}
+				]
+			}
+		]
+	}
+
+def generateMeshBuffer(mesh):
+	buf = b''
+	for (typename, arr) in mesh.getArrays():
+		if typename == "idx":
+			buf += struct.pack('%si' % len(arr), *arr)
+		else:
+			buf += struct.pack('%sf' % len(arr), *arr)
+	return buf
+
+def generateScene():
+	return {
+		"nodes": [
+			{
+				"mesh": 0,
+				"rotation": [
+					0.0,
+					1.0,
+					0.0,
+					0.0
+				],
+				"scale": [
+					2.0,
+					1,
+					1
+				],
+				"translation": [
+					0.0,
+					0.0,
+					20.0
+				]
+			}
+		],
+		"scene": 0,
+		"scenes": [
+			{
+				"nodes": [
+					0
+				]
+			}
+		],
+	}
+
+def generateGLB():
+	mesh = Mesh()
+	mesh.loadOBJ("/media/wouter/NVME/CGProject/models/teapot.obj")
+
+	gltf = {}
+	gltf.update(generateAssetInfo())
+	gltf.update(generateMaterials())
+	gltf.update(generateMeshDescriptor(mesh))
+	gltf.update(generateScene())
+
+	json_chunk = createJSONChunk(json.dumps(gltf))
+	data_chunk = createBinaryChunk(generateMeshBuffer(mesh))
+	writeGLB("scene.glb", [json_chunk, data_chunk])
+
+generateGLB()
