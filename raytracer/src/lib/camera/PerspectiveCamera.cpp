@@ -2,6 +2,7 @@
 #include "math/OrthonormalBasis.h"
 #include "math/Constants.h"
 #include "math/Transformation.h"
+#include "math/CircularUniformSampler.h"
 
 PerspectiveCamera::PerspectiveCamera(double fov)
   : basis(Vector3(0, 0, 1), Vector3(0, 1, 0))
@@ -30,7 +31,20 @@ Ray PerspectiveCamera::generateRay(const Sample& sample, int xResolution, int yR
 
 	auto direction = (basis.getU() * u) + (basis.getV() * v) - basis.getW();
 
-	return Ray(origin, direction);
+    Ray perfectRay(origin, direction);
+
+    if(this->aperture == 0){
+        return perfectRay;
+    }
+
+    Point focalPlanePoint = perfectRay.getOrigin() + (perfectRay.getDirection() * this->focalDistance);
+
+    Point lensPoint = origin;
+    auto offset = sampleUniformCircle(this->aperture);
+    lensPoint += this->basis.getU() * offset.x();
+    lensPoint += this->basis.getV() * offset.y();
+
+    return Ray(lensPoint, (focalPlanePoint - lensPoint).normalized());
 }
 
 PerspectiveCamera* PerspectiveCamera::cloneImpl() const

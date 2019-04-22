@@ -262,7 +262,39 @@ std::unique_ptr<Model> loadPrimitive(tinygltf::Model & file, tinygltf::Primitive
 	return std::make_unique<Model>(loadPrimitiveShape(file, primitive), mat);
 }
 
-std::unique_ptr<DynamicSceneNode> loadNode(tinygltf::Model & file, int nodeI, float imageAspectRatio)
+bool getBoolOrDefault(const tinygltf::Node *node, const std::string &paramName, bool defaultVal = false)
+{
+    if(node != nullptr && node->extras.Has(paramName)){
+        const auto& val = node->extras.Get(paramName);
+        if(val.IsBool()){
+            return val.Get<bool>();
+        }else if(val.IsInt()){
+            return val.Get<int>() != 0;
+        }else if(val.IsNumber()){
+            return val.Get<double>() > 0;
+        }
+    }
+
+    return defaultVal;
+}
+
+double getDoubleOrDefault(const tinygltf::Node *node, const std::string &paramName, double defaultVal = 0.0)
+{
+    if(node != nullptr && node->extras.Has(paramName)){
+        const auto& val = node->extras.Get(paramName);
+        if(val.IsBool()){
+            return val.Get<bool>() ? 1.0 : 0.0;
+        }else if(val.IsInt()){
+            return static_cast<double>(val.Get<int>());
+        }else if(val.IsNumber()){
+            return val.Get<double>();
+        }
+    }
+
+    return defaultVal;
+}
+
+std::unique_ptr<DynamicSceneNode> loadNode(tinygltf::Model & file, int nodeI, float imageAspectRatio, tinygltf::Node* parent = nullptr)
 {
 	auto& node = file.nodes[nodeI];
 	auto result = std::make_unique<DynamicSceneNode>();
@@ -288,33 +320,33 @@ std::unique_ptr<DynamicSceneNode> loadNode(tinygltf::Model & file, int nodeI, fl
 	}
 	result->transform = transform;
 
-	if (node.name.find("$AREALIGHT") == 0)
-	{
-		result->areaLight = std::make_unique<AreaLight>();
+    if(getBoolOrDefault(&node, "IsAreaLight", false))
+    {
+        result->areaLight = std::make_unique<AreaLight>();
 
-		if (node.mesh == -1)
-		{
-			throw std::runtime_error("Invalid area light definition");
-		}
+        if (node.mesh == -1)
+        {
+            throw std::runtime_error("Invalid area light definition");
+        }
 
-		auto& meshDef = file.meshes[node.mesh];
-		if (meshDef.primitives.size() != 1)
-		{
-			throw std::runtime_error("Invalid area light definition");
-		}
+        auto& meshDef = file.meshes[node.mesh];
+        if (meshDef.primitives.size() != 1)
+        {
+            throw std::runtime_error("Invalid area light definition");
+        }
 
-		auto prim = loadPrimitiveShape(file, meshDef.primitives[0]);
-		auto primData = prim->getData();
-		if (primData.vertices.size() != 3 || primData.vertexIndices.size() != 1)
-		{
-			throw std::runtime_error("Invalid area light definition: must be triangular");
-		}
+        auto prim = loadPrimitiveShape(file, meshDef.primitives[0]);
+        auto primData = prim->getData();
+        if (primData.vertices.size() != 3 || primData.vertexIndices.size() != 1)
+        {
+            throw std::runtime_error("Invalid area light definition: must be triangular");
+        }
 
-		result->areaLight->a = primData.vertices[primData.vertexIndices[0][0]];
-		result->areaLight->b = primData.vertices[primData.vertexIndices[0][1]];
-		result->areaLight->c = primData.vertices[primData.vertexIndices[0][2]];
-		result->areaLight->intensity = 30;
-	}
+        result->areaLight->a = primData.vertices[primData.vertexIndices[0][0]];
+        result->areaLight->b = primData.vertices[primData.vertexIndices[0][1]];
+        result->areaLight->c = primData.vertices[primData.vertexIndices[0][2]];
+        result->areaLight->intensity = 30;
+    }
 	else if (node.mesh != -1)
 	{
 		auto& meshDef = file.meshes[node.mesh];
@@ -342,18 +374,32 @@ std::unique_ptr<DynamicSceneNode> loadNode(tinygltf::Model & file, int nodeI, fl
 		    double xFOVRad = std::atan(std::tan(cameraDef.perspective.yfov/2.0) * imageAspectRatio)*2.0;
 		    double xFOV = (xFOVRad / PI) * 180.0;
 			result->camera = std::make_unique<PerspectiveCamera>(xFOV);
+
+            result->camera->isMainCamera = getBoolOrDefault(&node, "IsMainCamera", false) || getBoolOrDefault(parent, "IsMainCamera", false);
+
+            if(node.extras.Has("Aperture")){
+                result->camera->aperture = getDoubleOrDefault(&node, "Aperture", 0.0);
+            }else{
+                result->camera->aperture = getDoubleOrDefault(parent, "Aperture", 0.0);
+            }
+
+            if(node.extras.Has("FocalDistance")){
+                result->camera->focalDistance = getDoubleOrDefault(&node, "FocalDistance", 0.0);
+            }else{
+                result->camera->focalDistance = getDoubleOrDefault(parent, "FocalDistance", 0.0);
+            }
 		}
 	}
 
 	for (auto subNodeI : node.children)
 	{
-		result->children.push_back(loadNode(file, subNodeI, imageAspectRatio));
+		result->children.push_back(loadNode(file, subNodeI, imageAspectRatio, &node));
 	}
 
 	return result;
 }
 
-};
+}
 
 DynamicScene loadGLTFScene(const std::string& file, float imageAspectRatio)
 {

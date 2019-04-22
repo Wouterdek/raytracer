@@ -56,9 +56,22 @@ void render(const Scene& scene, FrameBuffer& buffer, const Tile& tile, const Ren
 
 	ProgressTracker progress(progressMon, tiles.size());
 
-	const ICamera& camera = scene.getCameras()[0].getData();
+	const ICamera* mainCam = nullptr;
+	for(const auto& camera : scene.getCameras()){
+        if(camera.getData().isMainCamera){
+            mainCam = &camera.getData();
+        }
+	}
+	if(mainCam == nullptr){
+	    if(!scene.getCameras().empty()){
+	        mainCam = &scene.getCameras()[0].getData();
+	    }else{
+            throw std::runtime_error("No camera in scene.");
+	    }
+	}
+
 	//std::for_each(std::execution::par_unseq, tiles.begin(), tiles.end(), [&scene, &buffer, &renderSettings, &camera](const Tile& curTile)
-    tbb::parallel_for_each(tiles.begin(), tiles.end(), [&scene, &buffer, &renderSettings, &progress, &camera](const Tile& curTile)
+    tbb::parallel_for_each(tiles.begin(), tiles.end(), [&scene, &buffer, &renderSettings, &progress, &camera = *mainCam](const Tile& curTile)
 	{
 		AASampleGenerator aa(renderSettings.aaLevel);
 

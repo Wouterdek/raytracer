@@ -3,15 +3,11 @@
 #include "scene/renderable/SceneRayHitInfo.h"
 #include "math/OrthonormalBasis.h"
 #include "math/Constants.h"
+#include "math/Triangle.h"
 #include "NormalMapSampler.h"
+#include "math/CircularUniformSampler.h"
 #include <random>
 #include <cmath>
-
-namespace {
-    thread_local std::random_device randDev;
-    std::uniform_real_distribution<float> randAngle(0,2*PI);
-    std::uniform_real_distribution<float> randUniform(0,1);
-};
 
 GlossyMaterial::GlossyMaterial() = default;
 
@@ -32,18 +28,31 @@ RGB GlossyMaterial::getColorFor(const SceneRayHitInfo& hit, const Scene& scene, 
 
     Vector3 sampleDir = incomingDir + ((2.0*normal.dot(-incomingDir))*normal);
 
-    float angle = randAngle(randDev);
-    float dist = randUniform(randDev) * this->roughness;
-    float xOffset = std::cos(angle)*dist;
-    float yOffset = std::sin(angle)*dist;
+    auto offset = sampleUniformCircle(this->roughness);
     OrthonormalBasis sampleSpace(sampleDir);
-    sampleDir += sampleSpace.getU() * xOffset;
-    sampleDir += sampleSpace.getV() * yOffset;
+    sampleDir += sampleSpace.getU() * offset.x();
+    sampleDir += sampleSpace.getV() * offset.y();
 
     Point hitpoint = hit.getHitpoint();
 
+    Ray ray(hitpoint+(sampleDir*.001), sampleDir);
+    auto result = scene.traceRay(ray);
 
-    auto result = scene.traceRay(Ray(hitpoint+(sampleDir*.001), sampleDir));
+    const AreaLight* lightHit = nullptr;
+    double bestT = result->t;
+    for(const auto& light : scene.getAreaLights()){
+        auto lightIntersect = Triangle::intersect(ray, light->a, light->b, light->c);
+        if(lightIntersect.has_value() && bestT > lightIntersect->t){
+            lightHit = &*light;
+            bestT = lightIntersect->t;
+        }
+    }
+
+    //TODO: non-zero roughness should include point lights
+
+    if(lightHit != nullptr){
+        return lightHit->color * lightHit->intensity;
+    }
 
     if(result.has_value()){
         auto hitColor = result->getModelNode().getData().getMaterial().getColorFor(*result, scene, depth + 1);

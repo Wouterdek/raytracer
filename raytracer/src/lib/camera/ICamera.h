@@ -14,4 +14,8 @@ public:
 	virtual Ray generateRay(const Sample& sample, int xResolution, int yResolution) const = 0;
 
 	virtual void setTransform(const Transformation& transform) = 0;
+
+	double focalDistance = 0;
+	double aperture = 0;
+    bool isMainCamera = false;
 };
