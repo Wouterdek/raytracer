@@ -1,10 +1,16 @@
 #include "Texture.h"
 #include <vector>
+#include <cmath>
 #include "io/lodepng.h"
 
 Texture::Texture(std::vector<unsigned char> image, unsigned width, unsigned height)
     : image(std::move(image)), width(width), height(height)
-{}
+{
+    if(this->image.size() != width * height * 4) //RGBA = 4 channels
+    {
+        throw std::runtime_error("Invalid image buffer size. Must be of size width*height*4");
+    }
+}
 
 Texture Texture::loadPNG(std::string path)
 {

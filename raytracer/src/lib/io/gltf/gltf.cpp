@@ -210,6 +210,7 @@ std::shared_ptr<IMaterial> loadMaterial(tinygltf::Model & file, tinygltf::Materi
     if(baseColorTextureIt != mat.values.end()){
         int index = static_cast<int>(baseColorTextureIt->second.json_double_value["index"]);
         auto tex = loadTexture(file, file.textures[index]);
+        tex->setGammaFactor(2.2); //sRGB to raw radiance
         diffuse->albedoMap = tex;
         //baseColorTextureIt->second.json_double_value["texCoord"]
     }

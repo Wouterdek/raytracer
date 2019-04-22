@@ -6,7 +6,8 @@ class Texture
 {
 private:
 	std::vector<unsigned char> image; //the raw pixels in RGBA order
-	unsigned width, height;
+	unsigned int width, height;
+	double gamma = 1.0;
 
 public:
     Texture(std::vector<unsigned char> image, unsigned width, unsigned height);
@@ -19,7 +20,7 @@ public:
         auto g = this->image[offset+1];
         auto b = this->image[offset+2];
         auto a = this->image[offset+3];
-        return RGB((float)r/255.0f, (float)g / 255.0f, (float)b / 255.0f);
+        return RGB((float)r/255.0f, (float)g / 255.0f, (float)b / 255.0f).pow(this->gamma);
     }
 
     unsigned int getWidth() const
@@ -36,6 +37,9 @@ public:
     {
 	    return image;
 	}
+
+	void setGammaFactor(double gamma) { this->gamma = gamma; }
+    double getGammaFactor() { return this->gamma; }
 };
 
 
