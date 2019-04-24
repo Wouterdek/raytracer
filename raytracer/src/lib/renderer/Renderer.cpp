@@ -1,11 +1,13 @@
 #include "Renderer.h"
 #include <thread>
+#include <random>
 //#include <execution>
 #include "tbb/tbb.h"
-#include <random>
 #include "math/Ray.h"
 #include "camera/ICamera.h"
 #include "ProgressMonitor.h"
+
+#undef min
 
 class AASampleGenerator
 {

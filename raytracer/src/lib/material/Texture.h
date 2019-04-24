@@ -20,7 +20,8 @@ public:
         auto g = this->image[offset+1];
         auto b = this->image[offset+2];
         auto a = this->image[offset+3];
-        return RGB((float)r/255.0f, (float)g / 255.0f, (float)b / 255.0f).pow(this->gamma);
+		auto color = RGB{ (float)r / 255.0f, (float)g / 255.0f, (float)b / 255.0f };
+        return color.pow(this->gamma);
     }
 
     unsigned int getWidth() const
