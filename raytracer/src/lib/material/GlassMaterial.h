@@ -1,6 +1,7 @@
 #pragma once
 
 #include "IMaterial.h"
+#include "film/RGB.h"
 
 class GlassMaterial : public IMaterial
 {
