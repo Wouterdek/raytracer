@@ -337,8 +337,8 @@ Scene buildScene(const std::string& workDir, float imageAspectRatio)
         //cornell.root->children.emplace_back(std::move(curNode));
     }*/
 
-	auto kitchen = loadGLTFScene(workDir + "/models/kitchen.glb", imageAspectRatio);
-    //auto kitchen = loadGLTFScene(workDir + "/models/test.glb", imageAspectRatio);
+	//auto kitchen = loadGLTFScene(workDir + "/models/kitchen.glb", imageAspectRatio);
+    auto kitchen = loadGLTFScene(workDir + "/models/refractionTestScene.glb", imageAspectRatio);
 	kitchen = kitchen.soupifyScene();
 
 

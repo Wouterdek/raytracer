@@ -13,6 +13,7 @@
 #include <material/MixMaterial.h>
 #include <math/Constants.h>
 #include <material/TexCoordMaterial.h>
+#include <material/GlassMaterial.h>
 #include "material/GlossyMaterial.h"
 #include "material/NormalMaterial.h"
 #include "material/PositionMaterial.h"
@@ -198,7 +199,44 @@ std::shared_ptr<Texture> loadTexture(tinygltf::Model& file, tinygltf::Texture& t
     return loadImage(file, file.images[tex.source]);
 }
 
-std::shared_ptr<IMaterial> loadMaterial(tinygltf::Model & file, tinygltf::Material & mat)
+const tinygltf::Value* tryGetExtras(const tinygltf::Node* node)
+{
+    return node == nullptr ? nullptr : &node->extras;
+}
+
+bool getBoolOrDefault(const tinygltf::Value* extras, const std::string &paramName, bool defaultVal = false)
+{
+    if(extras != nullptr && extras->Has(paramName)){
+        const auto& val = extras->Get(paramName);
+        if(val.IsBool()){
+            return val.Get<bool>();
+        }else if(val.IsInt()){
+            return val.Get<int>() != 0;
+        }else if(val.IsNumber()){
+            return val.Get<double>() > 0;
+        }
+    }
+
+    return defaultVal;
+}
+
+double getDoubleOrDefault(const tinygltf::Value* extras, const std::string &paramName, double defaultVal = 0.0)
+{
+    if(extras != nullptr && extras->Has(paramName)){
+        const auto& val = extras->Get(paramName);
+        if(val.IsBool()){
+            return val.Get<bool>() ? 1.0 : 0.0;
+        }else if(val.IsInt()){
+            return static_cast<double>(val.Get<int>());
+        }else if(val.IsNumber()){
+            return val.Get<double>();
+        }
+    }
+
+    return defaultVal;
+}
+
+std::shared_ptr<IMaterial> loadMaterial(tinygltf::Model& file, tinygltf::Material& mat, tinygltf::Value& nodeProps)
 {
     auto mixMat = std::make_shared<MixMaterial>();
     auto diffuse = std::make_shared<DiffuseMaterial>();
@@ -243,15 +281,28 @@ std::shared_ptr<IMaterial> loadMaterial(tinygltf::Model & file, tinygltf::Materi
         //normalTextureIt->second.json_double_value["texCoord"]
     }
 
+    auto ior = getDoubleOrDefault(&nodeProps, "Material.IOR", 1.0);
+    auto transmission = getDoubleOrDefault(&nodeProps, "Material.Transmission", 0.0);
+    if(transmission > 0)
+    {
+        auto parentMixMat = std::make_shared<MixMaterial>();
+        auto glass = std::make_shared<GlassMaterial>();
+        glass->ior = ior;
+        parentMixMat->first = mixMat;
+        parentMixMat->second = glass;
+        parentMixMat->mixFactor = transmission;
+        mixMat = parentMixMat;
+    }
+
     return mixMat;
 }
 
-std::unique_ptr<Model> loadPrimitive(tinygltf::Model & file, tinygltf::Primitive & primitive)
+std::unique_ptr<Model> loadPrimitive(tinygltf::Model & file, tinygltf::Primitive & primitive, tinygltf::Value& nodeProps)
 {
 	std::shared_ptr<IMaterial> mat;
 	if (primitive.material != -1)
 	{
-		mat = loadMaterial(file, file.materials[primitive.material]);
+		mat = loadMaterial(file, file.materials[primitive.material], nodeProps);
 	}
 	else
 	{
@@ -261,38 +312,6 @@ std::unique_ptr<Model> loadPrimitive(tinygltf::Model & file, tinygltf::Primitive
 		mat = diff;
 	}
 	return std::make_unique<Model>(loadPrimitiveShape(file, primitive), mat);
-}
-
-bool getBoolOrDefault(const tinygltf::Node *node, const std::string &paramName, bool defaultVal = false)
-{
-    if(node != nullptr && node->extras.Has(paramName)){
-        const auto& val = node->extras.Get(paramName);
-        if(val.IsBool()){
-            return val.Get<bool>();
-        }else if(val.IsInt()){
-            return val.Get<int>() != 0;
-        }else if(val.IsNumber()){
-            return val.Get<double>() > 0;
-        }
-    }
-
-    return defaultVal;
-}
-
-double getDoubleOrDefault(const tinygltf::Node *node, const std::string &paramName, double defaultVal = 0.0)
-{
-    if(node != nullptr && node->extras.Has(paramName)){
-        const auto& val = node->extras.Get(paramName);
-        if(val.IsBool()){
-            return val.Get<bool>() ? 1.0 : 0.0;
-        }else if(val.IsInt()){
-            return static_cast<double>(val.Get<int>());
-        }else if(val.IsNumber()){
-            return val.Get<double>();
-        }
-    }
-
-    return defaultVal;
 }
 
 std::unique_ptr<DynamicSceneNode> loadNode(tinygltf::Model & file, int nodeI, float imageAspectRatio, tinygltf::Node* parent = nullptr)
@@ -321,7 +340,7 @@ std::unique_ptr<DynamicSceneNode> loadNode(tinygltf::Model & file, int nodeI, fl
 	}
 	result->transform = transform;
 
-    if(getBoolOrDefault(&node, "IsAreaLight", false))
+    if(getBoolOrDefault(tryGetExtras(&node), "IsAreaLight", false))
     {
         result->areaLight = std::make_unique<AreaLight>();
 
@@ -346,7 +365,7 @@ std::unique_ptr<DynamicSceneNode> loadNode(tinygltf::Model & file, int nodeI, fl
         result->areaLight->a = primData.vertices[primData.vertexIndices[0][0]];
         result->areaLight->b = primData.vertices[primData.vertexIndices[0][1]];
         result->areaLight->c = primData.vertices[primData.vertexIndices[0][2]];
-        result->areaLight->intensity = 30;
+        result->areaLight->intensity = getDoubleOrDefault(tryGetExtras(&node), "LightIntensity", 3000)/100.0;
     }
 	else if (node.mesh != -1)
 	{
@@ -354,7 +373,7 @@ std::unique_ptr<DynamicSceneNode> loadNode(tinygltf::Model & file, int nodeI, fl
 
 		if (meshDef.primitives.size() == 1)
 		{
-			result->model = loadPrimitive(file, meshDef.primitives[0]);
+			result->model = loadPrimitive(file, meshDef.primitives[0], node.extras);
 		}
 		else
 		{
@@ -362,7 +381,7 @@ std::unique_ptr<DynamicSceneNode> loadNode(tinygltf::Model & file, int nodeI, fl
 			{
 				auto child = std::make_unique<DynamicSceneNode>();
 				child->transform = Transformation::IDENTITY;
-				child->model = loadPrimitive(file, primitive);
+				child->model = loadPrimitive(file, primitive, node.extras);
 				result->children.push_back(std::move(child));
 			}
 		}
@@ -376,18 +395,18 @@ std::unique_ptr<DynamicSceneNode> loadNode(tinygltf::Model & file, int nodeI, fl
 		    double xFOV = (xFOVRad / PI) * 180.0;
 			result->camera = std::make_unique<PerspectiveCamera>(xFOV);
 
-            result->camera->isMainCamera = getBoolOrDefault(&node, "IsMainCamera", false) || getBoolOrDefault(parent, "IsMainCamera", false);
+            result->camera->isMainCamera = getBoolOrDefault(tryGetExtras(&node), "IsMainCamera", false) || getBoolOrDefault(tryGetExtras(parent), "IsMainCamera", false);
 
             if(node.extras.Has("Aperture")){
-                result->camera->aperture = getDoubleOrDefault(&node, "Aperture", 0.0);
+                result->camera->aperture = getDoubleOrDefault(tryGetExtras(&node), "Aperture", 0.0);
             }else{
-                result->camera->aperture = getDoubleOrDefault(parent, "Aperture", 0.0);
+                result->camera->aperture = getDoubleOrDefault(tryGetExtras(parent), "Aperture", 0.0);
             }
 
             if(node.extras.Has("FocalDistance")){
-                result->camera->focalDistance = getDoubleOrDefault(&node, "FocalDistance", 0.0);
+                result->camera->focalDistance = getDoubleOrDefault(tryGetExtras(&node), "FocalDistance", 0.0);
             }else{
-                result->camera->focalDistance = getDoubleOrDefault(parent, "FocalDistance", 0.0);
+                result->camera->focalDistance = getDoubleOrDefault(tryGetExtras(parent), "FocalDistance", 0.0);
             }
 		}
 	}
