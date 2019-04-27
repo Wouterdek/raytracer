@@ -14,7 +14,7 @@ RGB GlassMaterial::getColorFor(const SceneRayHitInfo &hit, const Scene &scene, i
     auto hitpoint = hit.getHitpoint();
     Vector3 incomingDir = -hit.ray.getDirection();
 
-	RGB reflection{};
+	/*RGB reflection{};
     {
 		Vector3 reflectionRayDir = -incomingDir + ((2.0 * normal.dot(incomingDir)) * normal);
 		Ray reflectionRay(hitpoint + reflectionRayDir * 0.001, reflectionRayDir);
@@ -23,7 +23,7 @@ RGB GlassMaterial::getColorFor(const SceneRayHitInfo &hit, const Scene &scene, i
 			reflection = reflectionHit->getModelNode().getData().getMaterial().getColorFor(*reflectionHit, scene, depth + 1)
 				* abs(normal.dot(reflectionRayDir));
 		}
-    }
+    }*/
 
 	// Check for total internal reflection
 	double nDotWo = normal.dot(incomingDir);
@@ -52,10 +52,6 @@ RGB GlassMaterial::getColorFor(const SceneRayHitInfo &hit, const Scene &scene, i
 	}
 	double cosTransmission = sqrt(cosTransmissionSqr);
 
-	/*Vector3 i = normal.cross(normal.cross(incomingDir));
-	Vector3 j = normal;
-
-	Vector3 transmittedRayDir = (i * cos(-PI + transmissionAngle)) + (j * sin(-PI + transmissionAngle));*/
 	Vector3 transmittedRayDir = (-incomingDir / curIor) - (cosTransmission - incomingAngle / curIor) * normal;
 	Ray transmittedRay(hitpoint + transmittedRayDir * 0.001, transmittedRayDir);
 
