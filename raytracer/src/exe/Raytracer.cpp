@@ -487,8 +487,8 @@ int main(int argc, char** argv)
 
 		RenderSettings settings;
 		settings.aaLevel = 40;
-		render(scene, buffer, tile, settings, [](float progress){
-		    std::cout << "" << progress*100 << "%\r";
+		render(scene, buffer, tile, settings, [](const std::string& taskDesc, float progress){
+		    std::cout << taskDesc << " - " << progress*100 << "%\r";
 		    std::cout.flush();
 		});
         std::cout << "Done" << std::endl;

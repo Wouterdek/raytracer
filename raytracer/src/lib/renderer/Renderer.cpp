@@ -56,7 +56,8 @@ void render(const Scene& scene, FrameBuffer& buffer, const Tile& tile, const Ren
 		tiles.push_back(tile);
 	}
 
-	ProgressTracker progress(progressMon, tiles.size());
+	ProgressTracker progress(progressMon);
+	progress.startNewJob("Rendering tiles", tiles.size());
 
 	const ICamera* mainCam = nullptr;
 	for(const auto& camera : scene.getCameras()){
@@ -118,7 +119,7 @@ void render(const Scene& scene, FrameBuffer& buffer, const Tile& tile, const Ren
 
 			//std::cout << y * 100 / curTile.getYEnd() << "% done\r";
 		}
-        progress.signalJobFinished();
+        progress.signalTaskFinished();
 	});
 }
 

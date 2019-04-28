@@ -2,17 +2,20 @@
 
 #include <functional>
 #include <mutex>
+#include <string>
 
-using ProgressMonitor = std::function<void(float progress)>;
+using ProgressMonitor = std::function<void(const std::string& jobDescription, float progress)>;
 
 class ProgressTracker {
 public:
-    ProgressTracker(ProgressMonitor monitor, int jobs);
-    void signalJobFinished();
+    explicit ProgressTracker(ProgressMonitor monitor);
+    void startNewJob(const std::string& jobDescription, int tasks);
+    void signalTaskFinished();
 
 private:
-    int totalJobs;
-    int jobsCompleted;
+    std::string jobDescription;
+    int totalTasks;
+    int tasksCompleted;
     std::mutex mutex;
     ProgressMonitor monitor;
 };
