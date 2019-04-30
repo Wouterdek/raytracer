@@ -30,6 +30,8 @@
 #include "io/OBJLoader.h"
 #include "io/TileFile.h"
 
+#include "preview/PreviewWindow.h"
+
 Scene buildScene(const std::string& workDir, float imageAspectRatio)
 {
     std::cout << "Loading scene data." << std::endl;
@@ -337,8 +339,8 @@ Scene buildScene(const std::string& workDir, float imageAspectRatio)
         //cornell.root->children.emplace_back(std::move(curNode));
     }*/
 
-	//auto kitchen = loadGLTFScene(workDir + "/models/kitchen.glb", imageAspectRatio);
-    auto kitchen = loadGLTFScene(workDir + "/models/refractionTestScene.glb", imageAspectRatio);
+	auto kitchen = loadGLTFScene(workDir + "/models/kitchen.glb", imageAspectRatio);
+    //auto kitchen = loadGLTFScene(workDir + "/models/refractionTestScene.glb", imageAspectRatio);
 	kitchen = kitchen.soupifyScene();
 
 
@@ -376,6 +378,8 @@ Scene buildScene(const std::string& workDir, float imageAspectRatio)
 int main(int argc, char** argv)
 {
 	// Parse input arguments
+    bool previewEnabled = false;
+
 	namespace po = boost::program_options;
 	po::options_description desc("Program options");
 	desc.add_options()
@@ -392,6 +396,7 @@ int main(int argc, char** argv)
 		("outputtype", po::value<std::string>()->default_value("exr"), "Type of output file to write. [exr, png, ppm, tile]")
 		("output", po::value<std::string>()->default_value("output"), "Output file path")
 		("mergetiles", po::value<std::vector<std::string>>()->multitoken(), "Load the specified tile files, merge them and output the result")
+        ("preview", po::bool_switch(&previewEnabled), "If enabled, a preview window will open that displays the image as its being rendered")
 		;
 
 	po::variables_map vm;
@@ -457,9 +462,15 @@ int main(int argc, char** argv)
 
 	// Create picture
 
-	FrameBuffer buffer(width, height);
+	auto buffer = std::make_shared<FrameBuffer>(width, height);
 
-	if (tileFilesToMerge.size() > 0) // Merge tiles
+    PreviewWindow previewWindow(buffer);
+    if(previewEnabled)
+    {
+        previewWindow.showAsync();
+    }
+
+	if (!tileFilesToMerge.empty()) // Merge tiles
 	{
 		std::cout << "Merging tile files..." << std::endl;
 
@@ -468,7 +479,7 @@ int main(int argc, char** argv)
 			std::cout << file << std::endl;
 			try
 			{
-				load_from_tile_file(buffer, file);
+				load_from_tile_file(*buffer, file);
 			}catch(const std::runtime_error& err)
 			{
 				std::cerr << err.what() << std::endl;
@@ -487,7 +498,7 @@ int main(int argc, char** argv)
 
 		RenderSettings settings;
 		settings.aaLevel = 40;
-		render(scene, buffer, tile, settings, [](const std::string& taskDesc, float progress){
+		render(scene, *buffer, tile, settings, [](const std::string& taskDesc, float progress){
 		    std::cout << taskDesc << " - " << progress*100 << "%\r";
 		    std::cout.flush();
 		});
@@ -502,20 +513,22 @@ int main(int argc, char** argv)
 	std::cout << "Writing output to " << outputfile.string() << std::endl;
 	if(outputtype == "exr")
 	{
-		write_to_exr_file(buffer, outputfile.string());
+		write_to_exr_file(*buffer, outputfile.string());
 	}
 	else if (outputtype == "png")
 	{
-		write_to_png_file(buffer, outputfile.string(), exposure, gamma);
+		write_to_png_file(*buffer, outputfile.string(), exposure, gamma);
 	}
 	else if (outputtype == "ppm")
 	{
-		write_to_ppm(buffer, outputfile.string());
+		write_to_ppm(*buffer, outputfile.string());
 	}
 	else if (outputtype == "tile")
 	{
-		write_to_tile_file(buffer, tile, outputfile.string());
+		write_to_tile_file(*buffer, tile, outputfile.string());
 	}
+
+    previewWindow.wait();
 
 	return 0;
 }

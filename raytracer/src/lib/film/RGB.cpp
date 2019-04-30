@@ -9,11 +9,11 @@ RGB::RGB()
 	: red(0), green(0), blue(0)
 { }
 
-RGB::RGB(double value)
+RGB::RGB(component value)
 	: RGB(value, value, value)
 { }
 
-RGB::RGB(double red, double green, double blue)
+RGB::RGB(component red, component green, component blue)
 	: red(red), green(green), blue(blue)
 {
 	if(!isValidColorComponent(red) || !isValidColorComponent(green) || !isValidColorComponent(blue))
@@ -22,7 +22,7 @@ RGB::RGB(double red, double green, double blue)
 	}
 }
 
-bool RGB::isValidColorComponent(double value) const
+bool RGB::isValidColorComponent(component value) const
 {
 	return !std::isinf(value) && !std::isnan(value) && value >= 0;
 }
@@ -32,7 +32,7 @@ RGB RGB::add(RGB rgb) const
 	return RGB(this->red + rgb.red, this->green + rgb.green, this->blue + rgb.blue);
 }
 
-RGB RGB::add(double r, double g, double b) const
+RGB RGB::add(component r, component g, component b) const
 {
 	return this->add(RGB(r, g, b));
 }
@@ -42,7 +42,7 @@ RGB RGB::subtract(RGB rgb) const
 	return RGB(this->red - rgb.red, this->green - rgb.green, this->blue - rgb.blue);
 }
 
-RGB RGB::subtract(double r, double g, double b) const
+RGB RGB::subtract(component r, component g, component b) const
 {
 	return this->subtract(RGB(r, g, b));
 }
@@ -67,7 +67,7 @@ RGB RGB::pow(double power) const
 	return RGB(std::pow(this->red, power), std::pow(this->green, power), std::pow(this->blue, power));
 }
 
-RGB RGB::clamp(double low, double high) const
+RGB RGB::clamp(component low, component high) const
 {
 	return RGB(
 		std::clamp(this->red, low, high), 

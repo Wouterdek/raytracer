@@ -31,6 +31,11 @@ public:
 		return this->vertResolution;
 	}
 
+	const std::vector<RGB>& getData() const
+    {
+	    return pixels;
+    }
+
 private:
 	/*
 	 * Two-dimensional array of pixels. The pixels are stored in row order. When

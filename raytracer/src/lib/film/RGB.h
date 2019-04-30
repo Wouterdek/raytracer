@@ -6,22 +6,23 @@ class RGB
 {
 public:
 	static const RGB BLACK;
+	using component = float;
 
 	RGB();
-	explicit RGB(double value);
-	RGB(double red, double green, double blue);
+	explicit RGB(component value);
+	RGB(component red, component green, component blue);
 
-	bool isValidColorComponent(double value) const;
+	bool isValidColorComponent(component value) const;
 
 	RGB add(RGB rgb) const;
-	RGB add(double r, double g, double b) const;
+	RGB add(component r, component g, component b) const;
 	RGB subtract(RGB rgb) const;
-	RGB subtract(double r, double g, double b) const;
+	RGB subtract(component r, component g, component b) const;
 	RGB scale(double scalar) const;
 	RGB divide(double divisor) const;
 	RGB multiply(RGB spectrum) const;
 	RGB pow(double power) const;
-	RGB clamp(double low, double high) const;
+	RGB clamp(component low, component high) const;
 	bool isBlack() const;
 	int toRGB() const;
 
@@ -61,25 +62,25 @@ public:
 		return lhs;
 	}
 
-	double getRed() const
+    component getRed() const
 	{
 		return this->red;
 	}
 
-	double getGreen() const
+    component getGreen() const
 	{
 		return this->green;
 	}
 
-	double getBlue() const
+    component getBlue() const
 	{
 		return this->blue;
 	}
 
 private:
-	double red;
-	double green;
-	double blue;
+    component red;
+    component green;
+    component blue;
 };
 
 std::ostream& operator<<(std::ostream& in, const RGB& rgb);
