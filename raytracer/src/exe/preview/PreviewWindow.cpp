@@ -81,6 +81,10 @@ void PreviewWindow::show()
         return;
     }
 
+    glfwSetWindowSizeCallback(window, [](GLFWwindow* window, int width, int height){
+        glViewport(0, 0, width, height);
+    });
+
     // Generate vertex array
     GLuint vaId;
     glGenVertexArrays(1, &vaId);
@@ -160,8 +164,6 @@ void PreviewWindow::show()
         glUseProgram(shaderProgramId);
         glBindVertexArray(vaId);
         glDrawArrays(GL_TRIANGLES, 0, 3);
-
-        //this->img;
 
         //Swap front and back buffers
         glfwSwapBuffers(window);
