@@ -15,7 +15,7 @@ public:
 		return this->origin;
 	}
 
-	const Vector3 getDirection() const
+	const Vector3& getDirection() const
 	{
 		return this->direction;
 	}

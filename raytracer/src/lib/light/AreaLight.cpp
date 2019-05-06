@@ -1,6 +1,7 @@
 #include "AreaLight.h"
 #include "math/Transformation.h"
 #include "math/Triangle.h"
+#include "math/UniformSampler.h"
 #include <random>
 
 thread_local std::random_device randomDevice;
@@ -20,10 +21,7 @@ void AreaLight::applyTransform(const Transformation& transform)
 
 Point AreaLight::generateRandomPoint() const
 {
-	auto u = 1.0 - sqrt(dist(randomDevice));
-	auto v = (1.0 - u) * dist(randomDevice);
-
-	return this->a + u*(c - a) + v*(b - a);
+    return sampleUniformTriangle(a, b, c);
 }
 
 Point AreaLight::generateStratifiedJitteredRandomPoint(int level, int i) const

@@ -2,7 +2,7 @@
 
 #include "scene/renderable/Scene.h"
 #include "film/FrameBuffer.h"
-#include "ProgressMonitor.h"
+#include "utility/ProgressMonitor.h"
 
 struct RenderSettings
 {

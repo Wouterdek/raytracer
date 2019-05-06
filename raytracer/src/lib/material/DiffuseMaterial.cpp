@@ -14,7 +14,22 @@ namespace {
 
 DiffuseMaterial::DiffuseMaterial() = default;
 
-RGB DiffuseMaterial::getColorFor(const SceneRayHitInfo& hit, const Scene& scene, int depth) const
+Vector3 sampleBounceDirection(const Vector3& surfaceNormal)
+{
+    auto angleA = randAngle(randDev);
+    auto angleB = randAngle(randDev);
+    OrthonormalBasis basis(surfaceNormal);
+    auto transform = Transformation::rotate(basis.getV(), angleB).append(Transformation::rotate(basis.getU(), angleA));
+    return transform.transform(surfaceNormal);
+}
+
+RGB brdf(const RGB& lIn, const Vector3& surfaceNormal, const Vector3& outDir)
+{
+    double angle = std::max(0.0f, surfaceNormal.dot(outDir));
+    return lIn.scale(angle);
+}
+
+RGB DiffuseMaterial::getTotalRadianceTowards(const SceneRayHitInfo &hit, const Scene &scene, int depth) const
 {
 	auto diffuseColor = this->diffuseColor;
 	if(this->albedoMap != nullptr)
@@ -31,8 +46,19 @@ RGB DiffuseMaterial::getColorFor(const SceneRayHitInfo& hit, const Scene& scene,
 		normal = hit.getModelNode().getTransform().transformNormal(mapNormal);
 	}
 
-	//RGB ambient = (diffuseColor * this->diffuseIntensity).multiply(this->ambientColor * this->ambientIntensity);
+	std::vector<const Photon*> photons(10);
+	scene.getPhotonMap().getElementsNearestTo(hit.getHitpoint(), photons.size(), photons);
 
+    RGB value {};
+    for(const Photon* photon : photons)
+    {
+        auto squaredDist = (photon->getPosition() - hit.getHitpoint()).squaredNorm();
+        /*auto val = 1.0/(sqrt(squaredDist) + 1);
+        value += RGB(photon->isCaustic ? 0: val, photon->isCaustic ? val : 0, 0);*/
+        value += brdf(photon->energy, normal, photon->incomingDir).divide(PI*squaredDist);
+    }
+    return value;//.divide(photons.size());
+    /*
 	RGB direct {};
 
 	Point hitpoint = hit.getHitpoint();
@@ -86,20 +112,22 @@ RGB DiffuseMaterial::getColorFor(const SceneRayHitInfo& hit, const Scene& scene,
 	int maxDepth = 4;
 	if(depth < maxDepth)
 	{
-		auto angleA = randAngle(randDev);
-		auto angleB = randAngle(randDev);
-		OrthonormalBasis basis(hit.normal);
-		auto transform = Transformation::rotate(basis.getV(), angleB).append(Transformation::rotate(basis.getU(), angleA));
-		Vector3 direction = transform.transform(hit.normal);
+		Vector3 direction = sampleBounceDirection(hit.normal);
 
 		Ray ray(hitpoint + (direction * 0.0001f), direction);
 		auto nextHit = scene.traceRay(ray);
 		if(nextHit.has_value())
 		{
-			double angle = std::max(0.0f, normal.dot(direction));
-			indirect += nextHit->getModelNode().getData().getMaterial().getColorFor(*nextHit, scene, depth + 1).scale(angle);
+
+			auto lIn = nextHit->getModelNode().getData().getMaterial().getTotalRadianceTowards(*nextHit, scene, depth + 1);
+			indirect += brdf(lIn, normal, direction);
 		}
 	}
 
-	return diffuseColor.multiply(direct.scale(this->diffuseIntensity / PI) + indirect.scale(this->diffuseIntensity * 2));
+	return diffuseColor.multiply(direct.scale(this->diffuseIntensity / PI) + indirect.scale(this->diffuseIntensity * 2));*/
+}
+
+std::tuple<Vector3, RGB, float> DiffuseMaterial::interactPhoton(const SceneRayHitInfo &hit, const RGB &incomingEnergy) const {
+    Vector3 direction = sampleBounceDirection(hit.normal);
+    return std::make_tuple(direction, brdf(incomingEnergy, hit.normal, direction), 1.0f);
 }

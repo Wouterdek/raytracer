@@ -7,7 +7,7 @@
 
 PositionMaterial::PositionMaterial() = default;
 
-RGB PositionMaterial::getColorFor(const SceneRayHitInfo &hit, const Scene &scene, int depth) const {
+RGB PositionMaterial::getTotalRadianceTowards(const SceneRayHitInfo &hit, const Scene &scene, int depth) const {
     auto hitpoint = hit.getHitpoint();
     return RGB(abs(hitpoint.x()), abs(hitpoint.y()), abs(hitpoint.z()));
 }

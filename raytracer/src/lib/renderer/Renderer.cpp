@@ -5,7 +5,7 @@
 #include "tbb/tbb.h"
 #include "math/Ray.h"
 #include "camera/ICamera.h"
-#include "ProgressMonitor.h"
+#include "utility/ProgressMonitor.h"
 
 #undef min
 
@@ -110,7 +110,8 @@ void render(const Scene& scene, FrameBuffer& buffer, const Tile& tile, const Ren
 						depth = std::clamp<float>(depth, 0, 1);
 						buffer.setPixel(x, y, RGB(depth));*/
 
-						pixelValue = pixelValue.add(hit->getModelNode().getData().getMaterial().getColorFor(*hit, scene, 0));
+						pixelValue = pixelValue.add(
+                                hit->getModelNode().getData().getMaterial().getTotalRadianceTowards(*hit, scene, 0));
 					}
 				}
 				

@@ -4,7 +4,7 @@
 #include <mutex>
 #include <string>
 
-using ProgressMonitor = std::function<void(const std::string& jobDescription, float progress)>;
+using ProgressMonitor = std::function<void(const std::string& jobDescription, float progress, bool jobDone)>;
 
 class ProgressTracker {
 public:

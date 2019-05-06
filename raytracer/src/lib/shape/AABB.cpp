@@ -1,4 +1,8 @@
 #include "AABB.h"
+#include <limits>
+
+#define FLOAT_MAX std::numeric_limits<float>::max()
+const AABB AABB::MAX_RANGE(Point(-FLOAT_MAX, -FLOAT_MAX, -FLOAT_MAX), Point(FLOAT_MAX, FLOAT_MAX, FLOAT_MAX));
 
 AABB::AABB()
 	: start(Point(0, 0, 0)), end(Point(0, 0, 0))
@@ -10,9 +14,6 @@ AABB::AABB(Point start, Point end)
 {
 	assert(!hasNaN(start));
 	assert(!hasNaN(end));
-	assert(start.x() != end.x());
-	assert(start.y() != end.y());
-	assert(start.z() != end.z());
 }
 
 std::array<Point, 8> AABB::getCorners() const

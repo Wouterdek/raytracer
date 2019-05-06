@@ -10,6 +10,7 @@
 #include "SceneNode.h"
 #include "light/PointLight.h"
 #include "light/AreaLight.h"
+#include "photonmapping/PhotonMap.h"
 
 class Scene
 {
@@ -38,11 +39,22 @@ public:
 		return this->cameras;
 	}
 
+    const PhotonMap& getPhotonMap() const
+    {
+	    return *photonMap;
+    }
+
+    void setPhotonMap(PhotonMap map)
+    {
+	    photonMap = std::move(map);
+    }
+
 	std::optional<SceneRayHitInfo> traceRay(const Ray& ray) const;
 
 private:
 	std::vector<std::unique_ptr<PointLight>> pointLights;
 	std::vector<std::unique_ptr<AreaLight>> areaLights;
 	std::vector<SceneNode<ICamera>> cameras;
+	std::optional<PhotonMap> photonMap;
 	SceneBVH sceneBVH;
 };

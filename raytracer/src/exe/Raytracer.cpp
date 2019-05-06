@@ -31,6 +31,7 @@
 #include "io/TileFile.h"
 
 #include "preview/PreviewWindow.h"
+#include "photonmapping/PhotonMapBuilder.h"
 
 Scene buildScene(const std::string& workDir, float imageAspectRatio)
 {
@@ -339,7 +340,8 @@ Scene buildScene(const std::string& workDir, float imageAspectRatio)
         //cornell.root->children.emplace_back(std::move(curNode));
     }*/
 
-	auto kitchen = loadGLTFScene(workDir + "/models/kitchen.glb", imageAspectRatio);
+	//auto kitchen = loadGLTFScene(workDir + "/models/kitchen.glb", imageAspectRatio);
+    auto kitchen = loadGLTFScene(workDir + "/models/glassCaustic.glb", imageAspectRatio);
     //auto kitchen = loadGLTFScene(workDir + "/models/refractionTestScene.glb", imageAspectRatio);
 	kitchen = kitchen.soupifyScene();
 
@@ -492,16 +494,26 @@ int main(int argc, char** argv)
 		// Build scene
 		auto scene = buildScene(workDir, static_cast<float>(width)/height);
 
+        std::cout << "Building photon map..." << std::endl;
+
+        auto progressPrinter = [](const std::string& taskDesc, float progress, bool done){
+            std::cout << taskDesc << " - " << progress*100 << "%\r";
+            if(done)
+            {
+                std::cout << "\n";
+            }
+            std::cout.flush();
+        };
+        auto photonMap = PhotonMapBuilder::buildPhotonMap(scene, progressPrinter);
+        scene.setPhotonMap(std::move(photonMap));
+
 		auto start = std::chrono::high_resolution_clock::now();
 
 		std::cout << "Rendering..." << std::endl;
 
 		RenderSettings settings;
 		settings.aaLevel = 40;
-		render(scene, *buffer, tile, settings, [](const std::string& taskDesc, float progress){
-		    std::cout << taskDesc << " - " << progress*100 << "%\r";
-		    std::cout.flush();
-		});
+		render(scene, *buffer, tile, settings, progressPrinter);
         std::cout << "Done" << std::endl;
 
 		auto finish = std::chrono::high_resolution_clock::now();

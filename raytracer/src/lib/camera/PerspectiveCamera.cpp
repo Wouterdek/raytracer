@@ -2,7 +2,7 @@
 #include "math/OrthonormalBasis.h"
 #include "math/Constants.h"
 #include "math/Transformation.h"
-#include "math/CircularUniformSampler.h"
+#include "math/UniformSampler.h"
 
 PerspectiveCamera::PerspectiveCamera(double fov)
   : basis(Vector3(0, 0, 1), Vector3(0, 1, 0))

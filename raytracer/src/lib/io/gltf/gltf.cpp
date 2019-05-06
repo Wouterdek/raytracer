@@ -367,6 +367,11 @@ std::unique_ptr<DynamicSceneNode> loadNode(tinygltf::Model & file, int nodeI, fl
         result->areaLight->c = primData.vertices[primData.vertexIndices[0][2]];
         result->areaLight->intensity = getDoubleOrDefault(tryGetExtras(&node), "LightIntensity", 3000)/100.0;
     }
+    else if(getBoolOrDefault(tryGetExtras(&node), "IsPointLight", false))
+    {
+        result->pointLight = std::make_unique<PointLight>();
+        result->pointLight->intensity = getDoubleOrDefault(tryGetExtras(&node), "LightIntensity", 3000)/100.0;
+    }
 	else if (node.mesh != -1)
 	{
 		auto& meshDef = file.meshes[node.mesh];

@@ -6,7 +6,8 @@
 class GlassMaterial : public IMaterial
 {
 public:
-    RGB getColorFor(const SceneRayHitInfo &hit, const Scene &scene, int depth) const override;
+    RGB getTotalRadianceTowards(const SceneRayHitInfo &hit, const Scene &scene, int depth) const override;
+    std::tuple<Vector3, RGB, float> interactPhoton(const SceneRayHitInfo &hit, const RGB &incomingEnergy) const override;
 
     double ior = 1.0;
 };

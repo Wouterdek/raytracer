@@ -5,20 +5,31 @@
 #include "math/Constants.h"
 #include "math/Triangle.h"
 #include "NormalMapSampler.h"
-#include "math/CircularUniformSampler.h"
+#include "math/UniformSampler.h"
 #include <random>
 #include <cmath>
 
 GlossyMaterial::GlossyMaterial() = default;
 
-RGB GlossyMaterial::getColorFor(const SceneRayHitInfo& hit, const Scene& scene, int depth) const
+Vector3 sampleReflectionDir(Vector3 normal, Vector3 incomingDir, float roughness)
+{
+    Vector3 sampleDir = incomingDir + ((2.0*normal.dot(-incomingDir))*normal);
+
+    auto offset = sampleUniformCircle(roughness);
+    OrthonormalBasis sampleSpace(sampleDir);
+    sampleDir += sampleSpace.getU() * offset.x();
+    sampleDir += sampleSpace.getV() * offset.y();
+
+    return sampleDir;
+}
+
+RGB GlossyMaterial::getTotalRadianceTowards(const SceneRayHitInfo &hit, const Scene &scene, int depth) const
 {
     int maxDepth = 4;
     if(depth >= maxDepth){
         return RGB::BLACK;
     }
 
-    Vector3 incomingDir = hit.ray.getDirection();
     Vector3 normal = hit.normal;
     if(this->normalMap != nullptr)
     {
@@ -26,12 +37,7 @@ RGB GlossyMaterial::getColorFor(const SceneRayHitInfo& hit, const Scene& scene, 
         normal = hit.getModelNode().getTransform().transformNormal(mapNormal);
     }
 
-    Vector3 sampleDir = incomingDir + ((2.0*normal.dot(-incomingDir))*normal);
-
-    auto offset = sampleUniformCircle(this->roughness);
-    OrthonormalBasis sampleSpace(sampleDir);
-    sampleDir += sampleSpace.getU() * offset.x();
-    sampleDir += sampleSpace.getV() * offset.y();
+    Vector3 sampleDir = sampleReflectionDir(normal, hit.ray.getDirection(), this->roughness);
 
     Point hitpoint = hit.getHitpoint();
 
@@ -55,11 +61,25 @@ RGB GlossyMaterial::getColorFor(const SceneRayHitInfo& hit, const Scene& scene, 
     }
 
     if(result.has_value()){
-        auto hitColor = result->getModelNode().getData().getMaterial().getColorFor(*result, scene, depth + 1);
-        return hitColor;
+        return result->getModelNode().getData().getMaterial().getTotalRadianceTowards(*result, scene, depth + 1);
     }
 
     return RGB::BLACK;
+}
+
+std::tuple<Vector3, RGB, float> GlossyMaterial::interactPhoton(const SceneRayHitInfo &hit, const RGB &incomingEnergy) const
+{
+    Vector3 normal = hit.normal;
+    if(this->normalMap != nullptr)
+    {
+        auto mapNormal = sample_normal_map(hit, *this->normalMap);
+        normal = hit.getModelNode().getTransform().transformNormal(mapNormal);
+    }
+
+    Vector3 direction = sampleReflectionDir(normal, hit.ray.getDirection(), this->roughness);
+    //TODO: is this energy weight correct?
+    //TODO: is using roughness for diffuse parameter correct?
+    return std::make_tuple(direction, incomingEnergy, this->roughness);
 }
 
 

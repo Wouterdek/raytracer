@@ -5,7 +5,8 @@
 
 class MixMaterial : public IMaterial {
 public:
-    RGB getColorFor(const SceneRayHitInfo &hit, const Scene &scene, int depth) const override;
+    RGB getTotalRadianceTowards(const SceneRayHitInfo &hit, const Scene &scene, int depth) const override;
+    std::tuple<Vector3, RGB, float> interactPhoton(const SceneRayHitInfo &hit, const RGB &incomingEnergy) const override;
 
     double mixFactor = 0.0; // 0 = 100% first, 1 = 100% second
     std::shared_ptr<IMaterial> first;

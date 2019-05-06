@@ -6,5 +6,6 @@ class NormalMaterial : public IMaterial
 {
 public:
 	NormalMaterial();
-	RGB getColorFor(const SceneRayHitInfo& hit, const Scene& scene, int depth) const override;
+
+	RGB getTotalRadianceTowards(const SceneRayHitInfo &hit, const Scene &scene, int depth) const override;
 };
