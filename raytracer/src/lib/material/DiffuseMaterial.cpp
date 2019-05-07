@@ -50,19 +50,16 @@ RGB DiffuseMaterial::getTotalRadianceTowards(const SceneRayHitInfo &hit, const S
 	if(photonMap.has_value())
     {
         std::vector<const Photon*> photons(10);
-        photonMap->getElementsNearestTo(hit.getHitpoint(), photons.size(), photons);
+        photonMap->getElementsNearestTo(hit.getHitpoint(), photons.size(), [&dir = hit.ray.getDirection()](const Photon& photon){
+            return dir.dot(-photon.incomingDir) >= 0;
+        }, photons);
 
         RGB value {};
         float maxDistSqr = 0;
         for(const Photon* photon : photons)
         {
-            if(hit.ray.getDirection().dot(-photon->incomingDir) < 0)
-            {
-                continue;
-            }
-
             auto squaredDist = (photon->getPosition() - hit.getHitpoint()).squaredNorm();
-            maxDistSqr = std::max(maxDistSqr, squaredDist);
+            maxDistSqr = std::max(maxDistSqr, squaredDist); //TODO: use output from getElementNearestTo
             /*auto val = 1.0/(sqrt(squaredDist) + 1);
             value += RGB(photon->isCaustic ? 0: val, photon->isCaustic ? val : 0, 0);*/
             value += brdf(photon->energy * 200.0, normal, -photon->incomingDir);

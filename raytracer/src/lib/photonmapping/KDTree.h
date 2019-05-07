@@ -74,8 +74,8 @@ public:
         return (value.*posAccessor)();
     }
 
-    template<bool targetIsInsideRange>
-    float getElementsNearestTo(const Point& target, unsigned int count, std::vector<const TContent*>& resultsList, float searchRadius, const AABB& curRange) const
+    template<bool targetIsInsideRange, typename Filter>
+    float getElementsNearestTo(const Point& target, unsigned int count, Filter filter, std::vector<const TContent*>& resultsList, float searchRadius, const AABB& curRange) const
     {
         /*
          N NEAREST NEIGHBOURS:
@@ -99,7 +99,7 @@ public:
 
         if(isLeafNode())
         {
-            if((position - target).norm() < searchRadius)
+            if((position - target).norm() < searchRadius && filter(this->value))
             {
                 searchRadius = insert(&value, resultsList, count, target);
             }
@@ -115,10 +115,10 @@ public:
 
         if(hasChild(targetContainingChildIdx))
         {
-            searchRadius = getChild(targetContainingChildIdx).template getElementsNearestTo<targetIsInsideRange>(target, count, resultsList, searchRadius, subRanges[targetContainingChildIdx]);
+            searchRadius = getChild(targetContainingChildIdx).template getElementsNearestTo<targetIsInsideRange, Filter>(target, count, filter, resultsList, searchRadius, subRanges[targetContainingChildIdx]);
         }
 
-        if((position - target).norm() < searchRadius)
+        if((position - target).norm() < searchRadius && filter(this->value))
         {
             searchRadius = insert(&value, resultsList, count, target);
         }
@@ -139,7 +139,7 @@ public:
 
             if(distanceToSplitPlane <= searchRadius)
             {
-                searchRadius = getChild(otherChildIdx).template getElementsNearestTo<false>(target, count, resultsList, searchRadius, subRanges[otherChildIdx]);
+                searchRadius = getChild(otherChildIdx).template getElementsNearestTo<false, Filter>(target, count, filter, resultsList, searchRadius, subRanges[otherChildIdx]);
             }
         }
 
@@ -219,7 +219,7 @@ private:
             return std::numeric_limits<float>::max();
         }
         const auto& lastElemPos = (lastElemPtr->*posAccessor)();
-        return (lastElemPos - target).squaredNorm();
+        return (lastElemPos - target).norm();
     }
 };
 
@@ -288,16 +288,23 @@ public:
         nodes = std::move(packedNodes);
     }
 
-    float getElementsNearestTo(const Point& target, unsigned int count, std::vector<const TContent*>& resultsList) const
+    template<typename Filter>
+    float getElementsNearestTo(const Point& target, unsigned int count, Filter filter, std::vector<const TContent*>& resultsList) const
     {
         if(std::holds_alternative<std::unique_ptr<LinkedNode>>(nodes))
         {
-            return std::get<std::unique_ptr<LinkedNode>>(nodes)->template getElementsNearestTo<true>(target, count, resultsList, std::numeric_limits<float>::max(), AABB::MAX_RANGE);
+            return std::get<std::unique_ptr<LinkedNode>>(nodes)->template getElementsNearestTo<true, Filter>(target, count, filter, resultsList, std::numeric_limits<float>::max(), AABB::MAX_RANGE);
         }
         else
         {
-            return std::get<std::vector<PackedNode>>(nodes)[0].template getElementsNearestTo<true>(target, count, resultsList, std::numeric_limits<float>::max(), AABB::MAX_RANGE);
+            return std::get<std::vector<PackedNode>>(nodes)[0].template getElementsNearestTo<true, Filter>(target, count, filter, resultsList, std::numeric_limits<float>::max(), AABB::MAX_RANGE);
         }
+    }
+
+    float getElementsNearestTo(const Point& target, unsigned int count, std::vector<const TContent*>& resultsList) const
+    {
+        auto filter = [](const TContent& elem){return true;};
+        return getElementsNearestTo(target, count, filter, resultsList);
     }
 
     void getElementsInRadiusFrom(const Point& target, float radius, std::vector<const TContent*>& resultsList) const
