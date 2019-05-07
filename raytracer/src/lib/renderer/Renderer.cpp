@@ -37,7 +37,7 @@ void Renderer::render(const Scene &scene, FrameBuffer &buffer, const Tile &tile,
                 for(int i = 0; i < renderSettings.aaLevel; i++)
                 {
                     // create a ray through the center of the pixel.
-                    auto sample = sampleStratifiedSquare(renderSettings.aaLevel, i) + Vector2(x, y);
+                    Vector2 sample = Vector2(x, y) + sampleStratifiedSquare(renderSettings.aaLevel, i);
                     Ray ray = camera.generateRay(sample, buffer.getHorizontalResolution(), buffer.getVerticalResolution());
 
                     // test the scene on intersections
@@ -79,7 +79,7 @@ void Renderer::render(const Scene &scene, FrameBuffer &buffer, const Tile &tile,
 
 void Renderer::render(const Scene &scene, FrameBuffer &buffer, const RenderSettings &renderSettings, ProgressMonitor progressMon)
 {
-    render(scene, buffer, Tile(0, 0, buffer.getHorizontalResolution(), buffer.getVerticalResolution()), renderSettings, progressMon, true);
+    render(scene, buffer, Tile(0, 0, buffer.getHorizontalResolution(), buffer.getVerticalResolution()), renderSettings, std::move(progressMon), true);
 }
 
 const ICamera& Renderer::findCamera(const Scene& scene)
