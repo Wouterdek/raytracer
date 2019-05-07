@@ -39,9 +39,9 @@ public:
 		return this->cameras;
 	}
 
-    const PhotonMap& getPhotonMap() const
+    const std::optional<PhotonMap>& getPhotonMap() const
     {
-	    return *photonMap;
+	    return photonMap;
     }
 
     void setPhotonMap(PhotonMap map)

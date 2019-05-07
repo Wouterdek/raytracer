@@ -6,11 +6,11 @@
 #include "KDTree.h"
 #include "Photon.h"
 #include "utility/unique_ptr_template.h"
-#include <tbb/task.h>
+#include <tbb/tbb.h>
 
 class KDTreeNodeBuildingTask;
 
-using PhotonList = std::vector<Photon>;
+using PhotonList = tbb::concurrent_vector<Photon>;
 struct PhotonListSlice
 {
     using iterator = PhotonList::iterator;
