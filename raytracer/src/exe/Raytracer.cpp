@@ -5,6 +5,7 @@
 #include <exception>
 #include <material/PositionMaterial.h>
 #include <material/CompositeMaterial.h>
+#include <renderer/PPMRenderer.h>
 
 #include "film/FrameBuffer.h"
 #include "io/PPMFile.h"
@@ -504,8 +505,8 @@ int main(int argc, char** argv)
             }
             std::cout.flush();
         };
-        auto photonMap = PhotonMapBuilder::buildPhotonMap(scene, progressPrinter);
-        scene.setPhotonMap(std::move(photonMap));
+        //auto photonMap = PhotonMapBuilder::buildPhotonMap(scene, progressPrinter);
+        //scene.setPhotonMap(std::move(photonMap));
 
 		auto start = std::chrono::high_resolution_clock::now();
 
@@ -513,7 +514,8 @@ int main(int argc, char** argv)
 
 		RenderSettings settings;
 		settings.aaLevel = 40;
-		render(scene, *buffer, tile, settings, progressPrinter);
+		PPMRenderer renderer;
+		renderer.render(scene, *buffer, tile, settings, progressPrinter, true);
         std::cout << "Done" << std::endl;
 
 		auto finish = std::chrono::high_resolution_clock::now();

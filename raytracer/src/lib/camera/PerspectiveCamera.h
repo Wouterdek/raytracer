@@ -11,7 +11,7 @@ class PerspectiveCamera : public ICamera
 {
 public:
 	explicit PerspectiveCamera(double fov);
-	Ray generateRay(const Sample& sample, int xResolution, int yResolution) const override;
+	Ray generateRay(const Vector2& sample, int xResolution, int yResolution) const override;
 
 	void setTransform(const Transformation& transform) override;
 	void pointAt(Point worldSpaceTarget, Vector3 up);

@@ -54,7 +54,7 @@ RGB RGB::scale(double scalar) const
 
 RGB RGB::divide(double divisor) const
 {
-	return scale(1/divisor);
+	return scale(1.0/divisor);
 }
 
 RGB RGB::multiply(RGB spectrum) const

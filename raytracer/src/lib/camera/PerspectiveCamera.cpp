@@ -23,7 +23,7 @@ void PerspectiveCamera::pointAt(Point worldSpaceTarget, Vector3 up)
 	this->basis = OrthonormalBasis(-(worldSpaceTarget - origin), up);
 }
 
-Ray PerspectiveCamera::generateRay(const Sample& sample, int xResolution, int yResolution) const
+Ray PerspectiveCamera::generateRay(const Vector2& sample, int xResolution, int yResolution) const
 {
 	auto height = yResolution * width / xResolution;
 	auto u = this->width * (sample.x() / xResolution - 0.5);

@@ -46,3 +46,17 @@ inline Vector3 sampleUniformTriangle(const Vector3& a, const Vector3& b, const V
 
     return a + u*(c - a) + v*(b - a);
 }
+
+// sample square between (0, 0) and (1, 1)
+inline Vector2 sampleStratifiedSquare(int level, int sampleI)
+{
+    if(level == 1)
+    {
+        return Vector2(0.5, 0.5);
+    }else
+    {
+        const auto x = (static_cast<double>(sampleI % level) / level) + (randUnit(randDev) / level);
+        const auto y = (static_cast<double>(std::floor(sampleI / level)) / level) + (randUnit(randDev) / level);
+        return Vector2(x, y);
+    }
+}

@@ -3,12 +3,21 @@
 #include "scene/renderable/Scene.h"
 #include "film/FrameBuffer.h"
 #include "utility/ProgressMonitor.h"
+#include "film/Tile.h"
 
 struct RenderSettings
 {
 	int aaLevel = 4;
 };
 
-void render(const Scene& scene, FrameBuffer& buffer, const Tile& tile, const RenderSettings& renderSettings, ProgressMonitor progressMon, bool multithreaded = true);
+class Renderer
+{
+public:
+    virtual void render(const Scene& scene, FrameBuffer& buffer, const Tile& tile, const RenderSettings& renderSettings, ProgressMonitor progressMon, bool multithreaded);
+    virtual void render(const Scene& scene, FrameBuffer& buffer, const RenderSettings& renderSettings, ProgressMonitor progressMon);
 
-void render(const Scene& scene, FrameBuffer& buffer, const RenderSettings& renderSettings, ProgressMonitor progressMon);
+protected:
+    const ICamera& findCamera(const Scene& scene);
+
+    std::vector<Tile> subdivideTilePerCores(const Tile& tile, int taskMultiplier = 3 /* tasks per cpu, to compensate for slow vs fast tasks */);
+};
