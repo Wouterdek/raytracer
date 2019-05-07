@@ -53,10 +53,12 @@ inline Vector2 sampleStratifiedSquare(int level, int sampleI)
     if(level == 1)
     {
         return Vector2(0.5, 0.5);
-    }else
+    }
+    else
     {
-        const auto x = (static_cast<double>(sampleI % level) / level) + (randUnit(randDev) / level);
-        const auto y = (static_cast<double>(std::floor(sampleI / level)) / level) + (randUnit(randDev) / level);
+        double lvl = level;
+        const auto x = (static_cast<double>(sampleI % level) / level) + (randUnit(randDev) / lvl);
+        const auto y = (static_cast<double>(std::floor(sampleI / level)) / lvl) + (randUnit(randDev) / lvl);
         return Vector2(x, y);
     }
 }
