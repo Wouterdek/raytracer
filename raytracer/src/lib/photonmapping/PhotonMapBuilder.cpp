@@ -14,12 +14,12 @@ using size_type = std::vector<Photon>::size_type;
 PhotonMap PhotonMapBuilder::buildPhotonMap(const Scene& scene, ProgressMonitor progressMon)
 {
     ProgressTracker progress(progressMon);
-    tbb::concurrent_vector<Photon> photons;
+    tbb::concurrent_vector<Photon> photons{};
 
     {
-        tbb::task_list tasks;
+        tbb::task_list tasks{};
         size_type taskCount = 0;
-        PhotonTracer tracer;
+        PhotonTracer tracer{};
         tracer.batchSize = 1000;
         tracer.photonsPerAreaLight = 1E6;
         tracer.photonsPerPointLight = 1E6;

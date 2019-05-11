@@ -1,10 +1,24 @@
+#include <math/Constants.h>
 #include "PPMRenderer.h"
 #include "photonmapping/PhotonTracer.h"
 #include "photonmapping/KDTreeBuilder.h"
 
+struct HitpointInfo
+{
+    SceneRayHitInfo rayhit;
+    RGB weight;
+    float radius = -1;
+    int photonCount;
+    RGB reflectedFlux;
+
+    HitpointInfo(SceneRayHitInfo rayHitInfo)
+        : rayhit(std::move(rayHitInfo))
+    {}
+};
+
 void PPMRenderer::render(const Scene& scene, FrameBuffer& buffer, const Tile& tile, const RenderSettings& renderSettings, ProgressMonitor progressMon, bool multithreaded)
 {
-    std::vector<std::optional<SceneRayHitInfo>> hits;
+    std::vector<std::optional<HitpointInfo>> hits;
     hits.reserve(tile.getWidth() * tile.getHeight());
 
     const ICamera& camera = findCamera(scene);
@@ -15,7 +29,11 @@ void PPMRenderer::render(const Scene& scene, FrameBuffer& buffer, const Tile& ti
         {
             auto sample = Vector2(x + 0.5, y+0.5);
             auto ray = camera.generateRay(sample, buffer.getHorizontalResolution(), buffer.getVerticalResolution());
-            hits[(y*tile.getWidth()) + x] = scene.traceRay(ray);
+            auto hit = scene.traceRay(ray);
+            if(hit.has_value())
+            {
+                hits[(y*tile.getWidth()) + x] = HitpointInfo(*hit);
+            }
         }
     }
 
@@ -24,14 +42,15 @@ void PPMRenderer::render(const Scene& scene, FrameBuffer& buffer, const Tile& ti
 
     PhotonTracer photonTracer;
     photonTracer.batchSize = 1000;
-    photonTracer.photonsPerAreaLight = 1E5;
-    photonTracer.photonsPerPointLight = 1E5;
-    int iterations = 50;
+    photonTracer.photonsPerAreaLight = 1E2;
+    photonTracer.photonsPerPointLight = 1E2;
+    int iterations = 500;
 
     auto tiles = subdivideTilePerCores(tile);
 
     for(int i = 0; i < iterations; i++)
     {
+        photons.clear();
         tbb::task_list taskList;
         PhotonTracer::size_type taskCount;
         photonTracer.createPhotonTracingTasks(scene, taskList, taskCount, photons, progress);
@@ -41,40 +60,59 @@ void PPMRenderer::render(const Scene& scene, FrameBuffer& buffer, const Tile& ti
 
         tbb::parallel_for_each(tiles.begin(), tiles.end(), [&masterTile = tile, &scene, &buffer, &renderSettings, &progress, &camera, &hits, &tree](const Tile& tile)
         {
+            std::vector<const Photon*> neighbourPhotons;
             for (int y = tile.getYStart(); y < tile.getYEnd(); ++y)
             {
                 for (int x = tile.getXStart(); x < tile.getXEnd(); ++x)
                 {
-                    auto hit = hits[(y*masterTile.getWidth()) + x];
-                    if(!hit.has_value())
+                    auto& hitinfo = hits[(y*masterTile.getWidth()) + x];
+                    if(!hitinfo.has_value())
                     {
                         continue;
                     }
 
-                    auto hitpoint = hit->getHitpoint();
-                    std::vector<const Photon*> neighbourPhotons(10);
-                    tree.getElementsNearestTo(hitpoint, neighbourPhotons.size(), neighbourPhotons);
+                    auto hitpoint = hitinfo->rayhit.getHitpoint();
 
-                    //RGB value {};
-                    float maxDistSqr = 0;
+                    neighbourPhotons.clear();
+                    if(hitinfo->radius < 0)
+                    {
+                        neighbourPhotons.resize(10);
+                        hitinfo->radius = tree.getElementsNearestTo(hitpoint, neighbourPhotons.size(), neighbourPhotons);
+                        hitinfo->photonCount = neighbourPhotons.size();
+                        //hitinfo->reflectedFlux
+                        //hitinfo->weight
+                        continue;
+                    }
+
+                    //Temp
+                    //neighbourPhotons.resize(10);
+                    //hitinfo->radius = tree.getElementsNearestTo(hitpoint, neighbourPhotons.size(), neighbourPhotons);
+
+                    auto filter = [&dir = hitinfo->rayhit.normal](const Photon& photon)
+                    {
+                        return dir.dot(-photon.incomingDir) >= 0;
+                    };
+                    tree.getElementsInRadiusFrom(hitpoint, hitinfo->radius, filter, neighbourPhotons);
+                    //auto newDensity = (neighbourPhotons.size() + hitinfo->photonCount) / (PI * pow(hitinfo->radius, 2.0f));
+                    float alfa = 0.8f;
+                    auto n = hitinfo->photonCount;
+                    auto m = neighbourPhotons.size();
+                    auto newRadius = hitinfo->radius * sqrt((n + alfa*m)/(n + m));
+
+                    RGB totalEnergy;
                     for(const Photon* photon : neighbourPhotons)
                     {
-                        if(hit->ray.getDirection().dot(-photon->incomingDir) < 0)
-                        {
-                            continue;
-                        }
-
-                        auto squaredDist = (photon->getPosition() - hitpoint).squaredNorm();
-                        maxDistSqr = std::max(maxDistSqr, squaredDist);
-                        /*auto val = 1.0/(sqrt(squaredDist) + 1);
-                        value += RGB(photon->isCaustic ? 0: val, photon->isCaustic ? val : 0, 0);*/
-                        //value += brdf(photon->energy * 200.0, normal, -photon->incomingDir);
+                        totalEnergy += photon->energy.scale(std::max(0.0f, hitinfo->rayhit.normal.dot(-photon->incomingDir)));
                     }
-                    buffer.setPixel(x, y, RGB(maxDistSqr));
+                    auto ratio = pow(newRadius, 2.0) / pow(hitinfo->radius, 2.0);
+                    hitinfo->reflectedFlux = (hitinfo->reflectedFlux + totalEnergy) * ratio;
+                    hitinfo->radius = newRadius;
+
+                    //buffer.setPixel(x, y, hitinfo->reflectedFlux);
+                    //buffer.setPixel(x, y, RGB(hitinfo->radius));
+                    buffer.setPixel(x, y, totalEnergy);
                 }
             }
         });
-
-        photons.clear();
     }
 }

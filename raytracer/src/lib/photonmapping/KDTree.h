@@ -146,7 +146,8 @@ public:
         return searchRadius;
     }
 
-    void getElementsInRadiusFrom(const Point& target, float radius, std::vector<const TContent*>& resultsList, const AABB& curRange) const
+    template<typename Filter>
+    void getElementsInRadiusFrom(const Point& target, float radius, Filter filter, std::vector<const TContent*>& resultsList, const AABB& curRange) const
     {
         /*
          NEIGHBOURS IN FIXED RADIUS:
@@ -159,7 +160,7 @@ public:
 
         // Check if this node has a matching value
         const auto& position = getPosition();
-        if((position - target).norm() < radius)
+        if((position - target).norm() < radius && filter(value))
         {
             resultsList.push_back(&value);
         }
@@ -177,7 +178,7 @@ public:
         auto targetContainingChildIdx = position[axisIdx] < target[axisIdx] ? 1 : 0;
         if(hasChild(targetContainingChildIdx))
         {
-            getChild(targetContainingChildIdx).getElementsInRadiusFrom(target, radius, resultsList, subRanges[targetContainingChildIdx]);
+            getChild(targetContainingChildIdx).getElementsInRadiusFrom(target, radius, filter, resultsList, subRanges[targetContainingChildIdx]);
         }
 
         auto otherChildIdx = (targetContainingChildIdx + 1) % 2;
@@ -192,7 +193,7 @@ public:
             if(radius >= projectionDist)
             {
                 // Check if the second child node has a matching value
-                getChild(otherChildIdx).getElementsInRadiusFrom(target, radius, resultsList, subRanges[otherChildIdx]);
+                getChild(otherChildIdx).getElementsInRadiusFrom(target, radius, filter, resultsList, subRanges[otherChildIdx]);
             }
         }
     }
@@ -307,16 +308,23 @@ public:
         return getElementsNearestTo(target, count, filter, resultsList);
     }
 
-    void getElementsInRadiusFrom(const Point& target, float radius, std::vector<const TContent*>& resultsList) const
+    template<typename Filter>
+    void getElementsInRadiusFrom(const Point& target, float radius, Filter filter, std::vector<const TContent*>& resultsList) const
     {
         if(std::holds_alternative<std::unique_ptr<LinkedNode>>(nodes))
         {
-            return std::get<std::unique_ptr<LinkedNode>>(nodes)->getElementsInRadiusFrom(target, radius, resultsList, AABB::MAX_RANGE);
+            return std::get<std::unique_ptr<LinkedNode>>(nodes)->getElementsInRadiusFrom(target, radius, filter, resultsList, AABB::MAX_RANGE);
         }
         else
         {
-            return std::get<std::vector<PackedNode>>(nodes)[0].getElementsInRadiusFrom(target, radius, resultsList, AABB::MAX_RANGE);
+            return std::get<std::vector<PackedNode>>(nodes)[0].getElementsInRadiusFrom(target, radius, filter, resultsList, AABB::MAX_RANGE);
         }
+    }
+
+    void getElementsInRadiusFrom(const Point& target, float radius, std::vector<const TContent*>& resultsList) const
+    {
+        auto filter = [](const TContent& elem){return true;};
+        return getElementsInRadiusFrom(target, radius, filter, resultsList);
     }
 
 private:
