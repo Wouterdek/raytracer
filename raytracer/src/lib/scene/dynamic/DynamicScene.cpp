@@ -4,20 +4,25 @@
 #include "shape/TriangleMesh.h"
 #include "material/CompositeMaterial.h"
 #include <iostream>
+#include <tbb/tbb.h>
 
 DynamicScene::DynamicScene()
 {
 	this->root = std::make_unique<DynamicSceneNode>();
 }
 
-DynamicScene DynamicScene::soupifyScene() const {
+DynamicScene DynamicScene::soupifyScene(Statistics::Collector* stats) const
+{
     DynamicScene result {};
     result.root = std::make_unique<DynamicSceneNode>();
 
     auto mergedMesh = std::make_shared<TriangleMesh>(true);
     auto mergedMaterial = std::make_shared<CompositeMaterial>();
+    size_t modelCount = 0;
+
+    std::vector<std::pair<TriangleMesh, Transformation>> transformTasks;
     using Accumulator = std::pair<DynamicSceneNode*, Transformation>;
-    this->walkDepthFirst<Accumulator>([&mergedMesh, &mergedMaterial](const DynamicSceneNode& node, const Accumulator& acc){
+    this->walkDepthFirst<Accumulator>([&mergedMesh, &mergedMaterial, &modelCount, &transformTasks](const DynamicSceneNode& node, const Accumulator& acc){
         auto& [parentResult, parentTransform] = acc;
 
         auto resultNode = std::make_unique<DynamicSceneNode>();
@@ -29,15 +34,20 @@ DynamicScene DynamicScene::soupifyScene() const {
         resultNode->pointLight = node.pointLight == nullptr ? nullptr : node.pointLight->clone();
 
         auto transform = parentTransform.append(node.transform);
-        if(node.model != nullptr){
+        if(node.model != nullptr)
+        {
             TriangleMesh* curMesh = dynamic_cast<TriangleMesh*>(node.model->getShapePtr().get());
-            if(curMesh != nullptr){
+            if(curMesh == nullptr)
+            {
+                resultNode->model = node.model->clone();
+            }
+            else
+            {
                 mergedMaterial->addMaterial(mergedMesh->count(), curMesh->count(), node.model->getMaterialPtr());
 
-                std::shared_ptr<TriangleMeshData> clonedMeshData = curMesh->getData().clone();
-                TriangleMesh meshClone(clonedMeshData, curMesh->getBeginIndex(), curMesh->getEndIndex());
-                meshClone.applyTransform(transform);
-                mergedMesh->appendMesh(meshClone);
+                auto submesh = mergedMesh->appendMesh(*curMesh);
+                transformTasks.emplace_back(submesh, transform);
+                modelCount++;
             }
         }
         parentResult->children.push_back(std::move(resultNode));
@@ -45,13 +55,22 @@ DynamicScene DynamicScene::soupifyScene() const {
         return std::make_pair(std::make_pair(resultNodePtr, transform), true);
     }, Accumulator(&(*result.root), Transformation::IDENTITY));
 
+    tbb::parallel_for_each(transformTasks.begin(), transformTasks.end(), [](auto& task){
+        TriangleMesh& mesh = std::get<0>(task);
+        Transformation& transform = std::get<1>(task);
+        mesh.applyTransform(transform);
+    });
+
+    LOGSTAT(stats, "TriangleCount", mergedMesh->count());
+    LOGSTAT(stats, "ModelsMerged", modelCount);
+
     auto meshNode = std::make_unique<DynamicSceneNode>();
     meshNode->model = std::make_unique<Model>(mergedMesh, mergedMaterial);
     result.root->children.push_back(std::move(meshNode));
     return result;
 }
 
-Scene DynamicScene::build() const
+Scene DynamicScene::build(Statistics::Collector* stats) const
 {
 	// Flatten scene
 	std::vector<std::unique_ptr<PointLight>> pointLights{};
@@ -88,11 +107,16 @@ Scene DynamicScene::build() const
 		return std::make_pair(transform, true);
 	}, Transformation::IDENTITY);
 
+    LOGSTAT(stats, "PointLightCount", pointLights.size());
+    LOGSTAT(stats, "AreaLightCount", areaLights.size());
+    LOGSTAT(stats, "CameraCount", cameras.size());
+    LOGSTAT(stats, "ModelCount", models.size());
+
 	// Calculate scene BVH
 	InstancedModelList modelList(std::move(models));
-	modelList.buildShapeBVHCache();
+	modelList.buildShapeBVHCache(stats);
 
-	auto sceneBVH = BVHBuilder<SceneRayHitInfo>::buildBVH(modelList);
-	std::cout << "Top level BVH: " << sceneBVH.getSize() << std::endl;
+	auto sceneBVH = BVHBuilder<SceneRayHitInfo>::buildBVH(modelList, stats);
+    LOGSTAT(stats, "TopLevelBVHNodeCount", sceneBVH.getSize());
 	return Scene(std::move(pointLights), std::move(areaLights), std::move(cameras), std::move(sceneBVH));
 }

@@ -3,6 +3,7 @@
 #include <memory>
 #include "BVHNode.h"
 #include <queue>
+#include <utility/StatCollector.h>
 #include "utility/raw_pointer.h"
 #include "utility/unique_ptr_template.h"
 

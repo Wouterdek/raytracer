@@ -13,7 +13,7 @@ public:
 	void applyTransform(const Transformation& transform);
 
 	Point generateRandomPoint() const;
-	Point generateStratifiedJitteredRandomPoint(int level, int i) const;
+	Point generateStratifiedJitteredRandomPoint(int level, int i) const noexcept;
 	Vector3 getNormal() const;
 	double getSurfaceArea() const;
 

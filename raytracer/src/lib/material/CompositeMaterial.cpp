@@ -1,11 +1,7 @@
-//
-// Created by wouter on 20/04/19.
-//
-
 #include <shape/TriangleMesh.h>
 #include "CompositeMaterial.h"
 #include "scene/renderable/SceneRayHitInfo.h"
-
+#include <stdint.h>
 
 CompositeMaterial::CompositeMaterial() : materialMapping() {
     materialMapping.emplace_back(0, nullptr);
@@ -75,12 +71,12 @@ void CompositeMaterial::addMaterial(size_t firstTriangleI, size_t length, std::s
 
 const IMaterial* CompositeMaterial::findMaterial(const SceneRayHitInfo& hit) const
 {
-    auto annex = dynamic_cast<TriangleMeshHitAnnex*>(hit.annex.get());
-    if(annex == nullptr){
+    auto triangleIdx = hit.triangleIndex;
+    if(triangleIdx == UINT32_MAX)
+    {
         return nullptr;
     }
 
-    auto triangleIdx = annex->triangleIndex;
     const auto& triangleMesh = dynamic_cast<const TriangleMesh&>(hit.getModelNode().getData().getShape());
     if(triangleMesh.getData().permutation.has_value()){
         triangleIdx = triangleMesh.getData().permutation->at(triangleIdx);

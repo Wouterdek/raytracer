@@ -10,12 +10,12 @@ class Ray {
 public:
 	Ray(Point origin, Vector3 dir);
 
-	const Point& getOrigin() const
-	{
+	const Point& getOrigin() const noexcept
+    {
 		return this->origin;
 	}
 
-	const Vector3& getDirection() const
+	const Vector3& getDirection() const noexcept
 	{
 		return this->direction;
 	}

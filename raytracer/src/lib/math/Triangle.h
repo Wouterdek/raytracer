@@ -19,70 +19,82 @@ namespace Triangle
 
 	struct TriangleIntersection
 	{
-		double beta, gamma, t;
-
-		TriangleIntersection(double beta, double gamma, double t)
-			: beta(beta), gamma(gamma), t(t)
-		{ }
+		float beta, gamma;
+		double t;
 	};
 
-	inline std::optional<TriangleIntersection> intersect(const Ray & ray, const Vector3 & a, const Vector3 & b, const Vector3 & c)
+#ifdef __linux__
+#define FORCE_TOTAL_INLINE __attribute__((always_inline)) __attribute__((flatten))
+#elif WIN32
+#define FORCE_TOTAL_INLINE __forceinline
+#endif
+
+    FORCE_TOTAL_INLINE inline bool intersect(const Ray& ray, const Vector3& a, const Vector3& b, const Vector3& c, TriangleIntersection& result) noexcept
 	{
 		auto& d = ray.getDirection();
 		Point x = a - ray.getOrigin();
+        Vector3 e1 = a-b;
+        Vector3 e2 = a-c;
 
-		Eigen::Matrix3f p;
-		p.col(0) = d;
-		p.col(1) = a - b;
-		p.col(2) = a - c;
-		auto pDet = p.determinant();
+		Eigen::Matrix3f mat;
+		mat.row(0) = d;
+		mat.row(1) = e1;
+		mat.row(2) = e2;
+		auto pDet = mat.determinant();
 
+		//Vector3 e1CrossE2 = e1.cross(e2);
+		//float pDet = d.dot(e1CrossE2);
 		if (pDet == 0) //triangle is invalid
 		{
-			return std::nullopt;
+			return false;
 		}
+        auto invDet = 1.0f/pDet;
 
-		Eigen::Matrix3f p0;
-		p0.col(0) = x;
-		p0.col(1) = a - b;
-		p0.col(2) = a - c;
-		auto p0Det = p0.determinant();
-		auto t = p0Det / pDet;
+        mat.row(0) = x;
+        mat.row(1) = e1;
+        mat.row(2) = e2;
+		auto p0Det = mat.determinant();
+        float t = p0Det * invDet;
+        //float t = x.dot(e1CrossE2) * invDet;
 
 		if (t < 0)
 		{
-			return std::nullopt;
+			return false;
 		}
 
-		Eigen::Matrix3f p1;
-		p1.col(0) = d;
-		p1.col(1) = x;
-		p1.col(2) = a - c;
-		auto p1Det = p1.determinant();
-		auto beta = p1Det / pDet;
+        mat.row(0) = d;
+        mat.row(1) = x;
+        mat.row(2) = e2;
+		auto p1Det = mat.determinant();
+        float beta = p1Det * invDet;
+        //Vector3 dCrossX = d.cross(x);
+        //float beta = dCrossX.dot(e2) * invDet;
 
 		if (beta < 0)
 		{
-			return std::nullopt;
+			return false;
 		}
 
-		Eigen::Matrix3f p2;
-		p2.col(0) = d;
-		p2.col(1) = a - b;
-		p2.col(2) = x;
-		auto p2Det = p2.determinant();
-		auto gamma = p2Det / pDet;
+        mat.row(0) = d;
+        mat.row(1) = e1;
+        mat.row(2) = x;
+		auto p2Det = mat.determinant();
+        float gamma = p2Det * invDet;
+        //float gamma = -dCrossX.dot(e1) * invDet;
 
 		if (gamma < 0)
 		{
-			return std::nullopt;
+			return false;
 		}
 
 		if (gamma + beta > 1)
 		{
-			return std::nullopt;
+			return false;
 		}
 
-		return TriangleIntersection(beta, gamma, t);
+        result.beta = beta;
+		result.gamma = gamma;
+		result.t = t;
+		return true;
 	}
 }

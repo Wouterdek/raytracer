@@ -2,6 +2,15 @@
 #include <Eigen/Dense>
 #include <numeric>
 #include "utility/soa_sort.h"
+
+#define ENABLE_SIMD
+#ifdef ENABLE_SIMD
+#pragma GCC optimize("O3","unroll-loops","omit-frame-pointer","inline") //Optimization flags
+#pragma GCC option("arch=native","tune=native","no-zero-upper") //Enable AVX
+#pragma GCC target("avx")  //Enable AVX
+#include <x86intrin.h> //AVX/SSE Extensions
+#endif
+
 #include "math/Triangle.h"
 //#include "utility/soa_sort_no_perm.h"
 
@@ -31,7 +40,8 @@ TriangleMesh::TriangleMesh(std::shared_ptr<TriangleMeshData> data, size_type beg
 TriangleMesh::TriangleMesh(bool storePermutation)
     : data(std::make_shared<TriangleMeshData>()), beginIdx(0), endIdx(0)
 {
-    if(storePermutation){
+    if(storePermutation)
+    {
         this->data->permutation = std::vector<uint32_t>();
     }
 }
@@ -85,46 +95,42 @@ AABB TriangleMesh::getAABB() const
 std::optional<RayHitInfo> TriangleMesh::intersect(const Ray& ray) const
 {
 	std::optional<RayHitInfo> bestHit;
-    size_type bestHitTriangle;
 
-    for(size_type triangleI = this->beginIdx; triangleI < this->endIdx; triangleI++)
+    for(size_type triangleI = this->beginIdx; triangleI < this->endIdx; ++triangleI)
 	{
 		const auto& indices = data->vertexIndices[triangleI];
-		auto& a = data->vertices[indices[0]];
-		auto& b = data->vertices[indices[1]];
-		auto& c = data->vertices[indices[2]];
+		const auto& a = data->vertices[indices[0]];
+        const auto& b = data->vertices[indices[1]];
+        const auto& c = data->vertices[indices[2]];
 
-		auto intersection = Triangle::intersect(ray, a, b, c);
-		if(intersection.has_value() && (!bestHit.has_value() || bestHit->t > intersection->t))
+        Triangle::TriangleIntersection intersection;
+		bool hasIntersection = Triangle::intersect(ray, a, b, c, intersection);
+		if(hasIntersection && (!bestHit.has_value() || bestHit->t > intersection.t))
 		{
-			double alfa = 1.0 - intersection->beta - intersection->gamma;
+			float alfa = 1.0f - intersection.beta - intersection.gamma;
 
 			const auto& normalIndices = data->normalIndices[triangleI];
-			auto& aNormal = data->normals[normalIndices[0]];
-			auto& bNormal = data->normals[normalIndices[1]];
-			auto& cNormal = data->normals[normalIndices[2]];
-			Vector3 normal = (alfa * aNormal) + (intersection->beta * bNormal) + (intersection->gamma * cNormal);
+            const auto& aNormal = data->normals[normalIndices[0]];
+            const auto& bNormal = data->normals[normalIndices[1]];
+            const auto& cNormal = data->normals[normalIndices[2]];
+			Vector3 normal = (alfa * aNormal) + (intersection.beta * bNormal) + (intersection.gamma * cNormal);
 
 			Vector2 texcoord;
 			if(!data->texCoordIndices.empty() && !data->texCoords.empty())
 			{
 				const auto& texCoordIndices = data->texCoordIndices[triangleI];
-				auto& aTexCoord = data->texCoords[texCoordIndices[0]];
-				auto& bTexCoord = data->texCoords[texCoordIndices[1]];
-				auto& cTexCoord = data->texCoords[texCoordIndices[2]];
-				texcoord = (alfa * aTexCoord) + (intersection->beta * bTexCoord) + (intersection->gamma * cTexCoord);
+                const auto& aTexCoord = data->texCoords[texCoordIndices[0]];
+                const auto& bTexCoord = data->texCoords[texCoordIndices[1]];
+                const auto& cTexCoord = data->texCoords[texCoordIndices[2]];
+				texcoord = (alfa * aTexCoord) + (intersection.beta * bTexCoord) + (intersection.gamma * cTexCoord);
 			}else{
 			    texcoord = Vector2(0, 0);
 			}
 
-			bestHit = RayHitInfo(ray, intersection->t, normal, texcoord);
-            bestHitTriangle = triangleI;
+			bestHit = RayHitInfo(ray, intersection.t, normal, texcoord);
+            bestHit->triangleIndex = triangleI;
 		}
 	}
-
-    if(bestHit.has_value()){
-        bestHit->annex = std::make_unique<TriangleMeshHitAnnex>(bestHitTriangle);
-    }
 
 	return bestHit;
 }
@@ -132,9 +138,9 @@ std::optional<RayHitInfo> TriangleMesh::intersect(const Ray& ray) const
 AABB TriangleMesh::getAABB(size_type index) const
 {
 	const auto& indices = data->vertexIndices[this->beginIdx + index];
-	Point p1 = data->vertices[indices[0]];
-	Point p2 = data->vertices[indices[1]];
-	Point p3 = data->vertices[indices[2]];
+    const auto& p1 = data->vertices[indices[0]];
+    const auto& p2 = data->vertices[indices[1]];
+    const auto& p3 = data->vertices[indices[2]];
 
 	const auto[startX, endX] = std::minmax({ p1.x(), p2.x(), p3.x() });
 	const auto[startY, endY] = std::minmax({ p1.y(), p2.y(), p3.y() });
@@ -160,30 +166,30 @@ std::pair<IShapeList<RayHitInfo>*, IShapeList<RayHitInfo>*> TriangleMesh::splitI
 Point TriangleMesh::getCentroid(size_type index) const
 {
 	const auto& indices = data->vertexIndices[this->beginIdx + index];
-	const Point p1 = data->vertices[indices[0]];
-	const Point p2 = data->vertices[indices[1]];
-	const Point p3 = data->vertices[indices[2]];
+	const auto& p1 = data->vertices[indices[0]];
+	const auto& p2 = data->vertices[indices[1]];
+	const auto& p3 = data->vertices[indices[2]];
 	return (p1 + p2 + p3)/3;
 }
 
 void TriangleMesh::sortByCentroid(Axis axis)
 {
 	//soa_sort_no_perm::sort_cmp(data->vertexIndices.begin() + this->beginIdx, data->vertexIndices.begin() + this->endIdx, [axis = axis, this](const auto a, const auto b)
-	auto comparator = [axis = axis, this](const auto a, const auto b)
+	auto comparator = [axis = axis, this](const auto& a, const auto& b)
     {
         Point c1;
         {
-            const Point p1 = data->vertices[a[0]];
-            const Point p2 = data->vertices[a[1]];
-            const Point p3 = data->vertices[a[2]];
+            const auto& p1 = data->vertices[a[0]];
+            const auto& p2 = data->vertices[a[1]];
+            const auto& p3 = data->vertices[a[2]];
             c1 = (p1 + p2 + p3) / 3;
         }
 
         Point c2;
         {
-            const Point p1 = data->vertices[b[0]];
-            const Point p2 = data->vertices[b[1]];
-            const Point p3 = data->vertices[b[2]];
+            const auto& p1 = data->vertices[b[0]];
+            const auto& p2 = data->vertices[b[1]];
+            const auto& p3 = data->vertices[b[2]];
             c2 = (p1 + p2 + p3) / 3;
         }
 
@@ -237,25 +243,46 @@ TriangleMesh* TriangleMesh::cloneImpl() const
 }
 
 void TriangleMesh::applyTransform(const Transformation& transform) {
-    if(this->count() != this->data->vertexIndices.size()){
-        throw std::runtime_error("Cannot apply transform to partial mesh");
+    {
+        std::vector<bool> transformed(this->data->vertices.size());
+        for(auto i = this->beginIdx; i < this->endIdx; ++i)
+        {
+            for(auto idx : this->data->vertexIndices[i])
+            {
+                if(!transformed[idx])
+                {
+                    this->data->vertices[idx] = transform.transform(this->data->vertices[idx]);
+                    transformed[idx] = true;
+                }
+            }
+        }
     }
 
-    for(auto& vert : this->data->vertices){
-        vert = transform.transform(vert);
-    }
-
-    for(auto& normal : this->data->normals){
-        normal = transform.transformNormal(normal);
+    {
+        std::vector<bool> transformed(this->data->normals.size());
+        for(auto i = this->beginIdx; i < this->endIdx; ++i)
+        {
+            for(auto idx : this->data->normalIndices[i])
+            {
+                if(!transformed[idx])
+                {
+                    this->data->normals[idx] = transform.transform(this->data->normals[idx]);
+                    transformed[idx] = true;
+                }
+            }
+        }
     }
 }
 
-std::array<uint32_t, 3> offsetArray(const std::array<uint32_t, 3>& in, uint32_t offset){
+std::array<uint32_t, 3> offsetArray(const std::array<uint32_t, 3>& in, uint32_t offset)
+{
     return {in[0] + offset, in[1] + offset, in[2] + offset};
 }
 
-void TriangleMesh::appendMesh(const TriangleMesh &mesh) {
-    if(this->count() != this->data->vertexIndices.size()){
+TriangleMesh TriangleMesh::appendMesh(const TriangleMesh &mesh)
+{
+    if(this->count() != this->data->vertexIndices.size())
+    {
         throw std::runtime_error("Cannot append mesh to partial mesh");
     }
 
@@ -276,13 +303,16 @@ void TriangleMesh::appendMesh(const TriangleMesh &mesh) {
                    std::back_inserter(this->data->normalIndices), [verticesOffset](const auto& idx){return offsetArray(idx, verticesOffset);});
 
     auto texCoordsOffset = this->data->texCoords.size();
-    if(mesh.data->texCoords.size() == 0){
+    if(mesh.data->texCoords.empty())
+    {
         this->data->texCoords.emplace_back(0, 0);
         auto dummyTexCoordIdx = static_cast<uint32_t>(this->data->texCoords.size()-1);
         auto idxStart = this->data->texCoordIndices.end();
         this->data->texCoordIndices.resize(this->data->texCoordIndices.size() + mesh.count());
         std::fill(idxStart, this->data->texCoordIndices.end(), std::array<uint32_t, 3>{dummyTexCoordIdx, dummyTexCoordIdx, dummyTexCoordIdx});
-    }else{
+    }
+    else
+    {
         this->data->texCoords.insert(this->data->texCoords.end(), mesh.data->texCoords.cbegin(), mesh.data->texCoords.cend());
         std::transform(mesh.data->texCoordIndices.cbegin()+mesh.beginIdx, mesh.data->texCoordIndices.cbegin()+mesh.endIdx,
                        std::back_inserter(this->data->texCoordIndices), [texCoordsOffset](const auto& idx){return offsetArray(idx, texCoordsOffset);});
@@ -290,7 +320,8 @@ void TriangleMesh::appendMesh(const TriangleMesh &mesh) {
 
     assert(data->vertexIndices.size() == data->normalIndices.size() && data->vertexIndices.size() == data->texCoordIndices.size());
 
-    if(data->permutation.has_value()){
+    if(data->permutation.has_value())
+    {
         auto oldTriangleCount = this->data->permutation->size();
         data->permutation->resize(this->data->permutation->size() + mesh.count());
         std::iota(data->permutation->begin() + oldTriangleCount, data->permutation->end(), oldTriangleCount);
@@ -299,4 +330,5 @@ void TriangleMesh::appendMesh(const TriangleMesh &mesh) {
     this->aabb = std::nullopt;
     this->centroid = std::nullopt;
     this->endIdx += mesh.count();
+    return TriangleMesh(data, this->endIdx - mesh.count(), this->endIdx);
 }

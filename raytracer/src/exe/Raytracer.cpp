@@ -3,34 +3,31 @@
 #include <boost/program_options.hpp>
 #include <filesystem>
 #include <exception>
-#include <material/PositionMaterial.h>
-#include <material/CompositeMaterial.h>
-#include <renderer/PPMRenderer.h>
 
-#include "film/FrameBuffer.h"
-#include "io/PPMFile.h"
-#include "math/Transformation.h"
-#include "shape/Sphere.h"
-#include "shape/Plane.h"
-#include "camera/PerspectiveCamera.h"
+#include "material/PositionMaterial.h"
+#include "material/CompositeMaterial.h"
 #include "material/DiffuseMaterial.h"
 #include "material/GlossyMaterial.h"
-
-#include "scene/dynamic/DynamicScene.h"
-#include "scene/dynamic/DynamicSceneNode.h"
-#include "shape/TriangleMesh.h"
-#include "renderer/Renderer.h"
-
-#include "shape/Box.h"
 #include "material/NormalMaterial.h"
-
 #include "material/TexCoordMaterial.h"
 #include "io/PNGWriter.h"
 #include "io/EXRWriter.h"
 #include "io/gltf/gltf.h"
 #include "io/OBJLoader.h"
 #include "io/TileFile.h"
-
+#include "io/PPMFile.h"
+#include "renderer/PPMRenderer.h"
+#include "renderer/Renderer.h"
+#include "film/FrameBuffer.h"
+#include "math/Transformation.h"
+#include "camera/PerspectiveCamera.h"
+#include "scene/dynamic/DynamicScene.h"
+#include "scene/dynamic/DynamicSceneNode.h"
+#include "shape/TriangleMesh.h"
+#include "shape/Sphere.h"
+#include "shape/Plane.h"
+#include "shape/Box.h"
+#include "utility/MemoryUsage.h"
 #include "preview/PreviewWindow.h"
 #include "photonmapping/PhotonMapBuilder.h"
 
@@ -341,11 +338,14 @@ Scene buildScene(const std::string& workDir, float imageAspectRatio)
         //cornell.root->children.emplace_back(std::move(curNode));
     }*/
 
-	//auto kitchen = loadGLTFScene(workDir + "/models/kitchen.glb", imageAspectRatio);
-    auto kitchen = loadGLTFScene(workDir + "/models/glassCaustic.glb", imageAspectRatio);
+	auto kitchen = loadGLTFScene(workDir + "/models/kitchen.glb", imageAspectRatio);
+    //auto kitchen = loadGLTFScene(workDir + "/models/sanmiguel_lowres.glb", imageAspectRatio);
     //auto kitchen = loadGLTFScene(workDir + "/models/refractionTestScene.glb", imageAspectRatio);
-	kitchen = kitchen.soupifyScene();
-
+    std::cout << "Soupifying scene." << std::endl;
+    Statistics::Collector collector;
+	kitchen = kitchen.soupifyScene(&collector);
+    std::cout << collector.getString();
+    collector.clear();
 
 	/*{
 		auto curNode = std::make_unique<DynamicSceneNode>();
@@ -369,12 +369,16 @@ Scene buildScene(const std::string& workDir, float imageAspectRatio)
 	//////
 
 	std::cout << "Building scene." << std::endl;
+    auto memUsageBefore = getMemoryUsage();
 	auto start = std::chrono::high_resolution_clock::now();
-	auto renderableScene = kitchen.build();
+	auto renderableScene = kitchen.build(&collector);
 	auto finish = std::chrono::high_resolution_clock::now();
+    auto memUsageDelta = getMemoryUsage() - memUsageBefore;
 	double duration = std::chrono::duration_cast<std::chrono::microseconds>(finish - start).count() / 1000.0;
-	std::cout << "Scene build done in " << duration << " milliseconds." << std::endl;
-	
+    std::cout << collector.getString();
+    collector.clear();
+    std::cout << "Scene build done in " << duration << " milliseconds. (memory delta = " << memUsageDelta << " bytes)" << std::endl;
+
 	return renderableScene;
 }
 
@@ -493,9 +497,11 @@ int main(int argc, char** argv)
 	else // Render
 	{
 		// Build scene
+        std::cout << "Loading scene." << std::endl;
+        auto memUsageBefore = getMemoryUsage();
 		auto scene = buildScene(workDir, static_cast<float>(width)/height);
-
-        std::cout << "Building photon map..." << std::endl;
+        auto memUsageDelta = getMemoryUsage() - memUsageBefore;
+        std::cout << "Scene loaded, total memory delta = " << memUsageDelta << " bytes" << std::endl;
 
         auto progressPrinter = [](const std::string& taskDesc, float progress, bool done){
             std::cout << taskDesc << " - " << progress*100 << "%\r";
@@ -505,8 +511,12 @@ int main(int argc, char** argv)
             }
             std::cout.flush();
         };
-        //auto photonMap = PhotonMapBuilder::buildPhotonMap(scene, progressPrinter);
-        //scene.setPhotonMap(std::move(photonMap));
+        bool enablePhotonMapping = false;
+        if(enablePhotonMapping)
+        {
+            std::cout << "Building photon map..." << std::endl;
+            scene.setPhotonMap(PhotonMapBuilder::buildPhotonMap(scene, progressPrinter));
+        }
 
 		auto start = std::chrono::high_resolution_clock::now();
 
@@ -514,7 +524,8 @@ int main(int argc, char** argv)
 
 		RenderSettings settings;
 		settings.aaLevel = 40;
-		PPMRenderer renderer;
+		//PPMRenderer renderer;
+		Renderer renderer;
 		renderer.render(scene, *buffer, tile, settings, progressPrinter, true);
         std::cout << "Done" << std::endl;
 

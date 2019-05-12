@@ -24,7 +24,7 @@ Point AreaLight::generateRandomPoint() const
     return sampleUniformTriangle(a, b, c);
 }
 
-Point AreaLight::generateStratifiedJitteredRandomPoint(int level, int i) const
+Point AreaLight::generateStratifiedJitteredRandomPoint(int level, int i) const noexcept
 {
 	int n = sqrt(level);
 	Vector3 v1 = (c - a) / n;

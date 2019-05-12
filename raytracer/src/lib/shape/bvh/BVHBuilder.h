@@ -1,12 +1,14 @@
 #pragma once
 
-#include "BVH.h"
-#include "shape/list/IShapeList.h"
 #include <iostream>
 #include <future>
 #include <mutex>
-#include "utility/unique_ptr_template.h"
 #include <tbb/task.h>
+
+#include "BVH.h"
+#include "shape/list/IShapeList.h"
+#include "utility/unique_ptr_template.h"
+#include "utility/StatCollector.h"
 
 template<typename TRayHitInfo>
 class NodeBuildingTask;
@@ -17,7 +19,7 @@ class BVHBuilder
 public:
 	friend class NodeBuildingTask<TRayHitInfo>;
 
-	static BVH<IShapeList<TRayHitInfo>, TRayHitInfo, 2> buildBVH(IShapeList<TRayHitInfo>& shapes);
+	static BVH<IShapeList<TRayHitInfo>, TRayHitInfo, 2> buildBVH(IShapeList<TRayHitInfo>& shapes, Statistics::Collector* stats = nullptr);
 
 private:
 	using size_type = typename IShapeList<TRayHitInfo>::size_type;
@@ -45,6 +47,8 @@ private:
 
 	NodePtr buildTree(IShapeList<TRayHitInfo>& shapes, Axis presortedAxis);
 	std::pair<NodePtr, size_t> buildTreeThreaded(IShapeList<TRayHitInfo>& shapes, Axis presortedAxis);
+
+	static void logLeafNodeSizes(const Node& bvh, Statistics::Collector* stats);
 
 	inline static std::mutex exec_mutex;
 };
@@ -282,14 +286,35 @@ std::pair<std::unique_ptr<typename BVHBuilder<TRayHitInfo>::Node>, size_t> BVHBu
 	return std::make_pair(std::move(node), size);
 }
 
+template<typename TRayHitInfo>
+void BVHBuilder<TRayHitInfo>::logLeafNodeSizes(const BVHBuilder::Node &bvh, Statistics::Collector *stats)
+{
+    if(!bvh.isLeafNode())
+    {
+        logLeafNodeSizes(bvh.getChild(0), stats);
+        logLeafNodeSizes(bvh.getChild(1), stats);
+        return;
+    }
+
+    stats->log("logLeafNodeSizes", "BVHLeafNodeSize", bvh.leafData().count());
+}
+
+
 template <typename TRayHitInfo>
-BVH<IShapeList<TRayHitInfo>, TRayHitInfo, 2> BVHBuilder<TRayHitInfo>::buildBVH(IShapeList<TRayHitInfo> & shapes)
+BVH<IShapeList<TRayHitInfo>, TRayHitInfo, 2> BVHBuilder<TRayHitInfo>::buildBVH(IShapeList<TRayHitInfo> & shapes, Statistics::Collector* stats)
 {
 	shapes.sortByCentroid(Axis::x);
 
 	std::lock_guard lock(exec_mutex);
 
-	BVHBuilder builder(1, 3);//TODO: intersect cost
+	auto intersectionCost = 1;
+	auto traversalCost = 4;
+	BVHBuilder builder(intersectionCost, traversalCost);
 	auto [rootNode, size] = builder.buildTreeThreaded(shapes, Axis::x);
+	if(stats != nullptr)
+    {
+        logLeafNodeSizes(*rootNode, stats);
+    }
 	return BVH<ShapeList, TRayHitInfo, 2>(std::move(rootNode), size);
 }
+

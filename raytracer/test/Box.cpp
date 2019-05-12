@@ -53,7 +53,7 @@ TEST(AABB, Merge)
 	ASSERT_EQ(merged.getEnd(), Point(2, 3, 3));
 }
 
-TEST(Box, Intersect)
+/*TEST(Box, Intersect)
 {
 	Box box(Point(1, 1, 1), Point(3, 3, 3));
 	Vector3 dir = Point(3, 3, 2) - Point(1, 1, 0);
@@ -64,4 +64,4 @@ TEST(Box, Intersect)
 	auto hitpoint = hit->getHitpoint();
 	ASSERT_EQ(hitpoint, Point(1.5, 1.5, 1));
 	ASSERT_EQ(hit->normal, Point(0, 0, -1));
-}
+}*/

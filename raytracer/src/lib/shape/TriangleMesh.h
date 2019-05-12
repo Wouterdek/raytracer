@@ -35,7 +35,7 @@ private:
     }
 };
 
-class TriangleMesh : public IShape, public IShapeList<RayHitInfo>
+class TriangleMesh final: public IShape, public IShapeList<RayHitInfo>
 {
 public:
 	TriangleMesh(std::vector<Point> vertices, std::vector<std::array<uint32_t, 3>> vertexIndices,
@@ -67,7 +67,7 @@ public:
 	std::optional<RayHitInfo> traceRay(const Ray& ray) const override;
 
 	void applyTransform(const Transformation& transform);
-	void appendMesh(const TriangleMesh& mesh);
+    TriangleMesh appendMesh(const TriangleMesh& mesh);
 
 private:
 	TriangleMesh* cloneImpl() const override;

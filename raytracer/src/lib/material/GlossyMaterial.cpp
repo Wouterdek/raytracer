@@ -46,11 +46,13 @@ RGB GlossyMaterial::getTotalRadianceTowards(const SceneRayHitInfo &hit, const Sc
 
     const AreaLight* lightHit = nullptr;
     double bestT = result->t;
-    for(const auto& light : scene.getAreaLights()){
-        auto lightIntersect = Triangle::intersect(ray, light->a, light->b, light->c);
-        if(lightIntersect.has_value() && bestT > lightIntersect->t){
+    for(const auto& light : scene.getAreaLights())
+    {
+        Triangle::TriangleIntersection intersection;
+        bool hasIntersection = Triangle::intersect(ray, light->a, light->b, light->c, intersection);
+        if(hasIntersection && bestT > intersection.t){
             lightHit = &*light;
-            bestT = lightIntersect->t;
+            bestT = intersection.t;
         }
     }
 

@@ -55,7 +55,7 @@ void InstancedModelList::sortByCentroid(Axis axis)
 	});
 }
 
-void InstancedModelList::buildShapeBVHCache() const
+void InstancedModelList::buildShapeBVHCache(Statistics::Collector* stats) const
 {
 	// Calculate shape BVHs
 	for (auto& modelNode : this->data->shapes)
@@ -64,9 +64,9 @@ void InstancedModelList::buildShapeBVHCache() const
 		if (list != nullptr)
 		{
 			auto shape = modelNode.getData().getShapePtr();
-			auto bvh = BVHBuilder<RayHitInfo>::buildBVH(*list);
+			auto bvh = BVHBuilder<RayHitInfo>::buildBVH(*list, stats);
 			bvh.pack();
-			std::cout << "Second level BVH: " << bvh.getSize() << std::endl;
+            LOGSTAT(stats, "SecondLevelBVHNodeCount", bvh.getSize());
 			this->data->shapeBVHs.insert({ shape, std::move(bvh) });
 		}
 	}
@@ -118,8 +118,7 @@ std::optional<SceneRayHitInfo> InstancedModelList::traceRay(const Ray & ray) con
 	{
 		auto normal = node->getTransform().transformNormal(closestHit->normal);
 		normal.normalize();
-		RayHitInfo realHit(ray, closestHit->t, normal, closestHit->texCoord, std::move(closestHit->annex));
-		return SceneRayHitInfo(realHit, *node);
+		return SceneRayHitInfo(RayHitInfo(ray, closestHit->t, normal, closestHit->texCoord, closestHit->triangleIndex), *node);
 	}
 	else
 	{

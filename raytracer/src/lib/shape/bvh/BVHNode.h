@@ -122,7 +122,7 @@ public:
 		else
 		{
 			std::array<float, Arity> aabbHitTs;
-			for (int i = 0; i < Arity; i++)
+			for (int i = 0; i < Arity; ++i)
 			{
 				aabbHitTs[i] = getChild(i).boundingBox.getIntersection(ray);
 			}
@@ -141,7 +141,7 @@ public:
 							bestHit = hit;
 
 							bool earlyExit = true;
-							for (int j = i + 1; j < Arity; j++)
+							for (int j = i + 1; j < Arity; ++j)
 							{
 								if (aabbHitTs[j] >= 0 && hit->t > aabbHitTs[j])
 								{
@@ -156,7 +156,8 @@ public:
 						}
 					}
 				}
-			}else if(order < 0)
+			}
+			else if(order < 0)
 			{
 				for (int i = Arity-1; i >= 0; --i)
 				{
@@ -183,7 +184,8 @@ public:
 						}
 					}
 				}
-			}else
+			}
+			else
 			{
 				for (int i = Arity - 1; i >= 0; --i)
 				{

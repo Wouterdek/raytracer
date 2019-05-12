@@ -79,7 +79,7 @@ RGB DiffuseMaterial::getTotalRadianceTowards(const SceneRayHitInfo &hit, const S
 		{
 			auto lampPoint = light->generateStratifiedJitteredRandomPoint(sampleCount, i);
 			Vector3 objectToLamp = lampPoint - hitpoint;
-			double lampT = objectToLamp.norm();
+			auto lampT = objectToLamp.norm();
 			objectToLamp.normalize();
 
 			Ray visibilityRay(hitpoint + (objectToLamp * 0.0001f), objectToLamp);
@@ -88,9 +88,9 @@ RGB DiffuseMaterial::getTotalRadianceTowards(const SceneRayHitInfo &hit, const S
 
 			if (isVisible)
 			{
-				double lampAngle = std::max(0.0f, light->getNormal().dot(-objectToLamp));
-				double geometricFactor = lampAngle / pow(lampT, 2);
-				double angle = std::max(0.0f, normal.dot(objectToLamp));
+				auto lampAngle = std::max(0.0f, light->getNormal().dot(-objectToLamp));
+				auto geometricFactor = lampAngle / pow(lampT, 2);
+				auto angle = std::max(0.0f, normal.dot(objectToLamp));
 				auto lampRadiance = light->color * (light->intensity * angle) * geometricFactor * light->getSurfaceArea();
 				contrib = contrib.add(lampRadiance);
 			}
@@ -101,23 +101,23 @@ RGB DiffuseMaterial::getTotalRadianceTowards(const SceneRayHitInfo &hit, const S
 	for(const auto& light : scene.getPointLights())
 	{
 		Vector3 objectToLamp = light->pos - hitpoint;
-		double lampT = objectToLamp.norm();
+		auto lampT = objectToLamp.norm();
 		objectToLamp.normalize();
 
-		Ray visibilityRay(hitpoint + (objectToLamp * 0.0001), objectToLamp);
+		Ray visibilityRay(hitpoint + (objectToLamp * 0.0001f), objectToLamp);
 		auto visibility = scene.traceRay(visibilityRay);
 		bool isVisible = !visibility.has_value() || visibility->t > lampT;
 
 		if (isVisible)
 		{
-			double angle = std::max(0.0f, normal.dot(objectToLamp));
+			auto angle = std::max(0.0f, normal.dot(objectToLamp));
 			direct += light->color * (light->intensity * angle);
 		}
 	}
 
 	// Indirect lighting
 	RGB indirect {};
-	int maxDepth = 4;
+	const int maxDepth = 4;
 	if(depth < maxDepth)
 	{
 		Vector3 direction = sampleBounceDirection(hit.normal);

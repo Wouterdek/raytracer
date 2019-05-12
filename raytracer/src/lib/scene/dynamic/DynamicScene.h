@@ -1,10 +1,11 @@
 #pragma once
-#include "DynamicSceneNode.h"
 #include <memory>
 #include <functional>
 #include <optional>
 
+#include "DynamicSceneNode.h"
 #include "scene/renderable/Scene.h"
+#include "utility/StatCollector.h"
 
 class DynamicScene
 {
@@ -17,8 +18,8 @@ public:
 		return this->root->walkDepthFirst(visitor, init);
 	}
 
-    DynamicScene soupifyScene() const;
-    Scene build() const;
+    DynamicScene soupifyScene(Statistics::Collector* stats = nullptr) const;
+    Scene build(Statistics::Collector* stats = nullptr) const;
 
 //private:
 	std::unique_ptr<DynamicSceneNode> root;

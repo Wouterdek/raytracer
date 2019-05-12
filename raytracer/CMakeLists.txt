@@ -23,6 +23,8 @@ if(WIN32)
 	set (CMAKE_CXX_FLAGS_RELEASE  "${CMAKE_CXX_FLAGS_RELEASE} /GS- /fp:fast")
 endif()
 
+set(CMAKE_VERBOSE_MAKEFILE ON)
+
 add_subdirectory (src) 
 add_subdirectory (test)
 

@@ -3,6 +3,7 @@
 #include "IShapeList.h"
 #include "math/Transformation.h"
 #include <memory>
+#include <utility/StatCollector.h>
 #include "model/Model.h"
 #include "scene/renderable/SceneRayHitInfo.h"
 #include "shape/bvh/BVH.h"
@@ -19,7 +20,7 @@ struct InstancedModelListData
 	std::optional<std::reference_wrapper<ShapeBVH>> findShapeBVH(IShape& shape);
 };
 
-class InstancedModelList : public IShapeList<SceneRayHitInfo>
+class InstancedModelList final: public IShapeList<SceneRayHitInfo>
 {
 public:
 	using ModelVector = std::vector<SceneNode<Model>>;
@@ -33,7 +34,7 @@ public:
 	
 	void sortByCentroid(Axis axis) override;
 
-	void buildShapeBVHCache() const;
+	void buildShapeBVHCache(Statistics::Collector* stats = nullptr) const;
 
 	std::optional<SceneRayHitInfo> traceRay(const Ray& ray) const override;
 
