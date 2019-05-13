@@ -17,6 +17,7 @@ public:
 	AABB getAABBOfTransformed(const Transformation& transform) const;
 	double getSurfaceArea() const;
 	bool intersects(const Ray& ray) const;
+    bool getIntersections(const Ray& ray, float& t1, float& t2) const;
 	float getIntersection(const Ray& ray) const;
 	AABB merge(const AABB& b) const;
 	
@@ -58,7 +59,7 @@ protected:
 	Point end;
 };
 
-inline float AABB::getIntersection(const Ray& ray) const
+inline bool AABB::getIntersections(const Ray& ray, float& t0, float& t1) const
 {
     const Point& o = ray.getOrigin();
     const Vector3& d = ray.getDirection();
@@ -103,18 +104,23 @@ inline float AABB::getIntersection(const Ray& ray) const
         tz_max = (s.z() - o.z()) * c;
     }
 
-    float t0 = std::max(tx_min, ty_min);
+    t0 = std::max(tx_min, ty_min);
     t0 = std::max(t0, tz_min);
 
-    float t1 = std::min(tx_max, ty_max);
+    t1 = std::min(tx_max, ty_max);
     t1 = std::min(t1, tz_max);
 
-    if (t0 > t1)
+    bool isIntersecting = t0 <= t1;
+    t0 = std::max(0.0f, t0);
+    return isIntersecting;
+}
+
+inline float AABB::getIntersection(const Ray& ray) const
+{
+    float t0, t1;
+    if(!getIntersections(ray, t0, t1))
     {
-        return -1;
+        return -1.0f;
     }
-    else
-    {
-        return std::max(0.0f, t0);
-    }
+    return t0;
 }

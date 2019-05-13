@@ -135,6 +135,48 @@ std::optional<RayHitInfo> TriangleMesh::intersect(const Ray& ray) const
 	return bestHit;
 }
 
+std::optional<RayHitInfo> TriangleMesh::testVisibility(const Ray& ray, float maxT) const
+{
+    for(size_type triangleI = this->beginIdx; triangleI < this->endIdx; ++triangleI)
+    {
+        const auto& indices = data->vertexIndices[triangleI];
+        const auto& a = data->vertices[indices[0]];
+        const auto& b = data->vertices[indices[1]];
+        const auto& c = data->vertices[indices[2]];
+
+        Triangle::TriangleIntersection intersection;
+        bool hasIntersection = Triangle::intersect(ray, a, b, c, intersection);
+        if(hasIntersection && intersection.t <= maxT)
+        {
+            float alfa = 1.0f - intersection.beta - intersection.gamma;
+
+            const auto& normalIndices = data->normalIndices[triangleI];
+            const auto& aNormal = data->normals[normalIndices[0]];
+            const auto& bNormal = data->normals[normalIndices[1]];
+            const auto& cNormal = data->normals[normalIndices[2]];
+            Vector3 normal = (alfa * aNormal) + (intersection.beta * bNormal) + (intersection.gamma * cNormal);
+
+            Vector2 texcoord;
+            if(!data->texCoordIndices.empty() && !data->texCoords.empty())
+            {
+                const auto& texCoordIndices = data->texCoordIndices[triangleI];
+                const auto& aTexCoord = data->texCoords[texCoordIndices[0]];
+                const auto& bTexCoord = data->texCoords[texCoordIndices[1]];
+                const auto& cTexCoord = data->texCoords[texCoordIndices[2]];
+                texcoord = (alfa * aTexCoord) + (intersection.beta * bTexCoord) + (intersection.gamma * cTexCoord);
+            }else{
+                texcoord = Vector2(0, 0);
+            }
+
+            RayHitInfo hit(ray, intersection.t, normal, texcoord);
+            hit.triangleIndex = triangleI;
+            return hit;
+        }
+    }
+
+    return std::nullopt;
+}
+
 AABB TriangleMesh::getAABB(size_type index) const
 {
 	const auto& indices = data->vertexIndices[this->beginIdx + index];
@@ -200,30 +242,31 @@ void TriangleMesh::sortByCentroid(Axis axis)
 	auto vertEnd = data->vertexIndices.begin() + this->endIdx;
 	auto normBegin = data->normalIndices.begin() + this->beginIdx;
 	if(data->permutation.has_value()){
-        if(data->texCoordIndices.size() > 0){
-            soa_sort::sort_cmp(
-                    vertBegin, vertEnd,
-                    comparator,
-                    normBegin, data->texCoordIndices.begin() + this->beginIdx, data->permutation->begin() + this->beginIdx);
-        }else{
+        if (data->texCoordIndices.empty()) {
             soa_sort::sort_cmp(
                     vertBegin, vertEnd,
                     comparator,
                     normBegin, data->permutation->begin() + this->beginIdx);
-        }
-	}else{
-	    if(data->texCoordIndices.size() > 0){
+        } else {
             soa_sort::sort_cmp(
                     vertBegin, vertEnd,
                     comparator,
-                    normBegin, data->texCoordIndices.begin() + this->beginIdx);
-	    }else{
+                    normBegin, data->texCoordIndices.begin() + this->beginIdx,
+                    data->permutation->begin() + this->beginIdx);
+        }
+    }else{
+        if (data->texCoordIndices.empty()) {
             soa_sort::sort_cmp(
                     vertBegin, vertEnd,
                     comparator,
                     normBegin);
-	    }
-	}
+        } else {
+            soa_sort::sort_cmp(
+                    vertBegin, vertEnd,
+                    comparator,
+                    normBegin, data->texCoordIndices.begin() + this->beginIdx);
+        }
+    }
 
 }
 
@@ -274,11 +317,6 @@ void TriangleMesh::applyTransform(const Transformation& transform) {
     }
 }
 
-std::array<uint32_t, 3> offsetArray(const std::array<uint32_t, 3>& in, uint32_t offset)
-{
-    return {in[0] + offset, in[1] + offset, in[2] + offset};
-}
-
 TriangleMesh TriangleMesh::appendMesh(const TriangleMesh &mesh)
 {
     if(this->count() != this->data->vertexIndices.size())
@@ -296,11 +334,15 @@ TriangleMesh TriangleMesh::appendMesh(const TriangleMesh &mesh)
     auto verticesOffset = this->data->vertices.size();
     this->data->vertices.insert(this->data->vertices.end(), mesh.data->vertices.cbegin(), mesh.data->vertices.cend());
     std::transform(mesh.data->vertexIndices.cbegin()+mesh.beginIdx, mesh.data->vertexIndices.cbegin()+mesh.endIdx,
-                   std::back_inserter(this->data->vertexIndices), [verticesOffset](const auto& idx){return offsetArray(idx, verticesOffset);});
+                   std::back_inserter(this->data->vertexIndices), [verticesOffset](const auto& idx){
+        return std::array<uint32_t, 3>{idx[0] + verticesOffset, idx[1] + verticesOffset, idx[2] + verticesOffset};
+    });
 
     this->data->normals.insert(this->data->normals.end(), mesh.data->normals.cbegin(), mesh.data->normals.cend());
     std::transform(mesh.data->normalIndices.cbegin()+mesh.beginIdx, mesh.data->normalIndices.cbegin()+mesh.endIdx,
-                   std::back_inserter(this->data->normalIndices), [verticesOffset](const auto& idx){return offsetArray(idx, verticesOffset);});
+                   std::back_inserter(this->data->normalIndices), [verticesOffset](const auto& idx){
+        return std::array<uint32_t, 3>{idx[0] + verticesOffset, idx[1] + verticesOffset, idx[2] + verticesOffset};
+    });
 
     auto texCoordsOffset = this->data->texCoords.size();
     if(mesh.data->texCoords.empty())
@@ -315,7 +357,9 @@ TriangleMesh TriangleMesh::appendMesh(const TriangleMesh &mesh)
     {
         this->data->texCoords.insert(this->data->texCoords.end(), mesh.data->texCoords.cbegin(), mesh.data->texCoords.cend());
         std::transform(mesh.data->texCoordIndices.cbegin()+mesh.beginIdx, mesh.data->texCoordIndices.cbegin()+mesh.endIdx,
-                       std::back_inserter(this->data->texCoordIndices), [texCoordsOffset](const auto& idx){return offsetArray(idx, texCoordsOffset);});
+                       std::back_inserter(this->data->texCoordIndices), [texCoordsOffset](const auto& idx){
+            return std::array<uint32_t, 3>{idx[0] + texCoordsOffset, idx[1] + texCoordsOffset, idx[2] + texCoordsOffset};
+        });
     }
 
     assert(data->vertexIndices.size() == data->normalIndices.size() && data->vertexIndices.size() == data->texCoordIndices.size());

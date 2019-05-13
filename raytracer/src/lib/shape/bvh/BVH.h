@@ -1,8 +1,8 @@
 #pragma once
 
 #include <memory>
-#include "BVHNode.h"
 #include <queue>
+#include "BVHNode.h"
 #include <utility/StatCollector.h>
 #include "utility/raw_pointer.h"
 #include "utility/unique_ptr_template.h"
@@ -28,6 +28,17 @@ public:
 			return std::get<std::vector<PackedNode>>(nodes)[0].traceRay(ray);
 		}
 	}
+
+    std::optional<TRayHitInfo> testVisibility(const Ray &ray, float maxT) const
+    {
+        if(std::holds_alternative<std::unique_ptr<LinkedNode>>(nodes))
+        {
+            return std::get<std::unique_ptr<LinkedNode>>(nodes)->testVisibility(ray, maxT);
+        }else
+        {
+            return std::get<std::vector<PackedNode>>(nodes)[0].testVisibility(ray, maxT);
+        }
+    }
 
 	size_t getSize() const
 	{

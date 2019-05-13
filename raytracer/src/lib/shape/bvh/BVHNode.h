@@ -3,7 +3,7 @@
 #include <array>
 #include <variant>
 #include <iostream>
-#include "shape/Box.h"
+#include "shape/AABB.h"
 #include "math/Axis.h"
 
 /*template<typename TContent, typename TRayHitInfo>
@@ -115,94 +115,143 @@ public:
 	{
 		//BVHDiag::Levels++;
 
-		if(isLeafNode())
-		{
-			return leafData().traceRay(ray);
-		}
-		else
-		{
-			std::array<float, Arity> aabbHitTs;
-			for (int i = 0; i < Arity; ++i)
-			{
-				aabbHitTs[i] = getChild(i).boundingBox.getIntersection(ray);
-			}
+        if(isLeafNode())
+        {
+            return leafData().traceRay(ray);
+        }
+        else
+        {
+            std::array<float, Arity> aabbHitTs;
+            for (int i = 0; i < Arity; ++i)
+            {
+                aabbHitTs[i] = getChild(i).boundingBox.getIntersection(ray);
+            }
 
-			std::optional<TRayHitInfo> bestHit = std::nullopt;
-			auto order = ray.getDirection()[static_cast<int>(this->childOrder)];
-			if(order > 0)
-			{
-				for (int i = 0; i < Arity; ++i)
-				{
-					if (aabbHitTs[i] >= 0)
-					{
-						auto hit = getChild(i).traceRay(ray);
-						if (hit.has_value() && (!bestHit.has_value() || bestHit->t > hit->t))
-						{
-							bestHit = hit;
+            std::optional<TRayHitInfo> bestHit = std::nullopt;
+            auto order = ray.getDirection()[static_cast<int>(this->childOrder)];
+            if(order > 0)
+            {
+                for (int i = 0; i < Arity; ++i)
+                {
+                    if (aabbHitTs[i] >= 0)
+                    {
+                        auto hit = getChild(i).traceRay(ray);
+                        if (hit.has_value() && (!bestHit.has_value() || bestHit->t > hit->t))
+                        {
+                            bestHit = hit;
 
-							bool earlyExit = true;
-							for (int j = i + 1; j < Arity; ++j)
-							{
-								if (aabbHitTs[j] >= 0 && hit->t > aabbHitTs[j])
-								{
-									earlyExit = false;
-									break;
-								}
-							}
-							if (earlyExit)
-							{
-								break;
-							}
-						}
-					}
-				}
-			}
-			else if(order < 0)
-			{
-				for (int i = Arity-1; i >= 0; --i)
-				{
-					if (aabbHitTs[i] >= 0)
-					{
-						auto hit = getChild(i).traceRay(ray);
-						if (hit.has_value() && (!bestHit.has_value() || bestHit->t > hit->t))
-						{
-							bestHit = hit;
+                            bool earlyExit = true;
+                            for (int j = i + 1; j < Arity; ++j)
+                            {
+                                if (aabbHitTs[j] >= 0 && hit->t > aabbHitTs[j])
+                                {
+                                    earlyExit = false;
+                                    break;
+                                }
+                            }
+                            if (earlyExit)
+                            {
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+            else if(order < 0)
+            {
+                for (int i = Arity-1; i >= 0; --i)
+                {
+                    if (aabbHitTs[i] >= 0)
+                    {
+                        auto hit = getChild(i).traceRay(ray);
+                        if (hit.has_value() && (!bestHit.has_value() || bestHit->t > hit->t))
+                        {
+                            bestHit = hit;
 
-							bool earlyExit = true;
-							for (int j = i - 1; j >= 0; --j)
-							{
-								if (aabbHitTs[j] >= 0 && hit->t > aabbHitTs[j])
-								{
-									earlyExit = false;
-									break;
-								}
-							}
-							if (earlyExit)
-							{
-								break;
-							}
-						}
-					}
-				}
-			}
-			else
-			{
-				for (int i = Arity - 1; i >= 0; --i)
-				{
-					if (aabbHitTs[i] >= 0)
-					{
-						auto hit = getChild(i).traceRay(ray);
-						if (hit.has_value() && (!bestHit.has_value() || bestHit->t > hit->t))
-						{
-							bestHit = hit;
-						}
-					}
-				}
-			}
-			
-			return bestHit;
-		}
+                            bool earlyExit = true;
+                            for (int j = i - 1; j >= 0; --j)
+                            {
+                                if (aabbHitTs[j] >= 0 && hit->t > aabbHitTs[j])
+                                {
+                                    earlyExit = false;
+                                    break;
+                                }
+                            }
+                            if (earlyExit)
+                            {
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+            else
+            {
+                for (int i = Arity - 1; i >= 0; --i)
+                {
+                    if (aabbHitTs[i] >= 0)
+                    {
+                        auto hit = getChild(i).traceRay(ray);
+                        if (hit.has_value() && (!bestHit.has_value() || bestHit->t > hit->t))
+                        {
+                            bestHit = hit;
+                        }
+                    }
+                }
+            }
+
+            return bestHit;
+        }
 	}
+
+    std::optional<TRayHitInfo> testVisibility(const Ray& ray, float maxT) const
+    {
+        if(isLeafNode())
+        {
+            return leafData().testVisibility(ray, maxT);
+        }
+        else
+        {
+            std::array<bool, Arity> aabbHit;
+            for (int i = 0; i < Arity; ++i)
+            {
+                float t0, t1;
+                aabbHit[i] = getChild(i).boundingBox.getIntersections(ray, t0, t1) && t0 <= maxT;
+            }
+
+            auto order = ray.getDirection()[static_cast<int>(this->childOrder)];
+            if(order < 0)
+            {
+                for (int i = Arity-1; i >= 0; --i)
+                {
+                    if (aabbHit[i])
+                    {
+                        auto hit = getChild(i).testVisibility(ray, maxT);
+                        if (hit.has_value())
+                        {
+                            return hit;
+                        }
+                    }
+                }
+            }
+            else
+            {
+                for (int i = 0; i < Arity; ++i)
+                {
+                    if (aabbHit[i])
+                    {
+                        auto hit = getChild(i).testVisibility(ray, maxT);
+                        if (hit.has_value())
+                        {
+                            return hit;
+                        }
+                    }
+                }
+            }
+        }
+
+        return std::nullopt;
+    }
 
 private:
 	AABB boundingBox;

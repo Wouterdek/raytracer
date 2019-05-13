@@ -66,7 +66,9 @@ public:
 
 	std::optional<RayHitInfo> traceRay(const Ray& ray) const override;
 
-	void applyTransform(const Transformation& transform);
+    std::optional<RayHitInfo> testVisibility(const Ray &ray, float maxT) const override;
+
+    void applyTransform(const Transformation& transform);
     TriangleMesh appendMesh(const TriangleMesh& mesh);
 
 private:

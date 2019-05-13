@@ -37,6 +37,7 @@ public:
 	void buildShapeBVHCache(Statistics::Collector* stats = nullptr) const;
 
 	std::optional<SceneRayHitInfo> traceRay(const Ray& ray) const override;
+    std::optional<SceneRayHitInfo> testVisibility(const Ray &ray, float maxT) const override;
 
 private:
 	InstancedModelList* cloneImpl() const override;

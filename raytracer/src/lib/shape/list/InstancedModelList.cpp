@@ -64,10 +64,14 @@ void InstancedModelList::buildShapeBVHCache(Statistics::Collector* stats) const
 		if (list != nullptr)
 		{
 			auto shape = modelNode.getData().getShapePtr();
-			auto bvh = BVHBuilder<RayHitInfo>::buildBVH(*list, stats);
-			bvh.pack();
-            LOGSTAT(stats, "SecondLevelBVHNodeCount", bvh.getSize());
-			this->data->shapeBVHs.insert({ shape, std::move(bvh) });
+            auto it = this->data->shapeBVHs.find(shape);
+            if(it == this->data->shapeBVHs.end())
+            {
+                auto bvh = BVHBuilder<RayHitInfo>::buildBVH(*list, stats);
+                bvh.pack();
+                LOGSTAT(stats, "SecondLevelBVHNodeCount", bvh.getSize());
+                this->data->shapeBVHs.insert({ shape, std::move(bvh) });
+            }
 		}
 	}
 }
@@ -126,7 +130,35 @@ std::optional<SceneRayHitInfo> InstancedModelList::traceRay(const Ray & ray) con
 	}
 }
 
+std::optional<SceneRayHitInfo> InstancedModelList::testVisibility(const Ray &ray, float maxT) const
+{
+    for(auto& modelNode : this->data->shapes)
+    {
+        const auto transformedRay = modelNode.getTransform().transformInverse(ray);
+
+        auto bvh = this->data->findShapeBVH(modelNode.getData().getShape());
+
+        std::optional<RayHitInfo> hit;
+        if(bvh.has_value())
+        {
+            hit = bvh->get().testVisibility(transformedRay, maxT);
+        }else
+        {
+            hit = modelNode.getData().getShape().testVisibility(transformedRay, maxT);
+        }
+
+        if(hit.has_value())
+        {
+            auto normal = modelNode.getTransform().transformNormal(hit->normal);
+            normal.normalize();
+            return SceneRayHitInfo(RayHitInfo(ray, hit->t, normal, hit->texCoord, hit->triangleIndex), modelNode);
+        }
+    }
+
+    return std::nullopt;
+}
+
 InstancedModelList* InstancedModelList::cloneImpl() const
 {
-	return new InstancedModelList(*this);
+    return new InstancedModelList(*this);
 }

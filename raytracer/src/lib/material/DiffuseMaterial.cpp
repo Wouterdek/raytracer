@@ -83,9 +83,7 @@ RGB DiffuseMaterial::getTotalRadianceTowards(const SceneRayHitInfo &hit, const S
 			objectToLamp.normalize();
 
 			Ray visibilityRay(hitpoint + (objectToLamp * 0.0001f), objectToLamp);
-			auto visibility = scene.traceRay(visibilityRay);
-			bool isVisible = !visibility.has_value() || visibility->t > lampT;
-
+            bool isVisible = !scene.testVisibility(visibilityRay, lampT).has_value();
 			if (isVisible)
 			{
 				auto lampAngle = std::max(0.0f, light->getNormal().dot(-objectToLamp));
@@ -105,8 +103,7 @@ RGB DiffuseMaterial::getTotalRadianceTowards(const SceneRayHitInfo &hit, const S
 		objectToLamp.normalize();
 
 		Ray visibilityRay(hitpoint + (objectToLamp * 0.0001f), objectToLamp);
-		auto visibility = scene.traceRay(visibilityRay);
-		bool isVisible = !visibility.has_value() || visibility->t > lampT;
+        bool isVisible = !scene.testVisibility(visibilityRay, lampT).has_value();
 
 		if (isVisible)
 		{

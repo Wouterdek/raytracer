@@ -31,4 +31,13 @@ public:
 	virtual void sortByCentroid(Axis axis) = 0;
 	
 	virtual std::optional<TRayHitInfo> traceRay(const Ray& ray) const = 0;
+    virtual std::optional<TRayHitInfo> testVisibility(const Ray& ray, float maxT) const
+    {
+        auto hit = traceRay(ray);
+        if(hit.has_value() && hit->t <= maxT)
+        {
+            return hit;
+        }
+        return std::nullopt;
+    }
 };

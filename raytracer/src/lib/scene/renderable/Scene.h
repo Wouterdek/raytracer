@@ -49,7 +49,11 @@ public:
 	    photonMap = std::move(map);
     }
 
+    // Get first hit
 	std::optional<SceneRayHitInfo> traceRay(const Ray& ray) const;
+
+	// Get any hit between origin and maxT
+    std::optional<SceneRayHitInfo> testVisibility(const Ray& ray, float maxT) const;
 
 private:
 	std::vector<std::unique_ptr<PointLight>> pointLights;
