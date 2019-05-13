@@ -3,7 +3,7 @@
 #include "math/Transformation.h"
 
 PointLight::PointLight()
-	: color(RGB{ 1.0, 1.0, 1.0 }), intensity(1.0)
+	: color(RGB{ 1.0, 1.0, 1.0 }), intensity(1.0), pos(0.0, 0.0, 0.0)
 {
 }
 
