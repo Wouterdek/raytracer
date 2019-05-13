@@ -41,8 +41,8 @@ inline Vector2 sampleUniformCircle(float radius)
 
 inline Vector3 sampleUniformTriangle(const Vector3& a, const Vector3& b, const Vector3& c)
 {
-    auto u = 1.0 - sqrt(randUnit(randDev));
-    auto v = (1.0 - u) * randUnit(randDev);
+    auto u = 1.0f - sqrt(randUnit(randDev));
+    auto v = (1.0f - u) * randUnit(randDev);
 
     return a + u*(c - a) + v*(b - a);
 }
@@ -52,13 +52,13 @@ inline Vector2 sampleStratifiedSquare(int level, int sampleI)
 {
     if(level == 1)
     {
-        return Vector2(0.5, 0.5);
+        return Vector2(0.5f, 0.5f);
     }
     else
     {
-        double lvl = level;
-        const auto x = (static_cast<double>(sampleI % level) / level) + (randUnit(randDev) / lvl);
-        const auto y = (static_cast<double>(std::floor(sampleI / level)) / lvl) + (randUnit(randDev) / lvl);
+        float lvl = level;
+        const auto x = (static_cast<float>(sampleI % level) / level) + (randUnit(randDev) / lvl);
+        const auto y = (static_cast<float>(std::floor(sampleI / level)) / lvl) + (randUnit(randDev) / lvl);
         return Vector2(x, y);
     }
 }

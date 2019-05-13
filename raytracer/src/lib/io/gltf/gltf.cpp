@@ -44,7 +44,7 @@ void loadIndicesImpl(tinygltf::Model& file, tinygltf::Accessor& accessor, std::v
 		j = (j + 1) % 3;
 		if (j == 0)
 		{
-			indices.emplace_back(curTriangle);
+			indices.push_back(curTriangle);
 		}
 	}
 }
@@ -60,15 +60,15 @@ void loadIndices(tinygltf::Model& file, tinygltf::Accessor& accessor, std::vecto
 	{
 	case TINYGLTF_COMPONENT_TYPE_INT:
 	case TINYGLTF_COMPONENT_TYPE_UNSIGNED_INT:
-		loadIndicesImpl<int>(file, accessor, indices);
+		loadIndicesImpl<unsigned int>(file, accessor, indices);
 		break;
 	case TINYGLTF_COMPONENT_TYPE_UNSIGNED_SHORT:
 	case TINYGLTF_COMPONENT_TYPE_SHORT:
-		loadIndicesImpl<short>(file, accessor, indices);
+		loadIndicesImpl<unsigned short>(file, accessor, indices);
 		break;
 	case TINYGLTF_COMPONENT_TYPE_BYTE:
 	case TINYGLTF_COMPONENT_TYPE_UNSIGNED_BYTE:
-		loadIndicesImpl<char>(file, accessor, indices);
+		loadIndicesImpl<unsigned char>(file, accessor, indices);
 		break;
 	default:
 		throw std::runtime_error("Unsupported index component type");
@@ -127,7 +127,7 @@ void loadVec2s(tinygltf::Model & file, tinygltf::Accessor & accessor, std::vecto
 	}
 }
 
-std::shared_ptr<TriangleMesh> loadPrimitiveShape(tinygltf::Model & file, tinygltf::Primitive & primitive)
+std::shared_ptr<TriangleMesh> loadPrimitiveShape(tinygltf::Model& file, tinygltf::Primitive& primitive)
 {
 	if (primitive.mode != TINYGLTF_MODE_TRIANGLES)
 	{
@@ -170,7 +170,7 @@ std::shared_ptr<TriangleMesh> loadPrimitiveShape(tinygltf::Model & file, tinyglt
 		loadVec2s(file, vertTexCoord, texCoords);
 	}
 
-	if(texCoords.size() == 0)
+	if(texCoords.empty())
 	{
         return std::make_shared<TriangleMesh>(vertices, indices, normals, indices, texCoords, std::vector<std::array<uint32_t,3>>());
 	}
@@ -297,24 +297,48 @@ std::shared_ptr<IMaterial> loadMaterial(tinygltf::Model& file, tinygltf::Materia
     return mixMat;
 }
 
-std::unique_ptr<Model> loadPrimitive(tinygltf::Model & file, tinygltf::Primitive & primitive, tinygltf::Value& nodeProps)
+std::unique_ptr<Model> loadPrimitive(tinygltf::Model& file, tinygltf::Primitive& primitive, tinygltf::Value& nodeProps,
+        std::map<tinygltf::Primitive*, std::shared_ptr<TriangleMesh>>& meshCache, std::map<int32_t, std::shared_ptr<IMaterial>>& materialCache)
 {
+    std::shared_ptr<TriangleMesh> shape;
+    auto shapeIt = meshCache.find(&primitive);
+    if(shapeIt == meshCache.end())
+    {
+        shape = loadPrimitiveShape(file, primitive);
+        meshCache[&primitive] = shape;
+    }
+    else
+    {
+        shape = shapeIt->second;
+    }
+
 	std::shared_ptr<IMaterial> mat;
-	if (primitive.material != -1)
-	{
-		mat = loadMaterial(file, file.materials[primitive.material], nodeProps);
-	}
-	else
-	{
-		auto diff = std::make_shared<DiffuseMaterial>();
-		diff->diffuseColor = { 1.0, 1.0, 1.0 };
-		diff->diffuseIntensity = 0.8;
-		mat = diff;
-	}
-	return std::make_unique<Model>(loadPrimitiveShape(file, primitive), mat);
+    auto it = materialCache.find(primitive.material);
+    if(it == materialCache.end())
+    {
+        if (primitive.material != -1)
+        {
+            mat = loadMaterial(file, file.materials[primitive.material], nodeProps);
+        }
+        else
+        {
+            auto diff = std::make_shared<DiffuseMaterial>();
+            diff->diffuseColor = { 1.0, 1.0, 1.0 };
+            diff->diffuseIntensity = 0.8;
+            mat = diff;
+        }
+        materialCache[primitive.material] = mat;
+    }
+    else
+    {
+        mat = it->second;
+    }
+
+	return std::make_unique<Model>(shape, mat);
 }
 
-std::unique_ptr<DynamicSceneNode> loadNode(tinygltf::Model & file, int nodeI, float imageAspectRatio, tinygltf::Node* parent = nullptr)
+std::unique_ptr<DynamicSceneNode> loadNode(tinygltf::Model& file, int nodeI, float imageAspectRatio,
+       std::map<tinygltf::Primitive*, std::shared_ptr<TriangleMesh>>& meshCache, std::map<int32_t, std::shared_ptr<IMaterial>>& materialCache, tinygltf::Node* parent = nullptr)
 {
 	auto& node = file.nodes[nodeI];
 	auto result = std::make_unique<DynamicSceneNode>();
@@ -378,7 +402,7 @@ std::unique_ptr<DynamicSceneNode> loadNode(tinygltf::Model & file, int nodeI, fl
 
 		if (meshDef.primitives.size() == 1)
 		{
-			result->model = loadPrimitive(file, meshDef.primitives[0], node.extras);
+			result->model = loadPrimitive(file, meshDef.primitives[0], node.extras, meshCache, materialCache);
 		}
 		else
 		{
@@ -386,7 +410,7 @@ std::unique_ptr<DynamicSceneNode> loadNode(tinygltf::Model & file, int nodeI, fl
 			{
 				auto child = std::make_unique<DynamicSceneNode>();
 				child->transform = Transformation::IDENTITY;
-				child->model = loadPrimitive(file, primitive, node.extras);
+				child->model = loadPrimitive(file, primitive, node.extras, meshCache, materialCache);
 				result->children.push_back(std::move(child));
 			}
 		}
@@ -418,7 +442,7 @@ std::unique_ptr<DynamicSceneNode> loadNode(tinygltf::Model & file, int nodeI, fl
 
 	for (auto subNodeI : node.children)
 	{
-		result->children.push_back(loadNode(file, subNodeI, imageAspectRatio, &node));
+		result->children.push_back(loadNode(file, subNodeI, imageAspectRatio, meshCache, materialCache, &node));
 	}
 
 	return result;
@@ -447,11 +471,14 @@ DynamicScene loadGLTFScene(const std::string& file, float imageAspectRatio)
 		throw std::runtime_error("Failed to load gltf");
 	}
 
+    std::map<tinygltf::Primitive*, std::shared_ptr<TriangleMesh>> meshCache{};
+    std::map<int32_t, std::shared_ptr<IMaterial>> materialCache{};
+
 	DynamicScene scene;
 	scene.root = std::make_unique<DynamicSceneNode>();
 	for (auto nodeI : model.scenes[model.defaultScene].nodes)
 	{
-		scene.root->children.push_back(loadNode(model, nodeI, imageAspectRatio));
+		scene.root->children.push_back(loadNode(model, nodeI, imageAspectRatio, meshCache, materialCache));
 	}
 	return scene;
 }
