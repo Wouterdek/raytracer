@@ -227,7 +227,7 @@ std::variant<typename BVHBuilder<TRayHitInfo>::NodePtr, typename BVHBuilder<TRay
 	auto middle = center[currentSortingI];
 	shapes.sortByCentroid(currentSorting);
 
-	bestSplit = 0;
+	bestSplit = 1;
 	while(bestSplit < shapeCount-1 && shapes.getCentroid(bestSplit)[currentSortingI] < middle)
 	{
 		bestSplit++;
