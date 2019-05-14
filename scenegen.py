@@ -1,6 +1,7 @@
 import struct
 import json
 import pywavefront
+import random
 
 class Chunk:
 	def __init__(self, header, paddingValue, data):
@@ -174,9 +175,96 @@ def generateMeshBuffer(mesh):
 			buf += struct.pack('%sf' % len(arr), *arr)
 	return buf
 
-def generateScene():
-	return {
-		"nodes": [
+def generateSceneUnitCubeMatrix():
+	nodes = []
+	xCount = 32
+	yCount = 32
+	zCount = 32
+	for x in range(xCount):
+		for y in range(yCount):
+			for z in range(zCount):
+				nodes.append(
+					{
+						"mesh": 0,
+						"rotation": [
+							0.0,
+							1.0,
+							0.0,
+							0.0
+						],
+						"scale": [
+							1.0/xCount,
+							1.0/yCount,
+							1.0/zCount
+						],
+						"translation": [
+							x * (1.0/xCount),
+							y * (1.0/yCount),
+							z * (1.0/zCount)
+						]
+					}
+				)
+
+	return nodes
+
+def generateSceneUnitCubeRandom():
+	nodes = []
+	xCount = 16
+	yCount = 16
+	zCount = 16
+	for x in range(xCount):
+		for y in range(yCount):
+			for z in range(zCount):
+				nodes.append(
+					{
+						"mesh": 0,
+						"rotation": [
+							0.0,
+							1.0,
+							0.0,
+							0.0
+						],
+						"scale": [
+							1.0/xCount,
+							1.0/yCount,
+							1.0/zCount
+						],
+						"translation": [
+							random.random(),
+							random.random(),
+							random.random()
+						]
+					}
+				)
+
+	return nodes
+
+def generateSceneOneHugeManySmallXSplit():
+	nodes = []
+	nodes.append(
+		{
+			"mesh": 0,
+			"rotation": [
+				0.0,
+				1.0,
+				0.0,
+				0.0
+			],
+			"scale": [
+				0.85,
+				0.85,
+				0.85
+			],
+			"translation": [
+				0.9,
+				0.5,
+				0.5
+			]
+		}
+	)
+	smallCount = 100
+	for i in range(smallCount):
+		nodes.append(
 			{
 				"mesh": 0,
 				"rotation": [
@@ -186,36 +274,190 @@ def generateScene():
 					0.0
 				],
 				"scale": [
-					2.0,
-					1,
-					1
+					0.025,
+					0.025,
+					0.025
 				],
 				"translation": [
-					0.0,
-					0.0,
-					20.0
+					random.random() * 0.4,
+					random.random(),
+					random.random()
 				]
 			}
+		)
+
+	return nodes
+
+def generateSceneOneHugeManySmallCorner():
+	nodes = []
+	nodes.append(
+		{
+			"mesh": 0,
+			"rotation": [
+				0.0,
+				1.0,
+				0.0,
+				0.0
+			],
+			"scale": [
+				0.85,
+				0.85,
+				0.85
+			],
+			"translation": [
+				0.9,
+				0.9,
+				0.9
+			]
+		}
+	)
+	smallCount = 100
+	for i in range(smallCount):
+		nodes.append(
+			{
+				"mesh": 0,
+				"rotation": [
+					0.0,
+					1.0,
+					0.0,
+					0.0
+				],
+				"scale": [
+					0.025,
+					0.025,
+					0.025
+				],
+				"translation": [
+					random.random() * 0.4,
+					random.random() * 0.4,
+					random.random() * 0.4
+				]
+			}
+		)
+
+	return nodes
+
+def generateSceneOneHugeManySmallLongInterval():
+	nodes = []
+	nodes.append(
+		{
+			"mesh": 0,
+			"rotation": [
+				0.0,
+				1.0,
+				0.0,
+				0.0
+			],
+			"scale": [
+				0.85,
+				0.85,
+				0.85
+			],
+			"translation": [
+				0.0,
+				0.0,
+				0.0
+			]
+		}
+	)
+	smallCount = 100
+	for i in range(smallCount):
+		nodes.append(
+			{
+				"mesh": 0,
+				"rotation": [
+					0.0,
+					1.0,
+					0.0,
+					0.0
+				],
+				"scale": [
+					0.025,
+					0.025,
+					0.025
+				],
+				"translation": [
+					i,
+					random.random() * 0.4,
+					random.random() * 0.4
+				]
+			}
+		)
+
+	return nodes
+
+def generateScene():
+	mesh = Mesh()
+	mesh.loadOBJ("/media/wouter/NVME/CGProject/models/sphere.obj")
+
+	nodes = generateSceneOneHugeManySmallLongInterval()
+
+	nodes.append({
+		"camera": 0,
+		"rotation": [
+			0.0,
+			1.0,
+			0.0,
+			0.0
 		],
+		"scale": [
+			1,
+			1,
+			1
+		],
+		"translation": [
+			0.5,0.5,-3
+		]
+	})
+	nodes.append({
+		"rotation": [
+			0.0,
+			1.0,
+			0.0,
+			0.0
+		],
+		"scale": [
+			1,
+			1,
+			1
+		],
+		"translation": [
+			0.5,0.5,-3
+		],
+		"extras": {
+			"IsPointLight": 1.0,
+			"LightIntensity": 100
+		}
+	})
+	sceneJson = {
+		"nodes": nodes,
 		"scene": 0,
 		"scenes": [
 			{
-				"nodes": [
-					0
-				]
+				"nodes": list(range(len(nodes)))
 			}
 		],
+		"cameras": [
+			{
+				"type": "perspective",
+				"perspective": {
+					"aspectRatio": 1.0,
+					"yfov": .40,
+					"zfar": 100,
+					"znear": 0.1
+				}
+			},
+		]
 	}
+	return [mesh, sceneJson]
 
 def generateGLB():
-	mesh = Mesh()
-	mesh.loadOBJ("/media/wouter/NVME/CGProject/models/teapot.obj")
-
 	gltf = {}
 	gltf.update(generateAssetInfo())
 	gltf.update(generateMaterials())
+	mesh, sceneJson = generateScene()
 	gltf.update(generateMeshDescriptor(mesh))
-	gltf.update(generateScene())
+	gltf.update(sceneJson)
 
 	json_chunk = createJSONChunk(json.dumps(gltf))
 	data_chunk = createBinaryChunk(generateMeshBuffer(mesh))
