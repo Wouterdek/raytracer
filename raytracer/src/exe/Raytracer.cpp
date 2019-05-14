@@ -31,7 +31,7 @@
 #include "preview/PreviewWindow.h"
 #include "photonmapping/PhotonMapBuilder.h"
 
-Scene buildScene(const std::string& workDir, float imageAspectRatio)
+Scene buildScene(const std::string& sceneFile, float imageAspectRatio)
 {
     std::cout << "Loading scene data." << std::endl;
 
@@ -338,14 +338,16 @@ Scene buildScene(const std::string& workDir, float imageAspectRatio)
         //cornell.root->children.emplace_back(std::move(curNode));
     }*/
 
-	auto kitchen = loadGLTFScene(workDir + "/models/kitchen.glb", imageAspectRatio);
-    //auto kitchen = loadGLTFScene(workDir + "/models/sanmiguel_lowres.glb", imageAspectRatio);
-    //auto kitchen = loadGLTFScene(workDir + "/models/refractionTestScene.glb", imageAspectRatio);
-    std::cout << "Soupifying scene." << std::endl;
+	//auto gltfScene = loadGLTFScene(workDir + "/models/kitchen.glb", imageAspectRatio);
+    //auto gltfScene = loadGLTFScene(workDir + "/models/sanmiguel_lowres.glb", imageAspectRatio);
+    auto gltfScene = loadGLTFScene(sceneFile, imageAspectRatio);
+    //auto gltfScene = loadGLTFScene(workDir + "/models/refractionTestScene.glb", imageAspectRatio);
+
     Statistics::Collector collector;
-	kitchen = kitchen.soupifyScene(&collector);
+    /*std::cout << "Soupifying scene." << std::endl;
+    gltfScene = gltfScene.soupifyScene(&collector);
     std::cout << collector.getString();
-    collector.clear();
+    collector.clear();*/
 
 	/*{
 		auto curNode = std::make_unique<DynamicSceneNode>();
@@ -371,7 +373,7 @@ Scene buildScene(const std::string& workDir, float imageAspectRatio)
 	std::cout << "Building scene." << std::endl;
     auto memUsageBefore = getMemoryUsage();
 	auto start = std::chrono::high_resolution_clock::now();
-	auto renderableScene = kitchen.build(&collector);
+	auto renderableScene = gltfScene.build(&collector);
 	auto finish = std::chrono::high_resolution_clock::now();
     auto memUsageDelta = getMemoryUsage() - memUsageBefore;
 	double duration = std::chrono::duration_cast<std::chrono::microseconds>(finish - start).count() / 1000.0;
@@ -392,6 +394,7 @@ int main(int argc, char** argv)
 	desc.add_options()
 		("help", "Show help")
 		("workdir", po::value<std::string>()->default_value(std::filesystem::current_path().string()), "Workdir")
+		("scene", po::value<std::string>()->default_value("scene.glb"), "Input GLB file")
 		("width", po::value<int>()->default_value(500), "Frame width")
 		("height", po::value<int>()->default_value(500), "Frame height")
 		("xstart", po::value<int>()->default_value(0), "Tile start x-coordinate")
@@ -427,7 +430,15 @@ int main(int argc, char** argv)
 	if(!std::filesystem::is_directory(workDirPath))
 	{
 		std::cerr << "The specified work directory does not exist or is not a folder." << std::endl;
+		return -1;
 	}
+
+    auto sceneFile = workDir + vm["scene"].as<std::string>();
+    if(!std::filesystem::is_regular_file(sceneFile))
+    {
+        std::cerr << "The specified scene file does not exist or is not a file." << std::endl;
+        return -1;
+    }
 
 	int width = vm["width"].as<int>();
 	int height = vm["height"].as<int>();
@@ -499,7 +510,7 @@ int main(int argc, char** argv)
 		// Build scene
         std::cout << "Loading scene." << std::endl;
         auto memUsageBefore = getMemoryUsage();
-		auto scene = buildScene(workDir, static_cast<float>(width)/height);
+		auto scene = buildScene(sceneFile, static_cast<float>(width)/height);
         auto memUsageDelta = getMemoryUsage() - memUsageBefore;
         std::cout << "Scene loaded, total memory delta = " << memUsageDelta << " bytes" << std::endl;
 
@@ -523,7 +534,7 @@ int main(int argc, char** argv)
 		std::cout << "Rendering..." << std::endl;
 
 		RenderSettings settings;
-		settings.aaLevel = 40;
+		settings.aaLevel = 32;
 		//PPMRenderer renderer;
 		Renderer renderer;
 		renderer.render(scene, *buffer, tile, settings, progressPrinter, true);
