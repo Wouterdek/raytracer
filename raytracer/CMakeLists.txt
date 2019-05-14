@@ -25,6 +25,11 @@ endif()
 
 set(CMAKE_VERBOSE_MAKEFILE ON)
 
+if(UNIX)
+  set (CMAKE_CXX_FLAGS_RELWITHDEBINFO  "${CMAKE_CXX_FLAGS_RELWITHDEBINFO} -ftree-vectorize -march=native -mtune=native -mavx -mavx2")
+  set (CMAKE_CXX_FLAGS_RELEASE  "${CMAKE_CXX_FLAGS_RELEASE} -ftree-vectorize -march=native -mtune=native -mavx -mavx2")
+endif()
+
 add_subdirectory (src) 
 add_subdirectory (test)
 
