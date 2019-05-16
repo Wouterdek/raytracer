@@ -18,6 +18,8 @@
     Online:
         https://glad.dav1d.de/#profile=core&language=c&specification=gl&loader=on&api=gl%3D3.2
 */
+#include "../../PreviewToggle.h"
+#ifdef PREVIEW_ENABLED
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -1013,3 +1015,4 @@ int gladLoadGLLoader(GLADloadproc load) {
 	return GLVersion.major != 0 || GLVersion.minor != 0;
 }
 
+#endif
