@@ -1,4 +1,7 @@
 #include "PreviewWindow.h"
+#include "PreviewToggle.h"
+
+#ifdef PREVIEW_ENABLED
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
 #include <thread>
@@ -210,3 +213,20 @@ void PreviewWindow::wait()
         uiThread->join();
     }
 }
+
+#else
+
+PreviewWindow::PreviewWindow(std::shared_ptr<FrameBuffer> frameBuffer)
+        : img(std::move(frameBuffer))
+{ }
+
+void PreviewWindow::show()
+{ }
+
+void PreviewWindow::showAsync()
+{ }
+
+void PreviewWindow::wait()
+{ }
+
+#endif

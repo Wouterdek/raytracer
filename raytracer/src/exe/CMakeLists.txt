@@ -17,3 +17,4 @@ find_package(glfw3 3.2 REQUIRED)
 
 target_include_directories(raytracer_exe PRIVATE ${RAYTRACER_SOURCE_DIR}/src/lib ${RAYTRACER_SOURCE_DIR}/src/exe/preview/glad/include)
 target_link_libraries(raytracer_exe PRIVATE Eigen3::Eigen raytracer_lib Boost::program_options TBB::tbb glfw dl)
+#target_link_libraries(raytracer_exe PRIVATE Eigen3::Eigen raytracer_lib Boost::program_options TBB::tbb dl)
