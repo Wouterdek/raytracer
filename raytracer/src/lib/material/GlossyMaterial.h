@@ -14,4 +14,5 @@ public:
 
     float roughness = 0.0f;
     std::shared_ptr<Texture> normalMap;
+    RGB color = {1.0, 1.0, 1.0};
 };

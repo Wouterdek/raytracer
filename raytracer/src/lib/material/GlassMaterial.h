@@ -10,4 +10,6 @@ public:
     std::tuple<Vector3, RGB, float> interactPhoton(const SceneRayHitInfo &hit, const RGB &incomingEnergy) const override;
 
     double ior = 1.0;
+    RGB color = RGB(1.0f);
+    float attenuationStrength = 5.0;
 };

@@ -344,10 +344,10 @@ Scene buildScene(const std::string& sceneFile, float imageAspectRatio)
     //auto gltfScene = loadGLTFScene(workDir + "/models/refractionTestScene.glb", imageAspectRatio);
 
     Statistics::Collector collector;
-    /*std::cout << "Soupifying scene." << std::endl;
+    std::cout << "Soupifying scene." << std::endl;
     gltfScene = gltfScene.soupifyScene(&collector);
     std::cout << collector.getString();
-    collector.clear();*/
+    collector.clear();
 
 	/*{
 		auto curNode = std::make_unique<DynamicSceneNode>();
@@ -355,7 +355,7 @@ Scene buildScene(const std::string& sceneFile, float imageAspectRatio)
 		curNode->areaLight = std::make_unique<AreaLight>();
 		//curNode->model = std::make_unique<Model>(triangleModel);
 		gltfScene.root->children.emplace_back(std::move(curNode));
-	}*/
+	}
 
 	/*{
 		auto curNode = std::make_unique<DynamicSceneNode>();
@@ -433,13 +433,6 @@ int main(int argc, char** argv)
 		return -1;
 	}
 
-    auto sceneFile = workDir + vm["scene"].as<std::string>();
-    if(!std::filesystem::is_regular_file(sceneFile))
-    {
-        std::cerr << "The specified scene file does not exist or is not a file." << std::endl;
-        return -1;
-    }
-
 	int width = vm["width"].as<int>();
 	int height = vm["height"].as<int>();
 
@@ -477,6 +470,13 @@ int main(int argc, char** argv)
 	if(vm.count("mergetiles") > 0){
         tileFilesToMerge = vm["mergetiles"].as<std::vector<std::string>>();
 	}
+
+    auto sceneFile = workDir + vm["scene"].as<std::string>();
+    if(tileFilesToMerge.size() == 0 && !std::filesystem::is_regular_file(sceneFile))
+    {
+        std::cerr << "The specified scene file does not exist or is not a file." << std::endl;
+        return -1;
+    }
 
 	// Create picture
 
@@ -534,7 +534,8 @@ int main(int argc, char** argv)
 		std::cout << "Rendering..." << std::endl;
 
 		RenderSettings settings;
-		settings.aaLevel = 32;
+		settings.aaLevel = 64;
+        std::cout << "AA level = " << settings.aaLevel << std::endl;
 		//PPMRenderer renderer;
 		Renderer renderer;
 		renderer.render(scene, *buffer, tile, settings, progressPrinter, true);

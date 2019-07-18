@@ -37,36 +37,61 @@ RGB GlossyMaterial::getTotalRadianceTowards(const SceneRayHitInfo &hit, const Sc
         normal = hit.getModelNode().getTransform().transformNormal(mapNormal);
     }
 
-    Vector3 sampleDir = sampleReflectionDir(normal, hit.ray.getDirection(), this->roughness);
-
     Point hitpoint = hit.getHitpoint();
 
-    Ray ray(hitpoint+(sampleDir*.001), sampleDir);
-    auto result = scene.traceRay(ray);
-
-    const AreaLight* lightHit = nullptr;
-    double bestT = result->t;
-    for(const auto& light : scene.getAreaLights())
+    RGB radiance {};
+    const int branchingFactor = 1;
+    for(int i = 0; i < branchingFactor; ++i)
     {
-        Triangle::TriangleIntersection intersection;
-        bool hasIntersection = Triangle::intersect(ray, light->a, light->b, light->c, intersection);
-        if(hasIntersection && bestT > intersection.t){
-            lightHit = &*light;
-            bestT = intersection.t;
+        Vector3 sampleDir = sampleReflectionDir(normal, hit.ray.getDirection(), this->roughness);
+
+        Ray ray(hitpoint+(sampleDir*.001), sampleDir);
+        auto result = scene.traceRay(ray);
+
+        const AreaLight* lightHit = nullptr;
+        double bestT = result.has_value() ? result->t : 1E99;
+        for(const auto& light : scene.getAreaLights())
+        {
+            Triangle::TriangleIntersection intersection;
+            bool hasIntersection = Triangle::intersect(ray, light->a, light->b, light->c, intersection);
+            if(hasIntersection && bestT > intersection.t){
+                lightHit = &*light;
+                bestT = intersection.t;
+            }
+        }
+
+        //TODO: non-zero roughness should include point lights
+
+        //TEST
+        /*const auto renderDepth = 3;
+        if(depth == renderDepth)
+        {
+            return RGB::BLACK;
+        }else{
+            if(lightHit != nullptr){
+                return lightHit->color * lightHit->intensity;
+            }
+
+            if(result.has_value()){
+                return result->getModelNode().getData().getMaterial().getTotalRadianceTowards(*result, scene, depth + 1);
+            }
+
+            return RGB::BLACK;
+        }*/
+        //TEST
+
+        if(lightHit != nullptr){
+            radiance += lightHit->color * lightHit->intensity;
+            continue;
+        }
+
+        if(result.has_value()){
+            radiance += result->getModelNode().getData().getMaterial().getTotalRadianceTowards(*result, scene, depth + 1);
+            continue;
         }
     }
 
-    //TODO: non-zero roughness should include point lights
-
-    if(lightHit != nullptr){
-        return lightHit->color * lightHit->intensity;
-    }
-
-    if(result.has_value()){
-        return result->getModelNode().getData().getMaterial().getTotalRadianceTowards(*result, scene, depth + 1);
-    }
-
-    return RGB::BLACK;
+    return radiance.divide(branchingFactor).multiply(color);
 }
 
 std::tuple<Vector3, RGB, float> GlossyMaterial::interactPhoton(const SceneRayHitInfo &hit, const RGB &incomingEnergy) const

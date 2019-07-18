@@ -254,10 +254,12 @@ std::shared_ptr<IMaterial> loadMaterial(tinygltf::Model& file, tinygltf::Materia
     }
 
     auto baseColorFactorIt = mat.values.find("baseColorFactor");
+    RGB baseColor{1.0f};
     if(baseColorFactorIt != mat.values.end()){
         auto baseColorFactor = baseColorFactorIt->second.number_array;
-        RGB baseColor(baseColorFactor[0], baseColorFactor[1], baseColorFactor[2]);
+        baseColor = RGB(baseColorFactor[0], baseColorFactor[1], baseColorFactor[2]);
         diffuse->diffuseColor = baseColor;
+        glossy->color = baseColor;
     }
 
     auto metallicFactorIt = mat.values.find("metallicFactor");
@@ -288,6 +290,7 @@ std::shared_ptr<IMaterial> loadMaterial(tinygltf::Model& file, tinygltf::Materia
         auto parentMixMat = std::make_shared<MixMaterial>();
         auto glass = std::make_shared<GlassMaterial>();
         glass->ior = ior;
+        glass->color = baseColor;
         parentMixMat->first = mixMat;
         parentMixMat->second = glass;
         parentMixMat->mixFactor = transmission;
@@ -390,6 +393,7 @@ std::unique_ptr<DynamicSceneNode> loadNode(tinygltf::Model& file, int nodeI, flo
         result->areaLight->b = primData.vertices[primData.vertexIndices[0][1]];
         result->areaLight->c = primData.vertices[primData.vertexIndices[0][2]];
         result->areaLight->intensity = getDoubleOrDefault(tryGetExtras(&node), "LightIntensity", 3000)/100.0;
+        //result->areaLight->color
     }
     else if(getBoolOrDefault(tryGetExtras(&node), "IsPointLight", false))
     {

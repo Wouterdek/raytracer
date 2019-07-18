@@ -4,43 +4,34 @@
 #include "scene/renderable/SceneRayHitInfo.h"
 #include "math/Vector3.h"
 #include <random>
+#include <math/Triangle.h>
 
 namespace {
     thread_local std::random_device randDevice;
     std::uniform_real_distribution<float> randDist(0, 1);
 };
 
-Vector3 sampleTransportDirection(Vector3& normal, Vector3 incomingDir, double ior)
+Vector3 sampleTransportDirection(Vector3& normal, Vector3 incomingDir, double ior, bool& isReflectionDirection)
 {
-    incomingDir = -incomingDir;
-    Vector3 reflectionRayDir = -incomingDir + ((2.0 * normal.dot(incomingDir)) * normal);
-    /*RGB reflection{};
-    {
-		Vector3 reflectionRayDir = -incomingDir + ((2.0 * normal.dot(incomingDir)) * normal);
-		Ray reflectionRay(hitpoint + reflectionRayDir * 0.001, reflectionRayDir);
-		auto reflectionHit = scene.traceRay(reflectionRay);
-		if (reflectionHit.has_value()) {
-			reflection = reflectionHit->getModelNode().getData().getMaterial().getTotalRadianceTowards(*reflectionHit, scene, depth + 1)
-				* abs(normal.dot(reflectionRayDir));
-		}
-    }*/
+    auto objToIncoming = -incomingDir;
+    Vector3 reflectionRayDir = -objToIncoming + ((2.0 * normal.dot(objToIncoming)) * normal);
 
     // Check for total internal reflection
-    double nDotWo = normal.dot(incomingDir);
-    auto incomingAngle = nDotWo; //assuming wo and n are normalized
+    double nDotWo = normal.dot(objToIncoming);
+    auto incomingAngle = nDotWo; //assuming wo and n are normalized //Careful: this is cos of angle between normal and Wo, which could be >90 (if internal ray)
     bool isInternalRay = nDotWo < 0;
-    auto curIor = ior;
+    auto curRelIor = ior / 1.0; //Assuming 1.0 for air
     if(isInternalRay)
     {
-        curIor = 1.0 / curIor;
+        curRelIor = 1.0 / curRelIor;
     }
-    double cosTransmissionSqr = 1.0 - ((1.0 - pow(incomingAngle, 2.0)) / pow(curIor, 2.0));
+    double cosTransmissionSqr = 1.0 - ((1.0 - pow(incomingAngle, 2.0)) / pow(curRelIor, 2.0)); //incomingAngle could actually be -incomingAngle, but this doesn't matter as we square it anyway
     bool tir = cosTransmissionSqr < 0; // total internal reflection
 
     if(tir)
     {
+        isReflectionDirection = true;
         return reflectionRayDir;
-        //return RGB::BLACK;
     }
 
     if(isInternalRay)
@@ -48,21 +39,26 @@ Vector3 sampleTransportDirection(Vector3& normal, Vector3 incomingDir, double io
         nDotWo = -nDotWo;
         incomingAngle = -incomingAngle;
         normal = -normal;
-        cosTransmissionSqr = 1.0 - ((1.0 - pow(incomingAngle, 2.0)) / pow(curIor, 2.0));
     }
-    double cosTransmission = sqrt(cosTransmissionSqr);
-    Vector3 transmittedRayDir = (-incomingDir / curIor) - (cosTransmission - incomingAngle / curIor) * normal;
+    double cosRefractAngle = sqrt(cosTransmissionSqr);
 
-    auto reflectionWeight = abs(normal.dot(reflectionRayDir));
-    auto transmissionWeight = (1.0/pow(curIor, 2.0));
-    auto totalWeight = reflectionWeight + transmissionWeight; // = 1.0 ?
+    Vector3 transmittedRayDir = (incomingDir / curRelIor) - (cosRefractAngle - (incomingAngle / curRelIor)) * normal;
+
+    auto rs = ((curRelIor * nDotWo) - cosRefractAngle) / ((curRelIor * nDotWo) + cosRefractAngle);
+    auto rp = (nDotWo - (curRelIor * cosRefractAngle)) / (nDotWo + (curRelIor * cosRefractAngle));
+    auto kr = ((rs * rs) + (rp * rp)) / 2.0;
+    auto reflectionWeight = kr;
+    auto transmissionWeight = 1.0 - kr;
+    auto totalWeight = reflectionWeight + transmissionWeight;
 
     if(randDist(randDevice) * totalWeight < reflectionWeight)
     {
+        isReflectionDirection = true;
         return reflectionRayDir;
     }
     else
     {
+        isReflectionDirection = false;
         return transmittedRayDir;
     }
 }
@@ -75,34 +71,48 @@ RGB GlassMaterial::getTotalRadianceTowards(const SceneRayHitInfo &hit, const Sce
 
     auto normal = hit.normal;
     auto hitpoint = hit.getHitpoint();
-    auto direction = sampleTransportDirection(normal, hit.ray.getDirection(), ior);
+    bool isReflection;
+    auto direction = sampleTransportDirection(normal, hit.ray.getDirection(), ior, isReflection);
+    bool isInternalRay = normal.dot(direction) < 0;
+
     Ray ray(hitpoint + (direction * 0.001), direction);
 
-    auto nestedHit = scene.traceRay(ray);
-    if (nestedHit.has_value()) {
-        auto lIn = nestedHit->getModelNode().getData().getMaterial().getTotalRadianceTowards(*nestedHit, scene, depth + 1);
-        return lIn; //TODO: is weight correct?
+    auto result = scene.traceRay(ray);
+
+    const AreaLight* lightHit = nullptr;
+    double bestT = result.has_value() ? result->t : 1E99;
+    for(const auto& light : scene.getAreaLights())
+    {
+        Triangle::TriangleIntersection intersection;
+        bool hasIntersection = Triangle::intersect(ray, light->a, light->b, light->c, intersection);
+        if(hasIntersection && bestT > intersection.t){
+            lightHit = &*light;
+            bestT = intersection.t;
+        }
     }
 
-    return RGB::BLACK;
+    RGB val = RGB::BLACK;
+    if(lightHit != nullptr)
+    {
+        val = lightHit->color * lightHit->intensity;
+    }
+    else if(result.has_value())
+    {
+        val = result->getModelNode().getData().getMaterial().getTotalRadianceTowards(*result, scene, depth + 1);
+    }
 
+    if(isInternalRay)
+    {
+        val = val.multiply(this->color.pow(attenuationStrength*bestT));
+    }
 
-	/*Ray transmittedRay(hitpoint + transmittedRayDir * 0.001, transmittedRayDir);
-
-	auto transmissionHit = scene.traceRay(transmittedRay);
-	RGB transmission = RGB::BLACK;
-	if (transmissionHit.has_value()) {
-		transmission =
-                transmissionHit->getModelNode().getData().getMaterial().getTotalRadianceTowards(*transmissionHit, scene,
-                                                                                                depth + 1)
-			* (1.0/pow(curIor, 2.0));
-	}*/
-	//return transmission;// +reflection;
+    return val;
 }
 
 std::tuple<Vector3, RGB, float> GlassMaterial::interactPhoton(const SceneRayHitInfo &hit, const RGB &incomingEnergy) const
 {
     Vector3 normal = hit.normal;
-    auto direction = sampleTransportDirection(normal, hit.ray.getDirection(), ior);
+    bool isReflection;
+    auto direction = sampleTransportDirection(normal, hit.ray.getDirection(), ior, isReflection);
     return std::make_tuple(direction, incomingEnergy, 0.0); // TODO: is weight correct?
 }

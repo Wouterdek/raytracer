@@ -3,6 +3,7 @@
 #include "math/Constants.h"
 #include "math/Transformation.h"
 #include "math/OrthonormalBasis.h"
+#include "math/Triangle.h"
 #include "scene/renderable/SceneRayHitInfo.h"
 #include "NormalMapSampler.h"
 #include <random>
@@ -67,69 +68,124 @@ RGB DiffuseMaterial::getTotalRadianceTowards(const SceneRayHitInfo &hit, const S
         return diffuseColor.multiply(value.scale(this->diffuseIntensity).divide(PI*maxDistSqr));
     }
 
-	RGB direct {};
+    Point hitpoint = hit.getHitpoint();
 
-	Point hitpoint = hit.getHitpoint();
+//#define DIFFUSE_NAIVE
+#ifdef DIFFUSE_NAIVE
+    RGB value {};
+    const int maxDepth = 4;
+    if(depth < maxDepth)
+    {
+        Vector3 direction = sampleBounceDirection(hit.normal);
+        Ray ray(hitpoint + (direction * 0.0001f), direction);
+        auto nextHit = scene.traceRay(ray);
+        auto bestT = nextHit.has_value() ? nextHit->t : 1E99;
 
-	for(const auto& light : scene.getAreaLights())
-	{
-		const int sampleCount = 1;
-		RGB contrib{};
-		for(int i = 0; i < sampleCount; i++)
-		{
-			auto lampPoint = light->generateStratifiedJitteredRandomPoint(sampleCount, i);
-			Vector3 objectToLamp = lampPoint - hitpoint;
-			auto lampT = objectToLamp.norm();
-			objectToLamp.normalize();
+        bool lightHit = false;
+        for(const auto& light : scene.getAreaLights())
+        {
+            Triangle::TriangleIntersection intersection;
+            bool intersects = Triangle::intersect(ray, light->a, light->b, light->c, intersection);
 
-			Ray visibilityRay(hitpoint + (objectToLamp * 0.0001f), objectToLamp);
+            if(intersects && intersection.t < bestT)
+            {
+                auto lampRadiance = light->color * light->intensity;
+                value += brdf(lampRadiance, normal, direction);
+                lightHit = true;
+                break;
+            }
+        }
+
+        if(!lightHit && nextHit.has_value())
+        {
+            auto lIn = nextHit->getModelNode().getData().getMaterial().getTotalRadianceTowards(*nextHit, scene, depth + 1);
+            value += brdf(lIn, normal, direction);
+        }
+    }
+
+    return diffuseColor.multiply(value.scale(this->diffuseIntensity * 2));
+#else
+    RGB direct {};
+
+    for(const auto& light : scene.getAreaLights())
+    {
+        const int sampleCount = 1;
+        RGB contrib{};
+        for(int i = 0; i < sampleCount; i++)
+        {
+            auto lampPoint = light->generateStratifiedJitteredRandomPoint(sampleCount, i);
+            Vector3 objectToLamp = lampPoint - hitpoint;
+            auto lampT = objectToLamp.norm();
+            objectToLamp.normalize();
+
+            Ray visibilityRay(hitpoint + (objectToLamp * 0.0001f), objectToLamp);
             bool isVisible = !scene.testVisibility(visibilityRay, lampT).has_value();
-			if (isVisible)
-			{
-				auto lampAngle = std::max(0.0f, light->getNormal().dot(-objectToLamp));
-				auto geometricFactor = lampAngle / pow(lampT, 2);
-				auto angle = std::max(0.0f, normal.dot(objectToLamp));
-				auto lampRadiance = light->color * (light->intensity * angle) * geometricFactor * light->getSurfaceArea();
-				contrib = contrib.add(lampRadiance);
-			}
-		}
-		direct += contrib.divide(sampleCount);
-	}
+            if (isVisible)
+            {
+                auto lampAngle = std::max(0.0f, light->getNormal().dot(-objectToLamp));
+                auto angle = std::max(0.0f, normal.dot(objectToLamp));
+                auto geometricFactor = (angle * lampAngle) / pow(lampT, 2);
 
-	for(const auto& light : scene.getPointLights())
-	{
-		Vector3 objectToLamp = light->pos - hitpoint;
-		auto lampT = objectToLamp.norm();
-		objectToLamp.normalize();
+                auto lE = light->color * light->intensity;
 
-		Ray visibilityRay(hitpoint + (objectToLamp * 0.0001f), objectToLamp);
+                auto lampRadiance = lE * geometricFactor * light->getSurfaceArea();
+                contrib = contrib.add(lampRadiance);
+            }
+        }
+        direct += contrib.divide(sampleCount);
+    }
+
+    for(const auto& light : scene.getPointLights())
+    {
+        Vector3 objectToLamp = light->pos - hitpoint;
+        auto lampT = objectToLamp.norm();
+        objectToLamp.normalize();
+
+        Ray visibilityRay(hitpoint + (objectToLamp * 0.0001f), objectToLamp);
         bool isVisible = !scene.testVisibility(visibilityRay, lampT).has_value();
 
-		if (isVisible)
-		{
-			auto angle = std::max(0.0f, normal.dot(objectToLamp));
-			direct += light->color * (light->intensity * angle);
-		}
+        if (isVisible)
+        {
+            auto angle = std::max(0.0f, normal.dot(objectToLamp));
+            direct += light->color * (light->intensity * angle);
+        }
+    }
+
+    // Indirect lighting
+    RGB indirect {};
+    const int maxDepth = 4;
+    const int branchingFactor = 1;
+    if(depth < maxDepth)
+    {
+        for(int i = 0; i < branchingFactor; i++)
+        {
+            Vector3 direction = sampleBounceDirection(hit.normal);
+
+            Ray ray(hitpoint + (direction * 0.0001f), direction);
+            auto nextHit = scene.traceRay(ray);
+            if(nextHit.has_value())
+            {
+
+                auto lIn = nextHit->getModelNode().getData().getMaterial().getTotalRadianceTowards(*nextHit, scene, depth + 1);
+                indirect += brdf(lIn, normal, direction);
+            }
+        }
+        indirect = indirect.divide(branchingFactor);
+    }
+
+//#define DIFFUSE_SINGLE_LEVEL
+#ifdef DIFFUSE_SINGLE_LEVEL
+    const auto renderDepth = 3;
+	if(depth == renderDepth)
+    {
+        return diffuseColor.multiply(direct.scale(this->diffuseIntensity / PI));
+    }else{
+        return diffuseColor.multiply(indirect.scale(this->diffuseIntensity * 2));
 	}
-
-	// Indirect lighting
-	RGB indirect {};
-	const int maxDepth = 4;
-	if(depth < maxDepth)
-	{
-		Vector3 direction = sampleBounceDirection(hit.normal);
-
-		Ray ray(hitpoint + (direction * 0.0001f), direction);
-		auto nextHit = scene.traceRay(ray);
-		if(nextHit.has_value())
-		{
-
-			auto lIn = nextHit->getModelNode().getData().getMaterial().getTotalRadianceTowards(*nextHit, scene, depth + 1);
-			indirect += brdf(lIn, normal, direction);
-		}
-	}
-
-	return diffuseColor.multiply(direct.scale(this->diffuseIntensity / PI) + indirect.scale(this->diffuseIntensity * 2));
+#else
+    return diffuseColor.multiply(direct.scale(this->diffuseIntensity / PI) + indirect.scale(this->diffuseIntensity * 2));
+#endif
+#endif
 }
 
 std::tuple<Vector3, RGB, float> DiffuseMaterial::interactPhoton(const SceneRayHitInfo &hit, const RGB &incomingEnergy) const {
