@@ -12,7 +12,6 @@ void tracePhoton(const Scene& scene, Ray& photonRay, RGB& photonEnergy, tbb::con
     bool hasPassedDiffuse = false;
     bool hasPassedSpecular = false;
     float russianRouletteRate = 0.1f;
-
     while(true){
         auto hit = scene.traceRay(photonRay);
 
@@ -30,7 +29,10 @@ void tracePhoton(const Scene& scene, Ray& photonRay, RGB& photonEnergy, tbb::con
 
         // Store photon
         //TODO: maybe not store if this is a specular transport?
-        resultAcc.emplace_back(hitpoint, photonRay.getDirection(), photonEnergy, isCaustic);
+        if(isCaustic)
+        {
+            resultAcc.emplace_back(hitpoint, photonRay.getDirection(), hit->normal, photonEnergy, isCaustic);
+        }
 
         // Update transport variables
         hasPassedDiffuse = hasPassedDiffuse || isDiffuseTransport;

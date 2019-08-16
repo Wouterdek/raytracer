@@ -1,8 +1,10 @@
 #pragma once
 
 #include "math/RayHitInfo.h"
-#include "SceneNode.h"
-#include "model/Model.h"
+
+template<typename T>
+class SceneNode;
+class Model;
 
 class SceneRayHitInfo : public RayHitInfo
 {

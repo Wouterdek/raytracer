@@ -1,10 +1,41 @@
-#include <shape/TriangleMesh.h>
+#include "shape/TriangleMesh.h"
 #include "CompositeMaterial.h"
 #include "scene/renderable/SceneRayHitInfo.h"
+#include "scene/renderable/SceneNode.h"
+#include "model/Model.h"
 #include <stdint.h>
 
 CompositeMaterial::CompositeMaterial() : materialMapping() {
     materialMapping.emplace_back(0, nullptr);
+}
+
+struct TransportMetaData
+{
+    const IMaterial* material;
+};
+
+void CompositeMaterial::sampleTransport(TransportBuildContext &ctx) const
+{
+    auto& metatree = ctx.getCurNode().metadata;
+    auto* meta = metatree.tryRead<TransportMetaData>();
+    if(meta == nullptr)
+    {
+        meta = metatree.alloc<TransportMetaData>();
+        meta->material = findMaterial(ctx.getCurNode().hit);
+    }
+
+    metatree.branch(0);
+    meta->material->sampleTransport(ctx);
+    metatree.up();
+}
+
+RGB CompositeMaterial::bsdf(const Scene &scene, const std::vector<TransportNode> &path, int curI, TransportNode& curNode, const RGB &incomingEnergy) const
+{
+    auto* meta = curNode.metadata.tryRead<TransportMetaData>();
+    curNode.metadata.branch(0);
+    auto result = meta->material->bsdf(scene, path, curI, curNode, incomingEnergy);
+    curNode.metadata.up();
+    return result;
 }
 
 uint32_t CompositeMaterial::findListIndex(uint32_t searchIdx) const {
@@ -31,6 +62,25 @@ uint32_t CompositeMaterial::findListIndex(uint32_t searchIdx) const {
 IMaterial* CompositeMaterial::findMaterial(uint32_t triangleIndex) const {
     auto matI = findListIndex(triangleIndex);
     return materialMapping[matI].second.get();
+}
+
+const IMaterial* CompositeMaterial::findMaterial(const SceneRayHitInfo& hit) const
+{
+    auto triangleIdx = hit.triangleIndex;
+    if(triangleIdx == UINT32_MAX)
+    {
+        return nullptr;
+    }
+
+    const auto& triangleMesh = dynamic_cast<const TriangleMesh&>(hit.getModelNode().getData().getShape());
+    if(triangleMesh.getData().permutation.has_value()){
+        triangleIdx = triangleMesh.getData().permutation->at(triangleIdx);
+    }
+
+    auto* material = this->findMaterial(triangleIdx);
+    assert(material != nullptr);
+
+    return material;
 }
 
 void CompositeMaterial::addMaterial(size_t firstTriangleI, size_t length, std::shared_ptr<IMaterial> material) {
@@ -69,25 +119,6 @@ void CompositeMaterial::addMaterial(size_t firstTriangleI, size_t length, std::s
     }
 }
 
-const IMaterial* CompositeMaterial::findMaterial(const SceneRayHitInfo& hit) const
-{
-    auto triangleIdx = hit.triangleIndex;
-    if(triangleIdx == UINT32_MAX)
-    {
-        return nullptr;
-    }
-
-    const auto& triangleMesh = dynamic_cast<const TriangleMesh&>(hit.getModelNode().getData().getShape());
-    if(triangleMesh.getData().permutation.has_value()){
-        triangleIdx = triangleMesh.getData().permutation->at(triangleIdx);
-    }
-
-    auto* material = this->findMaterial(triangleIdx);
-    assert(material != nullptr);
-
-    return material;
-}
-
 RGB CompositeMaterial::getTotalRadianceTowards(const SceneRayHitInfo& hit, const Scene& scene, int depth) const
 {
     const IMaterial* mat = findMaterial(hit);
@@ -105,4 +136,9 @@ std::tuple<Vector3, RGB, float> CompositeMaterial::interactPhoton(const SceneRay
     assert(mat != nullptr);
 
     return mat->interactPhoton(hit, incomingEnergy);
+}
+
+bool CompositeMaterial::hasVariance(const SceneRayHitInfo &hit, const Scene &scene) const
+{
+    return findMaterial(hit)->hasVariance(hit, scene);
 }

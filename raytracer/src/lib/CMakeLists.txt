@@ -1,7 +1,7 @@
 ﻿file(GLOB_RECURSE raytracer_lib_SRC
     "*.h"
     "*.cpp"
-)
+        )
 
 add_library(raytracer_lib ${raytracer_lib_SRC})
 

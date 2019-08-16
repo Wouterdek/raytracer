@@ -406,6 +406,9 @@ int main(int argc, char** argv)
 		("outputtype", po::value<std::string>()->default_value("exr"), "Type of output file to write. [exr, png, ppm, tile]")
 		("output", po::value<std::string>()->default_value("output"), "Output file path")
 		("mergetiles", po::value<std::vector<std::string>>()->multitoken(), "Load the specified tile files, merge them and output the result")
+        ("savepm", "Write the photonmap (if any is used) to disk.")
+        ("loadpm", "Load the photonmap from disk.")
+        ("pmfile", po::value<std::string>()->default_value(""), "The path of the photonmap file. (used for savepm and loadpm)")
         ("preview", po::bool_switch(&previewEnabled), "If enabled, a preview window will open that displays the image as its being rendered")
 		;
 
@@ -478,6 +481,22 @@ int main(int argc, char** argv)
         return -1;
     }
 
+    bool loadPhotonMapFromFile = vm.count("loadpm") > 0;
+    bool savePhotonMapToFile = vm.count("savepm") > 0;
+    std::filesystem::path photonMapFilePath;
+    if(loadPhotonMapFromFile || savePhotonMapToFile)
+    {
+        auto photonMapFile = vm["pmfile"].as<std::string>();
+        photonMapFilePath = std::filesystem::path(photonMapFile);
+
+        if(loadPhotonMapFromFile && !std::filesystem::is_regular_file(photonMapFilePath))
+        {
+            std::cerr << "The specified photon map file does not exist or is not a file." << std::endl;
+            return -1;
+        }
+    }
+
+
 	// Create picture
 
 	auto buffer = std::make_shared<FrameBuffer>(width, height);
@@ -522,11 +541,30 @@ int main(int argc, char** argv)
             }
             std::cout.flush();
         };
-        bool enablePhotonMapping = false;
+        bool enablePhotonMapping = true;
         if(enablePhotonMapping)
         {
-            std::cout << "Building photon map..." << std::endl;
-            scene.setPhotonMap(PhotonMapBuilder::buildPhotonMap(scene, progressPrinter));
+            PhotonMap photonMap;
+            if(loadPhotonMapFromFile)
+            {
+                std::cout << "Loading photon map..." << std::endl;
+                std::fstream in(photonMapFilePath, std::fstream::in | std::fstream::binary);
+                photonMap = PhotonMap::deserialize(in);
+            }
+            else
+            {
+                std::cout << "Building photon map..." << std::endl;
+                photonMap = PhotonMapBuilder::buildPhotonMap(scene, progressPrinter);
+            }
+
+            if(savePhotonMapToFile)
+            {
+                std::cout << "Saving photon map..." << std::endl;
+                std::fstream out(photonMapFilePath, std::fstream::out | std::fstream::binary);
+                photonMap.serialize(out);
+            }
+
+            scene.setPhotonMap(std::move(photonMap));
         }
 
 		auto start = std::chrono::high_resolution_clock::now();
@@ -534,8 +572,10 @@ int main(int argc, char** argv)
 		std::cout << "Rendering..." << std::endl;
 
 		RenderSettings settings;
-		settings.aaLevel = 64;
-        std::cout << "AA level = " << settings.aaLevel << std::endl;
+		settings.geometryAAModifier = 2;
+        settings.materialAAModifier = 16;
+        std::cout << "Geometry AA level = " << settings.geometryAAModifier << std::endl;
+        std::cout << "Material AA level = " << settings.materialAAModifier << std::endl;
 		//PPMRenderer renderer;
 		Renderer renderer;
 		renderer.render(scene, *buffer, tile, settings, progressPrinter, true);

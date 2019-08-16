@@ -7,7 +7,8 @@
 
 struct RenderSettings
 {
-	int aaLevel = 4;
+	int geometryAAModifier = 4;
+    int materialAAModifier = 32;
 };
 
 class Renderer

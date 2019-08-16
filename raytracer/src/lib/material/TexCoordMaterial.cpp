@@ -4,6 +4,12 @@
 TexCoordMaterial::TexCoordMaterial()
 { }
 
+RGB TexCoordMaterial::bsdf(const Scene &scene, const std::vector<TransportNode> &path, int curI, TransportNode& curNode, const RGB &incomingEnergy) const
+{
+    const auto& hit = path[curI].hit;
+    return RGB{ std::abs(hit.texCoord.x()), std::abs(hit.texCoord.y()), 0 };
+}
+
 RGB TexCoordMaterial::getTotalRadianceTowards(const SceneRayHitInfo &hit, const Scene &scene, int depth) const
 {
 	return RGB{ std::abs(hit.texCoord.x()), std::abs(hit.texCoord.y()), 0 };

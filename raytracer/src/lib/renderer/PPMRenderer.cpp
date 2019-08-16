@@ -77,8 +77,9 @@ void PPMRenderer::render(const Scene& scene, FrameBuffer& buffer, const Tile& ti
                     if(hitinfo->radius < 0)
                     {
                         neighbourPhotons.resize(10);
-                        hitinfo->radius = tree.getElementsNearestTo(hitpoint, neighbourPhotons.size(), neighbourPhotons);
-                        hitinfo->photonCount = neighbourPhotons.size();
+                        auto [nbPhotonsFound, newRadius] = tree.getElementsNearestTo(hitpoint, neighbourPhotons.size(), neighbourPhotons);
+                        hitinfo->photonCount = nbPhotonsFound;
+                        hitinfo->radius = newRadius;
                         //hitinfo->reflectedFlux
                         //hitinfo->weight
                         continue;

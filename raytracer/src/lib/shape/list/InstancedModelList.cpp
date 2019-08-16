@@ -1,6 +1,8 @@
 #include "InstancedModelList.h"
-#include <utility>
 #include "shape/bvh/BVHBuilder.h"
+#include "scene/renderable/SceneNode.h"
+#include "model/Model.h"
+#include <utility>
 #include <iostream>
 
 InstancedModelListData::InstancedModelListData(std::vector<SceneNode<Model>>&& shapes)

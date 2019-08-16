@@ -20,23 +20,26 @@ PhotonMap PhotonMapBuilder::buildPhotonMap(const Scene& scene, ProgressMonitor p
         tbb::task_list tasks{};
         size_type taskCount = 0;
         PhotonTracer tracer{};
-        tracer.batchSize = 1000;
-        tracer.photonsPerAreaLight = 1E6;
-        tracer.photonsPerPointLight = 1E6;
+        tracer.batchSize = 10000;
+        tracer.photonsPerAreaLight = 1E9;
+        tracer.photonsPerPointLight = 1E8;
         tracer.createPhotonTracingTasks(scene, tasks, taskCount, photons, progress);
 
         progress.startNewJob("Tracing photons", taskCount);
         tbb::task::spawn_root_and_wait(tasks);
     }
 
+    //return photons;
     // Build KD-tree from photon list
-    progress.startNewJob("Building photon KD-tree", 1);
+    std::stringstream msg;
+    msg << "Building photon KD-tree (" << photons.size() << " photons)";
+    progress.startNewJob(msg.str(), 1);
     auto tree = KDTreeBuilder::build(photons);
     progress.signalTaskFinished();
 
-    progress.startNewJob("Packing photon KD-tree", 1);
-    //tree.pack();
-    progress.signalTaskFinished();
+    /*progress.startNewJob("Packing photon KD-tree", 1);
+    tree.pack();
+    progress.signalTaskFinished();*/
 
     return tree;
 }

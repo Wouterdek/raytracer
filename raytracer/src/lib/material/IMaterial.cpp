@@ -5,3 +5,8 @@ std::tuple<Vector3, RGB, float> IMaterial::interactPhoton(const SceneRayHitInfo 
 {
     return std::make_tuple(hit.ray.getDirection(), incomingEnergy, 0.0); //pass-through
 }
+
+bool IMaterial::hasVariance(const SceneRayHitInfo &hit, const Scene &scene) const
+{
+    return false;
+}

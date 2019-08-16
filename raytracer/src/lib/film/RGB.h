@@ -8,8 +8,13 @@ public:
 	static const RGB BLACK;
 	using component = float;
 
-	RGB();
-	explicit RGB(component value);
+    RGB() : red(0), green(0), blue(0)
+    { }
+
+    explicit RGB(component value)
+            : RGB(value, value, value)
+    { }
+
 	RGB(component red, component green, component blue);
 
 	bool isValidColorComponent(component value) const;

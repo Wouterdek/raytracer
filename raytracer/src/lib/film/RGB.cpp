@@ -5,14 +5,6 @@
 
 const RGB RGB::BLACK(0,0,0);
 
-RGB::RGB()
-	: red(0), green(0), blue(0)
-{ }
-
-RGB::RGB(component value)
-	: RGB(value, value, value)
-{ }
-
 RGB::RGB(component red, component green, component blue)
 	: red(red), green(green), blue(blue)
 {

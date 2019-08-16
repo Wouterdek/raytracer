@@ -10,6 +10,77 @@
 
 #undef min
 
+void samplePath(std::vector<TransportNode>& path, int samplingStartIndex, int maxPathLength, const Scene& scene)
+{
+    TransportBuildContext ctx(scene, path);
+    ctx.curI = samplingStartIndex;
+    bool pathDone;
+    std::optional<SceneRayHitInfo> hit;
+    std::optional<std::function<void()>> curNodeCallback {};
+    do{
+        auto& curNode = ctx.getCurNode();
+        curNode.hit.getModelNode().getData().getMaterial().sampleTransport(ctx);
+        hit = ctx.nextHit;
+        ctx.nextHit.reset();
+
+        if(curNodeCallback.has_value())
+        {
+            (*curNodeCallback)();
+        }
+        curNodeCallback = ctx.nextNodeCallback;
+        ctx.nextNodeCallback.reset();
+
+        pathDone = curNode.isEmissive || (path.size() == maxPathLength) || (randUnit(randDev) < curNode.pathTerminationChance);
+
+        if(!pathDone)
+        {
+            if(!hit.has_value())
+            {
+                Ray ray(curNode.hit.getHitpoint() + (curNode.transportDirection * 0.0001f), curNode.transportDirection);
+                hit = scene.traceRay(ray);
+            }
+            if (hit.has_value())
+            {
+                if(path.size() < (ctx.curI+2))
+                {
+                    path.emplace_back(*hit);
+                }
+                else
+                {
+                    path[ctx.curI+1] = TransportNode(*hit);
+                }
+            }
+            else
+            {
+                pathDone = true;
+            }
+        }
+        ctx.curI++;
+        if(ctx.curI == path.size())
+        {
+            pathDone = true;
+        }
+    }while(!pathDone);
+
+    path.erase(path.begin()+ctx.curI, path.end());
+}
+
+RGB calculatePathEnergy(std::vector<TransportNode>& path, const Scene& scene)
+{
+    // Calculate light transported along this path
+    RGB energy {};
+    for(int pathI = path.size()-1; pathI >= 0; --pathI) //From path end to front
+    {
+        auto& curPathElem = path[pathI];
+        energy = curPathElem.hit.getModelNode().getData().getMaterial().bsdf(scene, path, pathI, curPathElem, energy);
+        if(!curPathElem.isEmissive)
+        {
+            energy = energy.divide(1.0f-curPathElem.pathTerminationChance);
+        }
+    }
+    return energy;
+}
+
 void Renderer::render(const Scene &scene, FrameBuffer &buffer, const Tile &tile, const RenderSettings &renderSettings, ProgressMonitor progressMon, bool multithreaded)
 {
     std::vector<Tile> tiles;
@@ -30,20 +101,83 @@ void Renderer::render(const Scene &scene, FrameBuffer &buffer, const Tile &tile,
 
     tbb::parallel_for_each(tiles.begin(), tiles.end(), [&scene, &buffer, &renderSettings, &progress, &camera](const Tile& curTile)
     {
+        std::vector<TransportNode> path;
+        const int maxPathLength = 10;
+        path.reserve(maxPathLength);
+
         for (int y = curTile.getYStart(); y < curTile.getYEnd(); ++y) {
             for (int x = curTile.getXStart(); x < curTile.getXEnd(); ++x) {
                 RGB pixelValue{};
 
-                for(int i = 0; i < renderSettings.aaLevel; i++)
+                for(int i = 0; i < renderSettings.geometryAAModifier; i++)
                 {
-                    // create a ray through the center of the pixel.
-                    Vector2 sample = Vector2(x, y) + sampleStratifiedSquare(renderSettings.aaLevel, i);
+                    /**V3**/
+                    // Build new path
+                    path.clear();
+                    Vector2 sample = Vector2(x, y) + sampleStratifiedSquare(renderSettings.geometryAAModifier, i);
                     Ray ray = camera.generateRay(sample, buffer.getHorizontalResolution(), buffer.getVerticalResolution());
+                    auto hit = scene.traceRay(ray);
+                    if (hit.has_value())
+                    {
+                        auto& pathNode = path.emplace_back(*hit);
+                        samplePath(path, 0, maxPathLength, scene);
+                    }
+                    else
+                    {
+                        continue;
+                    }
 
+                    int firstNodeWithVariance = 0;
+                    for(; firstNodeWithVariance < path.size(); firstNodeWithVariance++)
+                    {
+                        if(path[firstNodeWithVariance].hit.getModelNode().getData().getMaterial().hasVariance(path[firstNodeWithVariance].hit, scene))
+                        {
+                            break;
+                        }
+                    }
+
+                    RGB matSample = calculatePathEnergy(path, scene);
+                    if(firstNodeWithVariance < path.size())
+                    {
+                        for(int j = 0; j < renderSettings.materialAAModifier-1; j++)
+                        {
+                            // From the first geometry hit on, resample the transport path if the bsdf at the hitpoint has variance.
+                            samplePath(path, firstNodeWithVariance, maxPathLength, scene);
+                            matSample = matSample.add(calculatePathEnergy(path, scene));
+                        }
+                        matSample = matSample.divide(renderSettings.materialAAModifier);
+                    }
+                    pixelValue = pixelValue.add(matSample);
+
+
+                    /**V2**/
+                    // create a ray through the pixel.
+                    /*Vector2 sample = Vector2(x, y) + sampleStratifiedSquare(renderSettings.geometryAAModifier, i);
+                    Ray ray = camera.generateRay(sample, buffer.getHorizontalResolution(), buffer.getVerticalResolution());
+                    auto hit = scene.traceRay(ray);
+
+                    if (hit.has_value())
+                    {
+                        const auto& material = hit->getModelNode().getData().getMaterial();
+                        RGB curContribution = material.getTotalRadianceTowards(*hit, scene, 0);
+                        int curMatSampleCount = material.hasVariance(*hit, scene) ? renderSettings.materialAAModifier : 1;
+
+                        if(curMatSampleCount > 1)
+                        {
+                            auto materialSamplesToDo = renderSettings.materialAAModifier - 1;
+                            for(int j = 0; j < materialSamplesToDo; j++)
+                            {
+                                curContribution = curContribution.add(material.getTotalRadianceTowards(*hit, scene, 0));
+                            }
+                        }
+                        pixelValue = pixelValue.add(curContribution.divide(curMatSampleCount));
+                    }*/
+
+                    /**V1**/
                     // test the scene on intersections
                     //auto start = std::chrono::high_resolution_clock::now();
 
-                    auto hit = scene.traceRay(ray);
+
 
                     //auto finish = std::chrono::high_resolution_clock::now();
                     //double duration = std::chrono::duration_cast<std::chrono::nanoseconds>(finish - start).count()/1000.0;
@@ -55,20 +189,25 @@ void Renderer::render(const Scene &scene, FrameBuffer &buffer, const Tile &tile,
                     pixelValue = pixelValue.add(bvhMarker);
                     BVHDiag::Levels = 0;*/
 
+
                     // add a color contribution to the pixel
-                    if (hit.has_value())
-                    {
+                    /*if (hit.has_value())
+                    {*/
                         /*auto hitpoint = hit->getGeometryInfo().getHitpoint();
                         auto depth = std::log(hitpoint.norm())/4.0f;
                         depth = std::clamp<float>(depth, 0, 1);
                         buffer.setPixel(x, y, RGB(depth));*/
 
-                        pixelValue = pixelValue.add(
-                                hit->getModelNode().getData().getMaterial().getTotalRadianceTowards(*hit, scene, 0));
-                    }
+                        //pixelValue = pixelValue.add(hit->getModelNode().getData().getMaterial().getTotalRadianceTowards(*hit, scene, 0));
+                        //hit->getModelNode().getData().getMaterial().getTotalRadianceTowards(*hit, scene, 0);
+
+                        /*RGB kdMarker(0, KDTreeDiag::Levels, 0);
+                        pixelValue = pixelValue.add(kdMarker);
+                        KDTreeDiag::Levels = 0;*/
+                    //}
                 }
 
-                buffer.setPixel(x, y, pixelValue.divide(renderSettings.aaLevel));
+                buffer.setPixel(x, y, pixelValue.divide(renderSettings.geometryAAModifier));
             }
 
             //std::cout << y * 100 / curTile.getYEnd() << "% done\r";
