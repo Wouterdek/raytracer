@@ -26,6 +26,8 @@ Point AreaLight::generateRandomPoint() const
 
 Point AreaLight::generateStratifiedJitteredRandomPoint(int level, int i) const noexcept
 {
+    assert(i < level);
+
 	int n = sqrt(level);
 	Vector3 v1 = (c - a) / n;
 	Vector3 v2 = (b - a) / n;

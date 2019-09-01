@@ -10,15 +10,24 @@
 
 #undef min
 
-void samplePath(std::vector<TransportNode>& path, int samplingStartIndex, int maxPathLength, const Scene& scene)
+void samplePath(std::vector<TransportNode>& path, int samplingStartIndex, int maxPathLength, const Scene& scene, int materialAALevel, int sampleI)
 {
     TransportBuildContext ctx(scene, path);
     ctx.curI = samplingStartIndex;
+
     bool pathDone;
     std::optional<SceneRayHitInfo> hit;
     std::optional<std::function<void()>> curNodeCallback {};
+    bool hasPassedNodeWithVariance = false;
     do{
         auto& curNode = ctx.getCurNode();
+
+        bool curNodeHasVariance = ctx.getCurNode().hit.getModelNode().getData().getMaterial().hasVariance(ctx.getCurNode().hit, scene);
+        bool isFirstNodeWithVariance = curNodeHasVariance && !hasPassedNodeWithVariance;
+        ctx.sampleCount = isFirstNodeWithVariance ? materialAALevel : 1;
+        ctx.sampleI = isFirstNodeWithVariance ? sampleI : 0;
+        hasPassedNodeWithVariance = hasPassedNodeWithVariance || curNodeHasVariance;
+
         curNode.hit.getModelNode().getData().getMaterial().sampleTransport(ctx);
         hit = ctx.nextHit;
         ctx.nextHit.reset();
@@ -120,7 +129,7 @@ void Renderer::render(const Scene &scene, FrameBuffer &buffer, const Tile &tile,
                     if (hit.has_value())
                     {
                         auto& pathNode = path.emplace_back(*hit);
-                        samplePath(path, 0, maxPathLength, scene);
+                        samplePath(path, 0, maxPathLength, scene, renderSettings.materialAAModifier, 0);
                     }
                     else
                     {
@@ -139,10 +148,10 @@ void Renderer::render(const Scene &scene, FrameBuffer &buffer, const Tile &tile,
                     RGB matSample = calculatePathEnergy(path, scene);
                     if(firstNodeWithVariance < path.size())
                     {
-                        for(int j = 0; j < renderSettings.materialAAModifier-1; j++)
+                        for(int j = 1; j < renderSettings.materialAAModifier; j++)
                         {
                             // From the first geometry hit on, resample the transport path if the bsdf at the hitpoint has variance.
-                            samplePath(path, firstNodeWithVariance, maxPathLength, scene);
+                            samplePath(path, firstNodeWithVariance, maxPathLength, scene, renderSettings.materialAAModifier, j);
                             matSample = matSample.add(calculatePathEnergy(path, scene));
                         }
                         matSample = matSample.divide(renderSettings.materialAAModifier);

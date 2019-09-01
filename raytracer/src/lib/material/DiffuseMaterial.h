@@ -18,6 +18,6 @@ public:
 
     RGB diffuseColor = RGB::BLACK;
 	double diffuseIntensity = 1.0;
-	std::shared_ptr<Texture> albedoMap;
-	std::shared_ptr<Texture> normalMap;
+	std::shared_ptr<Texture> albedoMap = nullptr;
+	std::shared_ptr<Texture> normalMap = nullptr;
 };

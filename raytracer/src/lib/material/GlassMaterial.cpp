@@ -31,7 +31,7 @@ void GlassMaterial::sampleTransport(TransportBuildContext &ctx) const
         meta = transport.metadata.alloc<TransportMetaData>();
 
         //HYBRID PHOTON
-        if(ctx.curI != 0 && (ctx.path[ctx.curI-1].specularity < 0.8 && ctx.path[ctx.curI-1].type == TransportType::bounce))
+        if(ctx.scene.getPhotonMap().has_value() && ctx.curI != 0 && (ctx.path[ctx.curI-1].specularity < 0.8 && ctx.path[ctx.curI-1].type == TransportType::bounce))
         {
             transport.isEmissive = true;
             transport.pathTerminationChance = 1.0;
@@ -64,9 +64,11 @@ void GlassMaterial::sampleTransport(TransportBuildContext &ctx) const
         if(tir)
         {
             meta->reflectionWeight = 1.0;
+            meta->t = NAN;
+
             transport.type = TransportType::bounce;
             transport.transportDirection = meta->reflectedRayDir;
-            return; //TODO: lights should be checked here too
+            return; //TODO: should lights be checked here too?
         }
         else
         {
@@ -154,7 +156,8 @@ RGB GlassMaterial::bsdf(const Scene &scene, const std::vector<TransportNode> &pa
 
     if(isInternalRay)
     {
-        val = val.multiply(this->color.pow(attenuationStrength*meta->t));
+        auto t = std::isnan(meta->t) ? curNode.hit.t : meta->t;
+        val = val.multiply(this->color.pow(attenuationStrength*t));
     }
 
     return val;
@@ -262,17 +265,18 @@ RGB GlassMaterial::getTotalRadianceTowards(const SceneRayHitInfo &hit, const Sce
 std::tuple<Vector3, RGB, float> GlassMaterial::interactPhoton(const SceneRayHitInfo &hit, const RGB &incomingEnergy) const
 {
     Vector3 normal = hit.normal;
-    bool isInternalRay = normal.dot(-hit.ray.getDirection()) < 0;
+    bool isInternalRay = normal.dot(hit.ray.getDirection()) < 0;
+    //bool isInternalRay = normal.dot(hit.ray.getDirection()) > 0;
+
+    bool isReflection;
+    auto direction = sampleTransportDirection(normal, hit.ray.getDirection(), ior, isReflection);
 
     auto energy = incomingEnergy;
     if(isInternalRay)
     {
-        auto dist = (hit.ray.getOrigin() - hit.getHitpoint()).norm();
+        auto dist = hit.t;
         energy = incomingEnergy.multiply(this->color.pow(attenuationStrength*dist));
     }
-
-    bool isReflection;
-    auto direction = sampleTransportDirection(normal, hit.ray.getDirection(), ior, isReflection);
 
     return std::make_tuple(direction, energy, 0.0);
 }

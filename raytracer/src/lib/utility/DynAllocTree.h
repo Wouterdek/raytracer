@@ -85,6 +85,19 @@ public:
         return reinterpret_cast<T*>(&buffer[pointer+sizeof(EntryHeader)]);
     }
 
+    template <typename T, typename ... Args>
+    T* readOrAlloc(Args&& ... args)
+    {
+        if(hasValue<T>())
+        {
+            return tryRead<T>();
+        }
+        else
+        {
+            return alloc<T>();
+        }
+    }
+
     template<typename T>
     bool hasValue()
     {

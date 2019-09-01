@@ -2,8 +2,11 @@
 #include <sstream>
 
 Ray::Ray(Point origin, Vector3 dir)
-	: origin(std::move(origin)), direction(std::move(dir))
-{ }
+	: origin(std::move(origin))
+{
+    this->direction = std::move(dir);
+    this->direction.normalize();
+}
 
 std::ostream & operator<<(std::ostream & in, const Ray & ray)
 {

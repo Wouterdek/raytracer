@@ -67,7 +67,7 @@ tbb::task *PointLightPhotonTracingTask::execute()
 tbb::task *AreaLightPhotonTracingTask::execute()
 {
     // Trace photons from light source into scene
-    auto& light = lightRef.get();
+    const auto& light = lightRef.get();
     RGB energyPerPhoton = light.color * (light.intensity / (float)totalPhotonCount);
     OrthonormalBasis basis((light.b - light.a).cross(light.c - light.a));
 

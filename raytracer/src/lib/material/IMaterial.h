@@ -32,6 +32,8 @@ struct TransportContext
     const Scene& scene;
     std::vector<TransportNode>& path;
     int curI = 0;
+    int sampleI = 0;
+    int sampleCount = 0;
 
     TransportContext(const Scene &scene, std::vector<TransportNode>& path) : scene(scene), path(path)
     {}

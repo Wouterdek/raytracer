@@ -16,7 +16,7 @@ namespace {
 
 DiffuseMaterial::DiffuseMaterial() = default;
 
-RGB doNextEventEstimation(const Scene& scene, const Point& hitpoint, const Vector3& normal, /* OUT */ Vector3& lightDirection)
+RGB doNextEventEstimation(const Scene& scene, const Point& hitpoint, const Vector3& normal, int sampleI, int sampleCount, /* OUT */ Vector3& lightDirection)
 {
     auto totalLightCount = scene.getAreaLights().size() + scene.getPointLights().size();
     if(totalLightCount == 0)
@@ -26,10 +26,16 @@ RGB doNextEventEstimation(const Scene& scene, const Point& hitpoint, const Vecto
 
     auto lightIndex = std::uniform_int_distribution<int>(0, totalLightCount-1)(randDev);
 
+    double totalArea = 0;
+    for(const auto& light : scene.getAreaLights())
+    {
+        totalArea += light.get()->getSurfaceArea();
+    }
+
     if(lightIndex < scene.getAreaLights().size())
     {
         const auto& light = scene.getAreaLights()[lightIndex];
-        auto lampPoint = light->generateStratifiedJitteredRandomPoint(1, 1); //TODO: proper jitter
+        auto lampPoint = light->generateStratifiedJitteredRandomPoint(sampleCount, sampleI);
         Vector3 objectToLamp = lampPoint - hitpoint;
         auto lampT = objectToLamp.norm();
         objectToLamp.normalize();
@@ -45,7 +51,7 @@ RGB doNextEventEstimation(const Scene& scene, const Point& hitpoint, const Vecto
 
             auto lE = light->color * light->intensity;
 
-            auto lampRadiance = lE * geometricFactor * light->getSurfaceArea();
+            auto lampRadiance = lE * geometricFactor * totalArea;
             return lampRadiance;
         }
     }
@@ -87,10 +93,11 @@ RGB brdf(const RGB& lIn, const Vector3& surfaceNormal, const Vector3& outDir)
 void DiffuseMaterial::sampleTransport(TransportBuildContext &ctx) const
 {
     auto& transport = ctx.getCurNode();
-    auto* meta = transport.metadata.alloc<TransportMetaData>();
-
     transport.specularity = 0.0f;
     transport.type = TransportType::bounce;
+
+    auto* meta = transport.metadata.readOrAlloc<TransportMetaData>();
+    meta->isPartialPhotonMapRay = false;
 
     auto normal = transport.hit.normal;
     if(this->normalMap != nullptr)
@@ -120,10 +127,7 @@ void DiffuseMaterial::sampleTransport(TransportBuildContext &ctx) const
         for(int i = 0; i < nbPhotonsFound; i++)
         {
             const Photon* photon = photons[i];
-            /*auto val = 1.0/(sqrt(squaredDist) + 1);
-            value += RGB(photon->isCaustic ? 0: val, photon->isCaustic ? val : 0, 0);*/
             value += brdf(photon->energy, normal, -photon->incomingDir);
-            //value += photon->energy;
         }
         meta->directLighting = value.scale(this->diffuseIntensity).divide(PI*(maxDist*maxDist));
         meta->directLightingIsSet = true;
@@ -136,8 +140,7 @@ void DiffuseMaterial::sampleTransport(TransportBuildContext &ctx) const
         bool useNextEventEstimation = randUnit(randDev) > 0.5f;
         if(useNextEventEstimation)
         {
-            RGB direct = doNextEventEstimation(ctx.scene, transport.hit.getHitpoint(), normal, transport.transportDirection);
-            meta->directLighting = direct;
+            meta->directLighting = doNextEventEstimation(ctx.scene, transport.hit.getHitpoint(), normal, ctx.sampleI, ctx.sampleCount, transport.transportDirection);
             transport.pathTerminationChance = 1.0f;
             transport.isEmissive = true;
             meta->isNEERay = true;
@@ -149,37 +152,41 @@ void DiffuseMaterial::sampleTransport(TransportBuildContext &ctx) const
             OrthonormalBasis basis(normal);
             auto transform = Transformation::rotate(basis.getV(), angleB).append(Transformation::rotate(basis.getU(), angleA));
             transport.transportDirection = transform.transform(normal);
+            meta->isNEERay = false;
 
-            ctx.nextNodeCallback = [&transport, &ctx, meta, normal](){
-                if(ctx.getCurNode().specularity > 0.8)
-                {
-                    transport.pathTerminationChance = 1.0f;
-                    transport.isEmissive = true;
-
-                    if(!meta->directLightingIsSet)
+            if(ctx.scene.getPhotonMap().has_value())
+            {
+                ctx.nextNodeCallback = [&transport, &ctx, meta, normal](){
+                    if(ctx.getCurNode().specularity > 0.8)
                     {
-                        const auto& photonMap = ctx.scene.getPhotonMap();
-                        std::vector<const Photon*> photons(20);
+                        transport.pathTerminationChance = 1.0f;
+                        transport.isEmissive = true;
 
-                        auto dir = -transport.hit.ray.getDirection();
-                        auto [nbPhotonsFound, maxDist] = photonMap->getElementsNearestTo(transport.hit.getHitpoint(), photons.size(), 1, [dir](const Photon& photon)
+                        if(!meta->directLightingIsSet)
                         {
-                            return dir.dot(photon.surfaceNormal) >= 0;
-                        }, photons);
+                            const auto& photonMap = ctx.scene.getPhotonMap();
+                            std::vector<const Photon*> photons(20);
 
-                        RGB value {};
-                        for(int i = 0; i < nbPhotonsFound; i++)
-                        {
-                            const Photon* photon = photons[i];
-                            value += brdf(photon->energy, normal, -photon->incomingDir); //TODO: is this correct? shouldn't this be scaled based on distance?
+                            auto dir = -transport.hit.ray.getDirection();
+                            auto [nbPhotonsFound, maxDist] = photonMap->getElementsNearestTo(transport.hit.getHitpoint(), photons.size(), 1, [dir](const Photon& photon)
+                            {
+                                return dir.dot(photon.surfaceNormal) >= 0;
+                            }, photons);
+
+                            RGB value {};
+                            for(int i = 0; i < nbPhotonsFound; i++)
+                            {
+                                const Photon* photon = photons[i];
+                                value += brdf(photon->energy, normal, -photon->incomingDir);
+                            }
+                            meta->directLighting = value.divide(PI*(maxDist*maxDist));
+                            meta->directLightingIsSet = true;
                         }
-                        meta->directLighting = value.divide(PI*(maxDist*maxDist));
-                        meta->directLightingIsSet = true;
-                    }
 
-                    meta->isPartialPhotonMapRay = true;
-                }
-            };
+                        meta->isPartialPhotonMapRay = true;
+                    }
+                };
+            }
         }
     }
 }
@@ -198,7 +205,7 @@ RGB DiffuseMaterial::bsdf(const Scene &scene, const std::vector<TransportNode> &
 
     if(scene.getPhotonMap().has_value() && meta->isPartialPhotonMapRay)
     {
-        return diffuseColor.multiply(meta->directLighting);
+        return diffuseColor.multiply(meta->directLighting).scale(2);
     }
     else
     {
@@ -401,8 +408,23 @@ RGB DiffuseMaterial::getTotalRadianceTowards(const SceneRayHitInfo &hit, const S
 
 std::tuple<Vector3, RGB, float> DiffuseMaterial::interactPhoton(const SceneRayHitInfo &hit, const RGB &incomingEnergy) const
 {
-    Vector3 direction = sampleBounceDirection(hit.normal);
-    return std::make_tuple(direction, brdf(incomingEnergy, hit.normal, direction), 1.0f);
+    auto diffuseColor = this->diffuseColor;
+    if(this->albedoMap != nullptr)
+    {
+        float x = abs(fmod(hit.texCoord.x(), 1.0f));
+        float y = abs(fmod(hit.texCoord.y(), 1.0f));
+        diffuseColor = this->albedoMap->get(x * this->albedoMap->getWidth(), y * this->albedoMap->getHeight());
+    }
+
+    auto normal = hit.normal;
+    if(this->normalMap != nullptr)
+    {
+        auto mapNormal = sample_normal_map(hit, *this->normalMap);
+        normal = hit.getModelNode().getTransform().transformNormal(mapNormal);
+    }
+
+    Vector3 direction = sampleBounceDirection(normal);
+    return std::make_tuple(direction, diffuseColor.multiply(brdf(incomingEnergy, hit.normal, direction)), 1.0f);
 }
 
 bool DiffuseMaterial::hasVariance(const SceneRayHitInfo &hit, const Scene &scene) const
