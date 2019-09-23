@@ -35,6 +35,11 @@ void samplePath(std::vector<TransportNode>& path, int samplingStartIndex, int ma
         if(curNodeCallback.has_value())
         {
             (*curNodeCallback)();
+
+            if(ctx.path[ctx.curI-1].isEmissive || ctx.path[ctx.curI-1].pathTerminationChance == 1.0) //bit of a hack here, I know
+            {
+                break;
+            }
         }
         curNodeCallback = ctx.nextNodeCallback;
         ctx.nextNodeCallback.reset();
