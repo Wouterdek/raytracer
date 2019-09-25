@@ -79,7 +79,8 @@ RGB doNextEventEstimation(const Scene& scene, const Point& hitpoint, const Vecto
 struct TransportMetaData
 {
     RGB directLighting;
-    bool directLightingIsSet;
+    RGB photonLighting;
+    bool photonLightingIsSet;
     bool isNEERay = false;
     bool isPartialPhotonMapRay = false;
 };
@@ -90,7 +91,7 @@ RGB brdf(const RGB& lIn, const Vector3& surfaceNormal, const Vector3& outDir)
     return lIn.scale(angle);
 }
 
-void DiffuseMaterial::sampleTransport(TransportBuildContext &ctx) const
+void DiffuseMaterial::sampleTransport(TransportBuildContext& ctx) const
 {
     auto& transport = ctx.getCurNode();
     transport.specularity = 0.0f;
@@ -129,8 +130,8 @@ void DiffuseMaterial::sampleTransport(TransportBuildContext &ctx) const
             const Photon* photon = photons[i];
             value += brdf(photon->energy, normal, -photon->incomingDir);
         }
-        meta->directLighting = value.scale(this->diffuseIntensity).divide(PI*(maxDist*maxDist));
-        meta->directLightingIsSet = true;
+        meta->photonLighting = value.scale(this->diffuseIntensity).divide(PI*(maxDist*maxDist));
+        meta->photonLightingIsSet = true;
     }
     else
     {
@@ -162,7 +163,7 @@ void DiffuseMaterial::sampleTransport(TransportBuildContext &ctx) const
                         transport.pathTerminationChance = 1.0f;
                         transport.isEmissive = true;
 
-                        if(!meta->directLightingIsSet)
+                        if(!meta->photonLightingIsSet)
                         {
                             const auto& photonMap = ctx.scene.getPhotonMap();
                             std::vector<const Photon*> photons(20);
@@ -174,13 +175,13 @@ void DiffuseMaterial::sampleTransport(TransportBuildContext &ctx) const
                             }, photons);
 
                             RGB value {};
-                            for(int i = 0; i < nbPhotonsFound; i++)
+                            for(unsigned int i = 0; i < nbPhotonsFound; ++i)
                             {
                                 const Photon* photon = photons[i];
                                 value += brdf(photon->energy, normal, -photon->incomingDir);
                             }
-                            meta->directLighting = value.divide(PI*(maxDist*maxDist));
-                            meta->directLightingIsSet = true;
+                            meta->photonLighting = value.divide(PI*(maxDist*maxDist));
+                            meta->photonLightingIsSet = true;
                         }
 
                         meta->isPartialPhotonMapRay = true;
@@ -203,9 +204,10 @@ RGB DiffuseMaterial::bsdf(const Scene &scene, const std::vector<TransportNode> &
         diffuseColor = this->albedoMap->get(x * this->albedoMap->getWidth(), y * this->albedoMap->getHeight());
     }
 
-    if(scene.getPhotonMap().has_value() && meta->isPartialPhotonMapRay)
+    if(meta->isPartialPhotonMapRay)
     {
-        return diffuseColor.multiply(meta->directLighting).scale(2);
+        //TODO: do we need *4 here? 2 for hemispherical sampling, 2 for separate NEE rays?
+        return diffuseColor.multiply(meta->photonLighting).scale(2);
     }
     else
     {

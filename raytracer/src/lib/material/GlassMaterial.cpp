@@ -163,6 +163,60 @@ RGB GlassMaterial::bsdf(const Scene &scene, const std::vector<TransportNode> &pa
     return val;
 }
 
+Vector3 samplePhotonDirection(Vector3& normal, const Vector3& incomingDir, double ior, bool& isReflectionDirection)
+{
+    Vector3 objToIncoming = -incomingDir;
+    Vector3 reflectedRayDir = -objToIncoming + ((2.0 * normal.dot(objToIncoming)) * normal);
+    Vector3 transmittedRayDir;
+    double reflectionWeight;
+
+    // Check for total internal reflection
+    double nDotWo = normal.dot(objToIncoming);
+    auto incomingAngle = nDotWo; //assuming wo and n are normalized //Careful: this is cos of angle between normal and Wo, which could be >90 (if internal ray)
+    bool isInternalRay = nDotWo < 0;
+    auto curRelIor = ior / 1.0; //Assuming 1.0 for air
+    if(isInternalRay)
+    {
+        curRelIor = 1.0 / curRelIor;
+    }
+    double cosTransmissionSqr = 1.0 - ((1.0 - pow(incomingAngle, 2.0)) / pow(curRelIor, 2.0)); //incomingAngle could actually be -incomingAngle, but this doesn't matter as we square it anyway
+    bool tir = cosTransmissionSqr < 0; // total internal reflection
+
+    if(tir)
+    {
+        isReflectionDirection = true;
+        return reflectedRayDir; //TODO: should lights be checked here too?
+    }
+    else
+    {
+        if(isInternalRay)
+        {
+            nDotWo = -nDotWo;
+            incomingAngle = -incomingAngle;
+            normal = -normal;
+        }
+        double cosRefractAngle = sqrt(cosTransmissionSqr);
+
+        transmittedRayDir = (incomingDir / curRelIor) - (cosRefractAngle - (incomingAngle / curRelIor)) * normal;
+
+        auto rs = ((curRelIor * nDotWo) - cosRefractAngle) / ((curRelIor * nDotWo) + cosRefractAngle);
+        auto rp = (nDotWo - (curRelIor * cosRefractAngle)) / (nDotWo + (curRelIor * cosRefractAngle));
+        auto kr = ((rs * rs) + (rp * rp)) / 2.0;
+        reflectionWeight = kr;
+        auto transmissionWeight = 1.0 - kr;
+        auto totalWeight = reflectionWeight + transmissionWeight;
+        reflectionWeight = reflectionWeight / totalWeight;
+    }
+
+    if(randDist(randDevice) < reflectionWeight)
+    {
+        return reflectedRayDir;
+    }
+    else
+    {
+        return transmittedRayDir;
+    }
+}
 
 Vector3 sampleTransportDirection(Vector3& normal, const Vector3& incomingDir, double ior, bool& isReflectionDirection)
 {
@@ -269,7 +323,7 @@ std::tuple<Vector3, RGB, float> GlassMaterial::interactPhoton(const SceneRayHitI
     //bool isInternalRay = normal.dot(hit.ray.getDirection()) > 0;
 
     bool isReflection;
-    auto direction = sampleTransportDirection(normal, hit.ray.getDirection(), ior, isReflection);
+    auto direction = samplePhotonDirection(normal, hit.ray.getDirection(), ior, isReflection);
 
     auto energy = incomingEnergy;
     if(isInternalRay)
