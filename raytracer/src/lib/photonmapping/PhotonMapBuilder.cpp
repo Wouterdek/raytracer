@@ -1,4 +1,5 @@
 #include "PhotonMapBuilder.h"
+#include "PhotonMap.h"
 #include "math/OrthonormalBasis.h"
 #include "math/UniformSampler.h"
 #include "math/Ray.h"
@@ -11,11 +12,12 @@
 
 using size_type = std::vector<Photon>::size_type;
 
-PhotonMap PhotonMapBuilder::buildPhotonMap(const Scene& scene, ProgressMonitor progressMon)
+PhotonMap PhotonMapBuilder::buildPhotonMap(const Scene& scene, PhotonMapMode mode, ProgressMonitor progressMon)
 {
     ProgressTracker progress(progressMon);
     tbb::concurrent_vector<Photon> photons{};
 
+    if(mode != PhotonMapMode::none)
     {
         tbb::task_list tasks{};
         size_type taskCount = 0;
@@ -23,6 +25,7 @@ PhotonMap PhotonMapBuilder::buildPhotonMap(const Scene& scene, ProgressMonitor p
         tracer.batchSize = 10000;
         tracer.photonsPerAreaLight = 1E9;
         tracer.photonsPerPointLight = 1E8;
+        tracer.mode = mode;
         tracer.createPhotonTracingTasks(scene, tasks, taskCount, photons, progress);
 
         progress.startNewJob("Tracing photons", taskCount);

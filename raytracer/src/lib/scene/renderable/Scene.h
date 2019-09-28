@@ -49,6 +49,16 @@ public:
 	    photonMap = std::move(map);
     }
 
+    PhotonMapMode getPhotonMapMode() const
+    {
+        return photonMappingMode;
+    }
+
+    void setPhotonMapMode(PhotonMapMode mode)
+    {
+        photonMappingMode = mode;
+    }
+
     // Get first hit
 	std::optional<SceneRayHitInfo> traceRay(const Ray& ray) const;
 
@@ -60,5 +70,6 @@ private:
 	std::vector<std::unique_ptr<AreaLight>> areaLights;
 	std::vector<SceneNode<ICamera>> cameras;
 	std::optional<PhotonMap> photonMap;
+    PhotonMapMode photonMappingMode = PhotonMapMode::none;
 	SceneBVH sceneBVH;
 };

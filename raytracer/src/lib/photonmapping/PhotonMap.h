@@ -5,3 +5,10 @@
 
 using PhotonMap = KDTree<Photon, &Photon::getPosition>;
 //using PhotonMap = tbb::concurrent_vector<Photon>;
+
+enum class PhotonMapMode
+{
+    none,
+    caustics,
+    full
+};

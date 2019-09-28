@@ -81,8 +81,8 @@ struct TransportMetaData
     RGB directLighting;
     RGB photonLighting;
     bool photonLightingIsSet;
+    bool isPhotonMapRay = false;
     bool isNEERay = false;
-    bool isPartialPhotonMapRay = false;
 };
 
 RGB brdf(const RGB& lIn, const Vector3& surfaceNormal, const Vector3& outDir)
@@ -98,7 +98,7 @@ void DiffuseMaterial::sampleTransport(TransportBuildContext& ctx) const
     transport.type = TransportType::bounce;
 
     auto* meta = transport.metadata.readOrAlloc<TransportMetaData>();
-    meta->isPartialPhotonMapRay = false;
+    meta->isPhotonMapRay = false;
 
     auto normal = transport.hit.normal;
     if(this->normalMap != nullptr)
@@ -107,31 +107,31 @@ void DiffuseMaterial::sampleTransport(TransportBuildContext& ctx) const
         normal = transport.hit.getModelNode().getTransform().transformNormal(mapNormal);
     }
 
-    if(false && ctx.scene.getPhotonMap().has_value())
+    if(ctx.scene.getPhotonMapMode() == PhotonMapMode::full)
     {
         transport.pathTerminationChance = 1.0f;
         transport.isEmissive = true;
+        meta->isPhotonMapRay = true;
 
-        const auto& photonMap = ctx.scene.getPhotonMap();
-        std::vector<const Photon*> photons(20);
-
-        auto dir = -transport.hit.ray.getDirection();
-        auto [nbPhotonsFound, maxDist] = photonMap->getElementsNearestTo(transport.hit.getHitpoint(), photons.size(), 1, [dir](const Photon& photon){
-#ifdef PHOTONMAP_CAUSTIC_ONLY
-            return dir.dot(photon.surfaceNormal) >= 0 && photon.isCaustic;
-#else
-            return dir.dot(photon.surfaceNormal) >= 0;
-#endif
-        }, photons);
-
-        RGB value {};
-        for(int i = 0; i < nbPhotonsFound; i++)
+        if(!meta->photonLightingIsSet)
         {
-            const Photon* photon = photons[i];
-            value += brdf(photon->energy, normal, -photon->incomingDir);
+            const auto& photonMap = ctx.scene.getPhotonMap();
+            std::vector<const Photon*> photons(20);
+
+            auto dir = -transport.hit.ray.getDirection();
+            auto [nbPhotonsFound, maxDist] = photonMap->getElementsNearestTo(transport.hit.getHitpoint(), photons.size(), 1, [dir](const Photon& photon){
+                return dir.dot(photon.surfaceNormal) >= 0;
+            }, photons);
+
+            RGB value {};
+            for(int i = 0; i < nbPhotonsFound; i++)
+            {
+                const Photon* photon = photons[i];
+                value += brdf(photon->energy, normal, -photon->incomingDir);
+            }
+            meta->photonLighting = value.scale(this->diffuseIntensity).divide(PI*(maxDist*maxDist));
+            meta->photonLightingIsSet = true;
         }
-        meta->photonLighting = value.scale(this->diffuseIntensity).divide(PI*(maxDist*maxDist));
-        meta->photonLightingIsSet = true;
     }
     else
     {
@@ -155,7 +155,7 @@ void DiffuseMaterial::sampleTransport(TransportBuildContext& ctx) const
             transport.transportDirection = transform.transform(normal);
             meta->isNEERay = false;
 
-            if(ctx.scene.getPhotonMap().has_value())
+            if(ctx.scene.getPhotonMapMode() == PhotonMapMode::caustics)
             {
                 ctx.nextNodeCallback = [&transport, &ctx, meta, normal](){
                     if(ctx.getCurNode().specularity > 0.8)
@@ -184,7 +184,7 @@ void DiffuseMaterial::sampleTransport(TransportBuildContext& ctx) const
                             meta->photonLightingIsSet = true;
                         }
 
-                        meta->isPartialPhotonMapRay = true;
+                        meta->isPhotonMapRay = true;
                     }
                 };
             }
@@ -204,7 +204,7 @@ RGB DiffuseMaterial::bsdf(const Scene &scene, const std::vector<TransportNode> &
         diffuseColor = this->albedoMap->get(x * this->albedoMap->getWidth(), y * this->albedoMap->getHeight());
     }
 
-    if(meta->isPartialPhotonMapRay)
+    if(meta->isPhotonMapRay)
     {
         //TODO: do we need *4 here? 2 for hemispherical sampling, 2 for separate NEE rays?
         return diffuseColor.multiply(meta->photonLighting).scale(2);
@@ -431,5 +431,5 @@ std::tuple<Vector3, RGB, float> DiffuseMaterial::interactPhoton(const SceneRayHi
 
 bool DiffuseMaterial::hasVariance(const SceneRayHitInfo &hit, const Scene &scene) const
 {
-    return true || !scene.getPhotonMap().has_value();
+    return scene.getPhotonMapMode() != PhotonMapMode::full;
 }

@@ -408,6 +408,7 @@ int main(int argc, char** argv)
 		("mergetiles", po::value<std::vector<std::string>>()->multitoken(), "Load the specified tile files, merge them and output the result")
         ("savepm", "Write the photonmap (if any is used) to disk.")
         ("loadpm", "Load the photonmap from disk.")
+        ("pmmode", po::value<std::string>()->default_value("none"), "Set the photonmapping algorithm to be used. ('none', 'caustics' or 'full')")
         ("pmfile", po::value<std::string>()->default_value(""), "The path of the photonmap file. (used for savepm and loadpm)")
         ("preview", po::bool_switch(&previewEnabled), "If enabled, a preview window will open that displays the image as its being rendered")
 		;
@@ -496,6 +497,23 @@ int main(int argc, char** argv)
         }
     }
 
+    PhotonMapMode photonMappingMode = PhotonMapMode::none;
+    const auto& pmmodeString = vm["pmmode"].as<std::string>();
+    if(pmmodeString == "caustics")
+    {
+        photonMappingMode = PhotonMapMode::caustics;
+    }
+    else if(pmmodeString == "full")
+    {
+        photonMappingMode = PhotonMapMode::full;
+    }
+    else if(pmmodeString == "none")
+    {}
+    else
+    {
+        std::cerr << "Invalid photonmapping mode!" << std::endl;
+        return -1;
+    }
 
 	// Create picture
 
@@ -541,8 +559,7 @@ int main(int argc, char** argv)
             }
             std::cout.flush();
         };
-        bool enablePhotonMapping = true;
-        if(enablePhotonMapping)
+        if(photonMappingMode != PhotonMapMode::none)
         {
             PhotonMap photonMap;
             if(loadPhotonMapFromFile)
@@ -554,7 +571,7 @@ int main(int argc, char** argv)
             else
             {
                 std::cout << "Building photon map..." << std::endl;
-                photonMap = PhotonMapBuilder::buildPhotonMap(scene, progressPrinter);
+                photonMap = PhotonMapBuilder::buildPhotonMap(scene, photonMappingMode, progressPrinter);
             }
 
             if(savePhotonMapToFile)
@@ -565,6 +582,7 @@ int main(int argc, char** argv)
             }
 
             scene.setPhotonMap(std::move(photonMap));
+            scene.setPhotonMapMode(photonMappingMode);
         }
 
 		auto start = std::chrono::high_resolution_clock::now();
@@ -572,8 +590,8 @@ int main(int argc, char** argv)
 		std::cout << "Rendering..." << std::endl;
 
 		RenderSettings settings;
-		settings.geometryAAModifier = 2;
-        settings.materialAAModifier = 16;
+		settings.geometryAAModifier = 8;
+        settings.materialAAModifier = 2;
         std::cout << "Geometry AA level = " << settings.geometryAAModifier << std::endl;
         std::cout << "Material AA level = " << settings.materialAAModifier << std::endl;
 		//PPMRenderer renderer;

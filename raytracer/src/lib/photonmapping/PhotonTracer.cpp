@@ -7,7 +7,7 @@ namespace {
     std::uniform_real_distribution<float> randDist(0, 1);
 };
 
-void tracePhoton(const Scene& scene, Ray& photonRay, RGB& photonEnergy, tbb::concurrent_vector<Photon>& resultAcc)
+void tracePhoton(const Scene& scene, Ray& photonRay, RGB& photonEnergy, PhotonMapMode mode, tbb::concurrent_vector<Photon>& resultAcc)
 {
     bool hasPassedDiffuse = false;
     bool hasPassedSpecular = false;
@@ -28,7 +28,8 @@ void tracePhoton(const Scene& scene, Ray& photonRay, RGB& photonEnergy, tbb::con
         bool isCaustic = isDiffuseTransport && hasPassedSpecular && !hasPassedDiffuse;
 
         // Store photon
-        if(isCaustic)
+        if((mode == PhotonMapMode::caustics && isCaustic) ||
+           (mode == PhotonMapMode::full && isDiffuseTransport))
         {
             resultAcc.emplace_back(hitpoint, photonRay.getDirection(), hit->normal, photonEnergy, isCaustic);
         }
@@ -56,7 +57,7 @@ tbb::task *PointLightPhotonTracingTask::execute()
         auto photonDir = sampleUniformSphere(1.0);
         Ray photonRay(light.get().pos + photonDir*0.0001f, photonDir);
         RGB photonEnergy = energyPerPhoton;
-        tracePhoton(scene, photonRay, photonEnergy, photons);
+        tracePhoton(scene, photonRay, photonEnergy, mode, photons);
     }
     progress.signalTaskFinished();
 
@@ -67,7 +68,7 @@ tbb::task *AreaLightPhotonTracingTask::execute()
 {
     // Trace photons from light source into scene
     const auto& light = lightRef.get();
-    RGB energyPerPhoton = light.color * (light.intensity / (float)totalPhotonCount);
+    RGB energyPerPhoton = light.color * (light.intensity / (double)totalPhotonCount);
     OrthonormalBasis basis((light.b - light.a).cross(light.c - light.a));
 
     for (size_type photonI = startIdx; photonI < endIdx; ++photonI) {
@@ -77,7 +78,7 @@ tbb::task *AreaLightPhotonTracingTask::execute()
 
         Ray photonRay(photonPos + photonDir*0.0001f, photonDir);
         RGB photonEnergy = energyPerPhoton;
-        tracePhoton(scene, photonRay, photonEnergy, photons);
+        tracePhoton(scene, photonRay, photonEnergy, mode, photons);
     }
 
     progress.signalTaskFinished();
@@ -95,7 +96,7 @@ void PhotonTracer::createPhotonTracingTasks(const Scene &scene, tbb::task_list &
     {
         for(size_type i = 0; i < photonsPerPointLight; i += batchSize)
         {
-            auto& task = *new(tbb::task::allocate_root()) PointLightPhotonTracingTask(scene, *light, photons, i, i+batchSize, photonsPerPointLight, progress);
+            auto& task = *new(tbb::task::allocate_root()) PointLightPhotonTracingTask(scene, *light, photons, mode, i, i+batchSize, photonsPerPointLight, progress);
             tasks.push_back(task);
             taskCount++;
         }
@@ -104,7 +105,7 @@ void PhotonTracer::createPhotonTracingTasks(const Scene &scene, tbb::task_list &
         {
             auto startIdx = photonsPerPointLight - remainingPhotons;
             auto endIdx = photonsPerPointLight;
-            auto& task = *new(tbb::task::allocate_root()) PointLightPhotonTracingTask(scene, *light, photons, startIdx, endIdx, photonsPerPointLight, progress);
+            auto& task = *new(tbb::task::allocate_root()) PointLightPhotonTracingTask(scene, *light, photons, mode, startIdx, endIdx, photonsPerPointLight, progress);
             tasks.push_back(task);
             taskCount++;
         }
@@ -115,7 +116,7 @@ void PhotonTracer::createPhotonTracingTasks(const Scene &scene, tbb::task_list &
     {
         for(size_type i = 0; i < photonsPerAreaLight; i += batchSize)
         {
-            auto& task = *new(tbb::task::allocate_root()) AreaLightPhotonTracingTask(scene, *light, photons, i, i+batchSize, photonsPerAreaLight, progress);
+            auto& task = *new(tbb::task::allocate_root()) AreaLightPhotonTracingTask(scene, *light, photons, mode, i, i+batchSize, photonsPerAreaLight, progress);
             tasks.push_back(task);
             taskCount++;
         }
@@ -124,7 +125,7 @@ void PhotonTracer::createPhotonTracingTasks(const Scene &scene, tbb::task_list &
         {
             auto startIdx = photonsPerAreaLight - remainingPhotons;
             auto endIdx = photonsPerAreaLight;
-            auto& task = *new(tbb::task::allocate_root()) AreaLightPhotonTracingTask(scene, *light, photons, startIdx, endIdx, photonsPerAreaLight, progress);
+            auto& task = *new(tbb::task::allocate_root()) AreaLightPhotonTracingTask(scene, *light, photons, mode, startIdx, endIdx, photonsPerAreaLight, progress);
             tasks.push_back(task);
             taskCount++;
         }

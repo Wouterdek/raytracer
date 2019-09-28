@@ -105,7 +105,7 @@ public:
                     if dist(bestNode, inputPos) > min(dist(inputPos, proj(inputPos, split plane start))), dist(inputPos, proj(inputPos, split plane end))))
                         search other child by recursing to *
          */
-        KDTreeDiag::Levels++;
+        //KDTreeDiag::Levels++;
 
         const auto& position = getPosition();
         unsigned int nbResultsFound = 0;

@@ -31,7 +31,7 @@ void GlassMaterial::sampleTransport(TransportBuildContext &ctx) const
         meta = transport.metadata.alloc<TransportMetaData>();
 
         //HYBRID PHOTON
-        if(ctx.scene.getPhotonMap().has_value() && ctx.curI != 0 && (ctx.path[ctx.curI-1].specularity < 0.8 && ctx.path[ctx.curI-1].type == TransportType::bounce))
+        if(ctx.scene.getPhotonMapMode() == PhotonMapMode::caustics && ctx.curI != 0 && (ctx.path[ctx.curI-1].specularity < 0.8 && ctx.path[ctx.curI-1].type == TransportType::bounce))
         {
             transport.isEmissive = true;
             transport.pathTerminationChance = 1.0;

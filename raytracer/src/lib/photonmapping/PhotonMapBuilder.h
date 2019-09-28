@@ -6,5 +6,5 @@
 
 class PhotonMapBuilder {
 public:
-    static PhotonMap buildPhotonMap(const Scene& scene, ProgressMonitor progressMon);
+    static PhotonMap buildPhotonMap(const Scene& scene, PhotonMapMode mode, ProgressMonitor progressMon);
 };
