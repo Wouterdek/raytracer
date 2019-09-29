@@ -119,17 +119,6 @@ void CompositeMaterial::addMaterial(size_t firstTriangleI, size_t length, std::s
     }
 }
 
-RGB CompositeMaterial::getTotalRadianceTowards(const SceneRayHitInfo& hit, const Scene& scene, int depth) const
-{
-    const IMaterial* mat = findMaterial(hit);
-    if(mat == nullptr)
-    {
-        return RGB::BLACK;
-    }
-
-    return mat->getTotalRadianceTowards(hit, scene, depth);
-}
-
 std::tuple<Vector3, RGB, float> CompositeMaterial::interactPhoton(const SceneRayHitInfo &hit, const RGB &incomingEnergy) const
 {
     const IMaterial* mat = findMaterial(hit);

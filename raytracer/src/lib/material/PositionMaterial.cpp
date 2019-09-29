@@ -13,7 +13,3 @@ RGB PositionMaterial::bsdf(const Scene &scene, const std::vector<TransportNode> 
     return RGB(abs(hitpoint.x()), abs(hitpoint.y()), abs(hitpoint.z()));
 }
 
-RGB PositionMaterial::getTotalRadianceTowards(const SceneRayHitInfo &hit, const Scene &scene, int depth) const {
-    auto hitpoint = hit.getHitpoint();
-    return RGB(abs(hitpoint.x()), abs(hitpoint.y()), abs(hitpoint.z()));
-}

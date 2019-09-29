@@ -270,52 +270,6 @@ Vector3 sampleTransportDirection(Vector3& normal, const Vector3& incomingDir, do
     }
 }
 
-RGB GlassMaterial::getTotalRadianceTowards(const SceneRayHitInfo &hit, const Scene &scene, int depth) const
-{
-    if(depth > 5){
-        return RGB::BLACK;
-    }
-
-    auto normal = hit.normal;
-    auto hitpoint = hit.getHitpoint();
-    bool isReflection;
-    auto direction = sampleTransportDirection(normal, hit.ray.getDirection(), ior, isReflection);
-    bool isInternalRay = normal.dot(direction) < 0;
-
-    Ray ray(hitpoint + (direction * 0.001), direction);
-
-    auto result = scene.traceRay(ray);
-
-    const AreaLight* lightHit = nullptr;
-    double bestT = result.has_value() ? result->t : 1E99;
-    for(const auto& light : scene.getAreaLights())
-    {
-        Triangle::TriangleIntersection intersection;
-        bool hasIntersection = Triangle::intersect(ray, light->a, light->b, light->c, intersection);
-        if(hasIntersection && bestT > intersection.t){
-            lightHit = &*light;
-            bestT = intersection.t;
-        }
-    }
-
-    RGB val = RGB::BLACK;
-    if(lightHit != nullptr)
-    {
-        val = lightHit->color * lightHit->intensity;
-    }
-    else if(result.has_value())
-    {
-        val = result->getModelNode().getData().getMaterial().getTotalRadianceTowards(*result, scene, depth + 1);
-    }
-
-    if(isInternalRay)
-    {
-        val = val.multiply(this->color.pow(attenuationStrength*bestT));
-    }
-
-    return val;
-}
-
 std::tuple<Vector3, RGB, float> GlassMaterial::interactPhoton(const SceneRayHitInfo &hit, const RGB &incomingEnergy) const
 {
     Vector3 normal = hit.normal;
