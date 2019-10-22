@@ -6,6 +6,7 @@
 #include "shape/list/InstancedModelList.h"
 #include "shape/list/InstancedModelList.h"
 #include "material/NormalMaterial.h"
+#include "scene/renderable/SceneNode.h"
 
 using namespace testing;
 
