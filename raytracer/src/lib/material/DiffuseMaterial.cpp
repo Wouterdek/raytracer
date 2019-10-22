@@ -29,9 +29,15 @@ RGB doNextEventEstimation(const Scene& scene, const Point& hitpoint, const Vecto
     double totalArea = 0;
     for(const auto& light : scene.getAreaLights())
     {
-        totalArea += light.get()->getSurfaceArea();
+        totalArea += light->getSurfaceArea();
     }
 
+    //TODO: this is wrong if the area lights are of different sizes. To have equal probability for any point,
+    //      the probability of picking any light should be proportional to its area.
+    //      Combining point and area light sources should be treating both as terms in a sum that is to be importance sampled
+    //      based on factors such as number of lights, intensity, area, distance, ...
+    //  e.g. 3 levels: pick light type, pick light, pick light point
+    //      the probability of each choice at each level is multiplied and used to divide the result
     if(lightIndex < scene.getAreaLights().size())
     {
         const auto& light = scene.getAreaLights()[lightIndex];
@@ -69,7 +75,9 @@ RGB doNextEventEstimation(const Scene& scene, const Point& hitpoint, const Vecto
         if (isVisible)
         {
             auto angle = std::max(0.0f, normal.dot(objectToLamp));
-            return light->color * (light->intensity * angle);
+            auto geometricFactor = angle / pow(lampT, 2);
+            //TODO: should compensate for sampling point lights (see above)
+            return light->color * (light->intensity * geometricFactor);
         }
     }
 
@@ -119,7 +127,7 @@ void DiffuseMaterial::sampleTransport(TransportBuildContext& ctx) const
             std::vector<const Photon*> photons(20);
 
             auto dir = -transport.hit.ray.getDirection();
-            auto [nbPhotonsFound, maxDist] = photonMap->getElementsNearestTo(transport.hit.getHitpoint(), photons.size(), 1, [dir](const Photon& photon){
+            auto [nbPhotonsFound, maxDist] = photonMap->getElementsNearestTo(transport.hit.getHitpoint(), photons.size(), 1E9, [dir](const Photon& photon){
                 return dir.dot(photon.surfaceNormal) >= 0;
             }, photons);
 
@@ -135,7 +143,7 @@ void DiffuseMaterial::sampleTransport(TransportBuildContext& ctx) const
     }
     else
     {
-        transport.pathTerminationChance = 0.2f;
+        transport.pathTerminationChance = 0.1f;
         transport.isEmissive = false;
 
         bool useNextEventEstimation = randUnit(randDev) > 0.5f;
@@ -169,7 +177,7 @@ void DiffuseMaterial::sampleTransport(TransportBuildContext& ctx) const
                             std::vector<const Photon*> photons(20);
 
                             auto dir = -transport.hit.ray.getDirection();
-                            auto [nbPhotonsFound, maxDist] = photonMap->getElementsNearestTo(transport.hit.getHitpoint(), photons.size(), 1, [dir](const Photon& photon)
+                            auto [nbPhotonsFound, maxDist] = photonMap->getElementsNearestTo(transport.hit.getHitpoint(), photons.size(), 1E9, [dir](const Photon& photon)
                             {
                                 return dir.dot(photon.surfaceNormal) >= 0;
                             }, photons);
@@ -206,8 +214,16 @@ RGB DiffuseMaterial::bsdf(const Scene &scene, const std::vector<TransportNode> &
 
     if(meta->isPhotonMapRay)
     {
-        //TODO: do we need *4 here? 2 for hemispherical sampling, 2 for separate NEE rays?
-        return diffuseColor.multiply(meta->photonLighting).scale(2);
+        auto out = diffuseColor.multiply(meta->photonLighting);
+
+        if(scene.getPhotonMapMode() == PhotonMapMode::caustics)
+        {
+            //TODO: do we need *4 here? 2 for hemispherical sampling, 2 for separate NEE rays? (or *2*pi ?)
+            out = out.scale(2);
+            //out = out.scale(2) * PI;
+        }
+
+        return out;
     }
     else
     {
@@ -218,16 +234,26 @@ RGB DiffuseMaterial::bsdf(const Scene &scene, const std::vector<TransportNode> &
             normal = curNode.hit.getModelNode().getTransform().transformNormal(mapNormal);
         }
 
+        //Applying MC to integration requires multiplying by 1/pdf().
+        //In hemispherical integration the pdf() = 1/hemisphere_area
+        // => multiply by hemisphere area = 2pi * pi/2 = pi^2
+        //In light area integration the pdf() = 1/total_area
+        // => multiply by total light area (is done above in doNextEventEstimation())
+        //The diffuse BRDF has a correction term of 1/pi to be energy conservant.
+        //Finally, applying MC to (direct + indirect) with a 50% chance for each term means each term should be multiplied by 2.
+
         RGB value;
         if(meta->isNEERay)
         {
             RGB direct = brdf(meta->directLighting, normal, curNode.transportDirection);
             value = direct.scale(this->diffuseIntensity / PI).scale(2);
+            //value = direct.scale(this->diffuseIntensity / (PI * PI)).scale(2);
         }
         else
         {
             RGB indirect = brdf(incomingEnergy, normal, curNode.transportDirection);
             value = indirect.scale(this->diffuseIntensity * 2).scale(2);
+            //value = indirect.scale(this->diffuseIntensity * PI).scale(2);
         }
         return diffuseColor.multiply(value);
     }

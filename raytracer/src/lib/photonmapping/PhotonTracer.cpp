@@ -11,7 +11,7 @@ void tracePhoton(const Scene& scene, Ray& photonRay, RGB& photonEnergy, PhotonMa
 {
     bool hasPassedDiffuse = false;
     bool hasPassedSpecular = false;
-    float russianRouletteRate = 0.1f;
+    float russianRouletteRate = 0.01f;
     while(true){
         auto hit = scene.traceRay(photonRay);
 
@@ -25,7 +25,7 @@ void tracePhoton(const Scene& scene, Ray& photonRay, RGB& photonEnergy, PhotonMa
         auto [newPhotonRayDir, newPhotonEnergy, diffuseness] = hit->getModelNode().getData().getMaterial().interactPhoton(*hit, photonEnergy);
 
         bool isDiffuseTransport = diffuseness >= 0.2;
-        bool isCaustic = isDiffuseTransport && hasPassedSpecular && !hasPassedDiffuse;
+        bool isCaustic = isDiffuseTransport && hasPassedSpecular /*&& !hasPassedDiffuse*/;
 
         // Store photon
         if((mode == PhotonMapMode::caustics && isCaustic) ||

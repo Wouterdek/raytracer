@@ -18,6 +18,10 @@ void samplePath(std::vector<TransportNode>& path, int samplingStartIndex, int ma
     bool pathDone;
     std::optional<SceneRayHitInfo> hit;
     std::optional<std::function<void()>> curNodeCallback {};
+    if(samplingStartIndex > 0)
+    {
+        //TODO: should somehow retrieve callback of ctx.curI-1 here
+    }
     bool hasPassedNodeWithVariance = false;
     do{
         auto& curNode = ctx.getCurNode();
