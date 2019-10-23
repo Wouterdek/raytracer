@@ -1,39 +1,34 @@
 #pragma once
 
+#include <cmath>
+
 #include "math/Vector2.h"
 #include "math/Constants.h"
+#include "math/FastRandom.h"
 #include "Vector3.h"
-#include <random>
-
-namespace {
-    thread_local std::random_device randDev;
-    std::normal_distribution<float> randNorm(0, 1);
-    std::uniform_real_distribution<float> randAngle(0,2*PI);
-    std::uniform_real_distribution<float> randUnit(0,1);
-};
 
 inline Vector3 sampleUniformSphere(float radius)
 {
-    float x = randNorm(randDev);
-    float y = randNorm(randDev);
-    float z = randNorm(randDev);
+    float x = Rand::sampleStdNormalDist();
+    float y = Rand::sampleStdNormalDist();
+    float z = Rand::sampleStdNormalDist();
     float len = x*x + y*y + z*z;
     return Vector3(radius*x/len, radius*y/len, radius*z/len);
 }
 
 inline Vector3 sampleUniformHemisphere(float radius)
 {
-    float x = randNorm(randDev);
-    float y = randNorm(randDev);
-    float z = abs(randNorm(randDev));
+    float x = Rand::sampleStdNormalDist();
+    float y = Rand::sampleStdNormalDist();
+    float z = abs(Rand::sampleStdNormalDist());
     float len = x*x + y*y + z*z;
     return Vector3(radius*x/len, radius*y/len, radius*z/len);
 }
 
 inline Vector2 sampleUniformCircle(float radius)
 {
-    float angle = randAngle(randDev);
-    float dist = randUnit(randDev) * radius;
+    float angle = Rand::floatInRange(2.0f*PI);
+    float dist = Rand::floatInRange(radius);
     float xOffset = std::cos(angle)*dist;
     float yOffset = std::sin(angle)*dist;
     return Vector2(xOffset, yOffset);
@@ -41,8 +36,8 @@ inline Vector2 sampleUniformCircle(float radius)
 
 inline Vector3 sampleUniformTriangle(const Vector3& a, const Vector3& b, const Vector3& c)
 {
-    auto u = 1.0f - sqrt(randUnit(randDev));
-    auto v = (1.0f - u) * randUnit(randDev);
+    float u = 1.0f - std::sqrt(Rand::unit());
+    auto v = Rand::floatInRange(1.0f - u);
 
     return a + u*(c - a) + v*(b - a);
 }
@@ -57,8 +52,8 @@ inline Vector2 sampleStratifiedSquare(int level, int sampleI)
     else
     {
         float lvl = level;
-        const auto x = (static_cast<float>(sampleI % level) / level) + (randUnit(randDev) / lvl);
-        const auto y = (static_cast<float>(std::floor(sampleI / level)) / lvl) + (randUnit(randDev) / lvl);
+        const auto x = (static_cast<float>(sampleI % level) / level) + (Rand::unit() / lvl);
+        const auto y = (static_cast<float>(std::floor(sampleI / level)) / lvl) + (Rand::unit() / lvl);
         return Vector2(x, y);
     }
 }

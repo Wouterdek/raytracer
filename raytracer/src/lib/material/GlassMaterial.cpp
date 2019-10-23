@@ -3,13 +3,9 @@
 #include "scene/renderable/Scene.h"
 #include "scene/renderable/SceneRayHitInfo.h"
 #include "math/Vector3.h"
-#include <random>
+#include "math/FastRandom.h"
 #include <math/Triangle.h>
 
-namespace {
-    thread_local std::random_device randDevice;
-    std::uniform_real_distribution<float> randDist(0, 1);
-};
 #pragma pack(push, 1)
 struct TransportMetaData
 {
@@ -92,7 +88,7 @@ void GlassMaterial::sampleTransport(TransportBuildContext &ctx) const
         }
     }
 
-    if(randDist(randDevice) < meta->reflectionWeight)
+    if(Rand::unit() < meta->reflectionWeight)
     {
         transport.type = TransportType::bounce;
         transport.transportDirection = meta->reflectedRayDir;
@@ -208,7 +204,7 @@ Vector3 samplePhotonDirection(Vector3& normal, const Vector3& incomingDir, doubl
         reflectionWeight = reflectionWeight / totalWeight;
     }
 
-    if(randDist(randDevice) < reflectionWeight)
+    if(Rand::unit() < reflectionWeight)
     {
         return reflectedRayDir;
     }
@@ -258,7 +254,7 @@ Vector3 sampleTransportDirection(Vector3& normal, const Vector3& incomingDir, do
     auto transmissionWeight = 1.0 - kr;
     auto totalWeight = reflectionWeight + transmissionWeight;
 
-    if(randDist(randDevice) * totalWeight < reflectionWeight)
+    if(Rand::unit() * totalWeight < reflectionWeight)
     {
         isReflectionDirection = true;
         return reflectionRayDir;

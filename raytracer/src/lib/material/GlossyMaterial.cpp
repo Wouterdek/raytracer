@@ -6,7 +6,6 @@
 #include "math/Triangle.h"
 #include "NormalMapSampler.h"
 #include "math/UniformSampler.h"
-#include <random>
 #include <cmath>
 
 GlossyMaterial::GlossyMaterial() = default;

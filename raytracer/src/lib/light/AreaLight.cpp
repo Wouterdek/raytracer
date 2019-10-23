@@ -1,11 +1,10 @@
 #include "AreaLight.h"
+
+#include <cmath>
 #include "math/Transformation.h"
 #include "math/Triangle.h"
 #include "math/UniformSampler.h"
-#include <random>
-
-thread_local std::random_device randomDevice;
-std::uniform_real_distribution<double> dist(0, 1);
+#include "math/FastRandom.h"
 
 AreaLight::AreaLight()
 	: color(RGB{ 1.0, 1.0, 1.0 }), intensity(10.0), a(0, 0, 0), b(1, 0, 0), c(0, 1, 0)
@@ -32,8 +31,8 @@ Point AreaLight::generateStratifiedJitteredRandomPoint(int level, int i) const n
 	Vector3 v1 = (c - a) / n;
 	Vector3 v2 = (b - a) / n;
 
-	auto u = 1.0 - sqrt(dist(randomDevice));
-	auto v = (1.0 - u) * dist(randomDevice);
+	auto u = 1.0f - std::sqrt(Rand::unit());
+	auto v = (1.0f - u) * Rand::unit();
 
 	auto y = i / n;
 	auto x = i % n;

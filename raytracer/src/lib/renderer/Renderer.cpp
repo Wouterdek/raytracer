@@ -1,12 +1,11 @@
 #include "Renderer.h"
 #include <thread>
-#include <random>
-//#include <execution>
 #include "tbb/tbb.h"
 #include "math/Ray.h"
 #include "camera/ICamera.h"
 #include "utility/ProgressMonitor.h"
 #include "math/UniformSampler.h"
+#include "math/FastRandom.h"
 
 #undef min
 
@@ -48,7 +47,7 @@ void samplePath(std::vector<TransportNode>& path, int samplingStartIndex, int ma
         curNodeCallback = ctx.nextNodeCallback;
         ctx.nextNodeCallback.reset();
 
-        pathDone = curNode.isEmissive || (path.size() == maxPathLength) || (randUnit(randDev) < curNode.pathTerminationChance);
+        pathDone = curNode.isEmissive || (path.size() == maxPathLength) || (Rand::unit() < curNode.pathTerminationChance);
 
         if(!pathDone)
         {

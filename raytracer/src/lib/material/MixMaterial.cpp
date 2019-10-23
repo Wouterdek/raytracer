@@ -1,10 +1,5 @@
 #include "MixMaterial.h"
-#include <random>
-
-namespace {
-    thread_local std::random_device randDevice;
-    std::uniform_real_distribution<float> randDist(0, 1);
-};
+#include "math/FastRandom.h"
 
 struct TransportMetaData
 {
@@ -15,7 +10,7 @@ void MixMaterial::sampleTransport(TransportBuildContext &ctx) const
 {
     auto& transport = ctx.getCurNode();
     auto* meta = transport.metadata.alloc<TransportMetaData>();
-    meta->choseFirst = randDist(randDevice) > mixFactor;
+    meta->choseFirst = Rand::unit() > mixFactor;
     transport.metadata.branch(meta->choseFirst);
 
     if(meta->choseFirst)
@@ -51,7 +46,7 @@ RGB MixMaterial::bsdf(const Scene &scene, const std::vector<TransportNode> &path
 
 std::tuple<Vector3, RGB, float> MixMaterial::interactPhoton(const SceneRayHitInfo &hit, const RGB &incomingEnergy) const
 {
-    if(randDist(randDevice) > mixFactor)
+    if(Rand::unit() > mixFactor)
     {
         return this->first->interactPhoton(hit, incomingEnergy);
     }

@@ -4,15 +4,9 @@
 #include "math/Transformation.h"
 #include "math/OrthonormalBasis.h"
 #include "math/Triangle.h"
+#include "math/FastRandom.h"
 #include "scene/renderable/SceneRayHitInfo.h"
 #include "NormalMapSampler.h"
-#include <random>
-
-namespace {
-    thread_local std::random_device randDev;
-    std::uniform_real_distribution<float> randAngle(-90, 90);
-    std::uniform_real_distribution<float> randUnit(0, 1);
-};
 
 DiffuseMaterial::DiffuseMaterial() = default;
 
@@ -24,7 +18,7 @@ RGB doNextEventEstimation(const Scene& scene, const Point& hitpoint, const Vecto
         return RGB::BLACK;
     }
 
-    auto lightIndex = std::uniform_int_distribution<int>(0, totalLightCount-1)(randDev);
+    auto lightIndex = Rand::intInRange(totalLightCount-1);
 
     double totalArea = 0;
     for(const auto& light : scene.getAreaLights())
@@ -146,7 +140,7 @@ void DiffuseMaterial::sampleTransport(TransportBuildContext& ctx) const
         transport.pathTerminationChance = 0.1f;
         transport.isEmissive = false;
 
-        bool useNextEventEstimation = randUnit(randDev) > 0.5f;
+        bool useNextEventEstimation = Rand::unit() > 0.5f;
         if(useNextEventEstimation)
         {
             meta->directLighting = doNextEventEstimation(ctx.scene, transport.hit.getHitpoint(), normal, ctx.sampleI, ctx.sampleCount, transport.transportDirection);
@@ -156,8 +150,8 @@ void DiffuseMaterial::sampleTransport(TransportBuildContext& ctx) const
         }
         else
         {
-            auto angleA = randAngle(randDev);
-            auto angleB = randAngle(randDev);
+            auto angleA = Rand::floatInRange(-90, 90);
+            auto angleB = Rand::floatInRange(-90, 90);
             OrthonormalBasis basis(normal);
             auto transform = Transformation::rotate(basis.getV(), angleB).append(Transformation::rotate(basis.getU(), angleA));
             transport.transportDirection = transform.transform(normal);
@@ -262,8 +256,8 @@ RGB DiffuseMaterial::bsdf(const Scene &scene, const std::vector<TransportNode> &
 
 Vector3 sampleBounceDirection(const Vector3& surfaceNormal)
 {
-    auto angleA = randAngle(randDev);
-    auto angleB = randAngle(randDev);
+    auto angleA = Rand::floatInRange(-90, 90);
+    auto angleB = Rand::floatInRange(-90, 90);
     OrthonormalBasis basis(surfaceNormal);
     auto transform = Transformation::rotate(basis.getV(), angleB).append(Transformation::rotate(basis.getU(), angleA));
     return transform.transform(surfaceNormal);

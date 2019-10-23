@@ -1,11 +1,7 @@
 #include <math/OrthonormalBasis.h>
 #include "PhotonTracer.h"
 #include "math/UniformSampler.h"
-
-namespace {
-    thread_local std::random_device randDevice;
-    std::uniform_real_distribution<float> randDist(0, 1);
-};
+#include "math/FastRandom.h"
 
 void tracePhoton(const Scene& scene, Ray& photonRay, RGB& photonEnergy, PhotonMapMode mode, tbb::concurrent_vector<Photon>& resultAcc)
 {
@@ -41,7 +37,7 @@ void tracePhoton(const Scene& scene, Ray& photonRay, RGB& photonEnergy, PhotonMa
         photonRay = Ray(hitpoint + newPhotonRayDir * 0.0001, newPhotonRayDir);
         photonEnergy = newPhotonEnergy;
 
-        if(randDist(randDevice) < russianRouletteRate)
+        if(Rand::unit() < russianRouletteRate)
         {
             break;
         }
