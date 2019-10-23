@@ -335,13 +335,17 @@ TriangleMesh TriangleMesh::appendMesh(const TriangleMesh &mesh)
     this->data->vertices.insert(this->data->vertices.end(), mesh.data->vertices.cbegin(), mesh.data->vertices.cend());
     std::transform(mesh.data->vertexIndices.cbegin()+mesh.beginIdx, mesh.data->vertexIndices.cbegin()+mesh.endIdx,
                    std::back_inserter(this->data->vertexIndices), [verticesOffset](const auto& idx){
-        return std::array<uint32_t, 3>{idx[0] + verticesOffset, idx[1] + verticesOffset, idx[2] + verticesOffset};
+        return std::array<uint32_t, 3>{static_cast<uint32_t>(idx[0] + verticesOffset),
+                                       static_cast<uint32_t>(idx[1] + verticesOffset),
+                                       static_cast<uint32_t>(idx[2] + verticesOffset)};
     });
 
     this->data->normals.insert(this->data->normals.end(), mesh.data->normals.cbegin(), mesh.data->normals.cend());
     std::transform(mesh.data->normalIndices.cbegin()+mesh.beginIdx, mesh.data->normalIndices.cbegin()+mesh.endIdx,
                    std::back_inserter(this->data->normalIndices), [verticesOffset](const auto& idx){
-        return std::array<uint32_t, 3>{idx[0] + verticesOffset, idx[1] + verticesOffset, idx[2] + verticesOffset};
+        return std::array<uint32_t, 3>{static_cast<uint32_t>(idx[0] + verticesOffset),
+                                       static_cast<uint32_t>(idx[1] + verticesOffset),
+                                       static_cast<uint32_t>(idx[2] + verticesOffset)};
     });
 
     auto texCoordsOffset = this->data->texCoords.size();
@@ -358,7 +362,9 @@ TriangleMesh TriangleMesh::appendMesh(const TriangleMesh &mesh)
         this->data->texCoords.insert(this->data->texCoords.end(), mesh.data->texCoords.cbegin(), mesh.data->texCoords.cend());
         std::transform(mesh.data->texCoordIndices.cbegin()+mesh.beginIdx, mesh.data->texCoordIndices.cbegin()+mesh.endIdx,
                        std::back_inserter(this->data->texCoordIndices), [texCoordsOffset](const auto& idx){
-            return std::array<uint32_t, 3>{idx[0] + texCoordsOffset, idx[1] + texCoordsOffset, idx[2] + texCoordsOffset};
+            return std::array<uint32_t, 3>{static_cast<uint32_t>(idx[0] + texCoordsOffset),
+                                           static_cast<uint32_t>(idx[1] + texCoordsOffset),
+                                           static_cast<uint32_t>(idx[2] + texCoordsOffset)};
         });
     }
 
