@@ -69,7 +69,7 @@ RGB doNextEventEstimation(const Scene& scene, const Point& hitpoint, const Vecto
         if (isVisible)
         {
             auto angle = std::max(0.0f, normal.dot(objectToLamp));
-            auto geometricFactor = angle / pow(lampT, 2);
+            auto geometricFactor = angle / (4.0f * PI * pow(lampT, 2));
             //TODO: should compensate for sampling point lights (see above)
             return light->color * (light->intensity * geometricFactor);
         }
