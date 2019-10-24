@@ -59,6 +59,16 @@ public:
         photonMappingMode = mode;
     }
 
+    void setPhotonMapDepth(int depth)
+    {
+        photonMapDepth = depth;
+    }
+
+    int getPhotonMapDepth() const
+    {
+	    return photonMapDepth;
+    }
+
     // Get first hit
 	std::optional<SceneRayHitInfo> traceRay(const Ray& ray) const;
 
@@ -71,5 +81,6 @@ private:
 	std::vector<SceneNode<ICamera>> cameras;
 	std::optional<PhotonMap> photonMap;
     PhotonMapMode photonMappingMode = PhotonMapMode::none;
+    int photonMapDepth = 0;
 	SceneBVH sceneBVH;
 };

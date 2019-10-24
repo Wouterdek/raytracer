@@ -109,7 +109,24 @@ void DiffuseMaterial::sampleTransport(TransportBuildContext& ctx) const
         normal = transport.hit.getModelNode().getTransform().transformNormal(mapNormal);
     }
 
+    bool readFromPhotonMap = false;
     if(ctx.scene.getPhotonMapMode() == PhotonMapMode::full)
+    {
+        int curDiffuseI = 0;
+        for(int i = 0; i < ctx.curI; i++)
+        {
+            if(ctx.path[i].specularity < 0.8)
+            {
+                curDiffuseI++;
+            }
+        }
+        if(curDiffuseI >= ctx.scene.getPhotonMapDepth())
+        {
+            readFromPhotonMap = true;
+        }
+    }
+
+    if(readFromPhotonMap)
     {
         transport.pathTerminationChance = 1.0f;
         transport.isEmissive = true;

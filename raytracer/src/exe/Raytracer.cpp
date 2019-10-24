@@ -1,4 +1,4 @@
-﻿#include <chrono>
+#include <chrono>
 #include <iostream>
 #include <boost/program_options.hpp>
 #include <filesystem>
@@ -409,6 +409,7 @@ int main(int argc, char** argv)
         ("savepm", "Write the photonmap (if any is used) to disk.")
         ("loadpm", "Load the photonmap from disk.")
         ("pmmode", po::value<std::string>()->default_value("none"), "Set the photonmapping algorithm to be used. ('none', 'caustics' or 'full')")
+        ("pmdepth", po::value<int>()->default_value(0), "Set the path depth at which the photon map is used")
         ("pmfile", po::value<std::string>()->default_value(""), "The path of the photonmap file. (used for savepm and loadpm)")
         ("preview", po::bool_switch(&previewEnabled), "If enabled, a preview window will open that displays the image as its being rendered")
 		;
@@ -497,6 +498,8 @@ int main(int argc, char** argv)
         }
     }
 
+    int pmdepth = vm["pmdepth"].as<int>();
+
     PhotonMapMode photonMappingMode = PhotonMapMode::none;
     const auto& pmmodeString = vm["pmmode"].as<std::string>();
     if(pmmodeString == "caustics")
@@ -584,6 +587,7 @@ int main(int argc, char** argv)
             scene.setPhotonMap(std::move(photonMap));
             scene.setPhotonMapMode(photonMappingMode);
         }
+        scene.setPhotonMapDepth(pmdepth);
 
 		auto start = std::chrono::high_resolution_clock::now();
 
