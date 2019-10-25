@@ -10,72 +10,87 @@
 
 DiffuseMaterial::DiffuseMaterial() = default;
 
+// Return radiance from light to hitpoint
+RGB neePointLight(const PointLight& light, const Scene& scene, const Point& hitpoint, const Vector3& normal, /* OUT */ Vector3& lightDirection)
+{
+    Vector3 objectToLamp = light.pos - hitpoint;
+    auto lampT = objectToLamp.norm();
+    objectToLamp.normalize();
+    lightDirection = objectToLamp;
+
+    Ray visibilityRay(hitpoint + (objectToLamp * 0.0001f), objectToLamp);
+    bool isVisible = !scene.testVisibility(visibilityRay, lampT).has_value();
+
+    if (isVisible)
+    {
+        //auto angle = std::max(0.0f, normal.dot(objectToLamp));
+        auto geometricFactor = 1.0f / (4.0f * PI * pow(lampT, 2));
+
+        return light.color * (light.intensity * geometricFactor);
+    }
+    return RGB::BLACK;
+}
+
+// Return radiance from light to hitpoint, picking a stratified random sample point as representative for the entire light
+RGB neeAreaLight(const AreaLight& light, const Scene& scene, const Point& hitpoint, const Vector3& normal, int sampleI, int sampleCount, /* OUT */ Vector3& lightDirection)
+{
+    auto lampPoint = light.generateStratifiedJitteredRandomPoint(sampleCount, sampleI);
+    Vector3 objectToLamp = lampPoint - hitpoint;
+    auto lampT = objectToLamp.norm();
+    objectToLamp.normalize();
+    lightDirection = objectToLamp;
+
+    Ray visibilityRay(hitpoint + (objectToLamp * 0.0001f), objectToLamp);
+    bool isVisible = !scene.testVisibility(visibilityRay, lampT).has_value();
+    if (isVisible)
+    {
+        auto lightEnergy = light.color * light.intensity;
+
+        //TODO: this ain't right
+        auto surfaceAngle = std::max(0.0f, normal.dot(objectToLamp));
+        auto lampAngle = std::max(0.0f, light.getNormal().dot(-objectToLamp));
+        auto geometricFactor = (surfaceAngle * lampAngle) / pow(lampT, 2);
+
+        auto irradianceFromLamp = lightEnergy * geometricFactor;
+        return irradianceFromLamp * light.getSurfaceArea();
+    }
+    return RGB::BLACK;
+}
+
 RGB doNextEventEstimation(const Scene& scene, const Point& hitpoint, const Vector3& normal, int sampleI, int sampleCount, /* OUT */ Vector3& lightDirection)
 {
-    auto totalLightCount = scene.getAreaLights().size() + scene.getPointLights().size();
-    if(totalLightCount == 0)
+    bool hasAreaLights = !scene.getAreaLights().empty();
+    bool hasPointLights = !scene.getPointLights().empty();
+
+    /*
+     * probability of choosing point light:
+     *        HPL
+     *        Y   N
+     * HAL Y 0.5 0.0
+     *     N 1.0 0.0
+     */
+    float pointLightProbability = std::max((hasPointLights * 1.0f) - (hasAreaLights * 0.5f), 0.0f);
+
+    if(Rand::unit() < pointLightProbability) // Choose point light
     {
-        return RGB::BLACK;
+        float chosenLightProbability = 1.0f/scene.getPointLights().size();
+        auto lightIndex = Rand::intInRange(scene.getPointLights().size()-1);
+        const auto& light = *scene.getPointLights()[lightIndex].get();
+
+        return neePointLight(light, scene, hitpoint, normal, lightDirection).divide(pointLightProbability * chosenLightProbability);
     }
-
-    auto lightIndex = Rand::intInRange(totalLightCount-1);
-
-    double totalArea = 0;
-    for(const auto& light : scene.getAreaLights())
+    else if(hasAreaLights) // Choose area light
     {
-        totalArea += light->getSurfaceArea();
-    }
+        float chosenLightProbability = 1.0f/scene.getAreaLights().size();
+        auto lightIndex = Rand::intInRange(scene.getAreaLights().size()-1);
+        const auto& light = *scene.getAreaLights()[lightIndex].get();
 
-    //TODO: this is wrong if the area lights are of different sizes. To have equal probability for any point,
-    //      the probability of picking any light should be proportional to its area.
-    //      Combining point and area light sources should be treating both as terms in a sum that is to be importance sampled
-    //      based on factors such as number of lights, intensity, area, distance, ...
-    //  e.g. 3 levels: pick light type, pick light, pick light point
-    //      the probability of each choice at each level is multiplied and used to divide the result
-    if(lightIndex < scene.getAreaLights().size())
-    {
-        const auto& light = scene.getAreaLights()[lightIndex];
-        auto lampPoint = light->generateStratifiedJitteredRandomPoint(sampleCount, sampleI);
-        Vector3 objectToLamp = lampPoint - hitpoint;
-        auto lampT = objectToLamp.norm();
-        objectToLamp.normalize();
-        lightDirection = objectToLamp;
-
-        Ray visibilityRay(hitpoint + (objectToLamp * 0.0001f), objectToLamp);
-        bool isVisible = !scene.testVisibility(visibilityRay, lampT).has_value();
-        if (isVisible)
-        {
-            auto lampAngle = std::max(0.0f, light->getNormal().dot(-objectToLamp));
-            auto angle = std::max(0.0f, normal.dot(objectToLamp));
-            auto geometricFactor = (angle * lampAngle) / pow(lampT, 2);
-
-            auto lE = light->color * light->intensity;
-
-            auto lampRadiance = lE * geometricFactor * totalArea;
-            return lampRadiance;
-        }
+        return neeAreaLight(light, scene, hitpoint, normal, sampleI, sampleCount, lightDirection).divide((1.0f-pointLightProbability) * chosenLightProbability);
     }
     else
     {
-        const auto& light = scene.getPointLights()[lightIndex - scene.getAreaLights().size()];
-        Vector3 objectToLamp = light->pos - hitpoint;
-        auto lampT = objectToLamp.norm();
-        objectToLamp.normalize();
-        lightDirection = objectToLamp;
-
-        Ray visibilityRay(hitpoint + (objectToLamp * 0.0001f), objectToLamp);
-        bool isVisible = !scene.testVisibility(visibilityRay, lampT).has_value();
-
-        if (isVisible)
-        {
-            auto angle = std::max(0.0f, normal.dot(objectToLamp));
-            auto geometricFactor = angle / (4.0f * PI * pow(lampT, 2));
-            //TODO: should compensate for sampling point lights (see above)
-            return light->color * (light->intensity * geometricFactor);
-        }
+        return RGB::BLACK;
     }
-
-    return RGB::BLACK;
 }
 
 struct TransportMetaData
@@ -258,7 +273,6 @@ RGB DiffuseMaterial::bsdf(const Scene &scene, const std::vector<TransportNode> &
         {
             RGB direct = brdf(meta->directLighting, normal, curNode.transportDirection);
             value = direct.scale(this->diffuseIntensity / PI).scale(2);
-            //value = direct.scale(this->diffuseIntensity / (PI * PI)).scale(2);
         }
         else
         {
