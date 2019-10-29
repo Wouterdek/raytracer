@@ -31,7 +31,7 @@ RGB neePointLight(const PointLight& light, const Scene& scene, const Point& hitp
     return RGB::BLACK;
 }
 
-// Return radiance from light to hitpoint, picking a stratified random sample point as representative for the entire light
+// Return radiance*theta_lamp from light to hitpoint, picking a stratified random sample point as representative for the entire light
 RGB neeAreaLight(const AreaLight& light, const Scene& scene, const Point& hitpoint, const Vector3& normal, int sampleI, int sampleCount, /* OUT */ Vector3& lightDirection)
 {
     auto lampPoint = light.generateStratifiedJitteredRandomPoint(sampleCount, sampleI);
@@ -46,10 +46,9 @@ RGB neeAreaLight(const AreaLight& light, const Scene& scene, const Point& hitpoi
     {
         auto lightEnergy = light.color * light.intensity;
 
-        //TODO: this ain't right
-        auto surfaceAngle = std::max(0.0f, normal.dot(objectToLamp));
+        //auto surfaceAngle = std::max(0.0f, normal.dot(objectToLamp));
         auto lampAngle = std::max(0.0f, light.getNormal().dot(-objectToLamp));
-        auto geometricFactor = (surfaceAngle * lampAngle) / pow(lampT, 2);
+        auto geometricFactor = lampAngle / std::pow(lampT, 2.0f);
 
         auto irradianceFromLamp = lightEnergy * geometricFactor;
         return irradianceFromLamp * light.getSurfaceArea();
