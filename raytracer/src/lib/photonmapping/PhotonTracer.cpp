@@ -68,8 +68,8 @@ tbb::task *AreaLightPhotonTracingTask::execute()
     OrthonormalBasis basis((light.b - light.a).cross(light.c - light.a));
 
     for (size_type photonI = startIdx; photonI < endIdx; ++photonI) {
-        auto photonPos = sampleUniformTriangle(light.a, light.b, light.c); //stratification?
-        auto localDir = sampleUniformHemisphere(1.0);
+        auto photonPos = light.generateStratifiedJitteredRandomPoint(endIdx-startIdx, photonI-startIdx);
+        auto localDir = mapSampleToCosineWeightedHemisphere(Rand::unit(), Rand::unit(), 1.0);
         auto photonDir = (basis.getU() * localDir.x()) + (basis.getV() * localDir.y()) + (basis.getW() * localDir.z());
 
         Ray photonRay(photonPos + photonDir*0.0001f, photonDir);
