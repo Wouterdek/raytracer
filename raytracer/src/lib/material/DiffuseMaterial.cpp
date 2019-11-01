@@ -181,11 +181,10 @@ void DiffuseMaterial::sampleTransport(TransportBuildContext& ctx) const
         }
         else
         {
-            auto angleA = Rand::floatInRange(-90, 90);
-            auto angleB = Rand::floatInRange(-90, 90);
             OrthonormalBasis basis(normal);
-            auto transform = Transformation::rotate(basis.getV(), angleB).append(Transformation::rotate(basis.getU(), angleA));
-            transport.transportDirection = transform.transform(normal);
+            auto localDir = sampleStratifiedCosineWeightedHemisphere(std::sqrt(ctx.sampleCount), ctx.sampleI, 1.0);
+            transport.transportDirection = (basis.getU() * localDir.x()) + (basis.getV() * localDir.y()) + (basis.getW() * localDir.z());
+
             meta->isNEERay = false;
 
             if(ctx.scene.getPhotonMapMode() == PhotonMapMode::caustics)
@@ -285,11 +284,9 @@ RGB DiffuseMaterial::bsdf(const Scene &scene, const std::vector<TransportNode> &
 
 Vector3 sampleBounceDirection(const Vector3& surfaceNormal)
 {
-    auto angleA = Rand::floatInRange(-90, 90);
-    auto angleB = Rand::floatInRange(-90, 90);
     OrthonormalBasis basis(surfaceNormal);
-    auto transform = Transformation::rotate(basis.getV(), angleB).append(Transformation::rotate(basis.getU(), angleA));
-    return transform.transform(surfaceNormal);
+    auto localDir = mapSampleToCosineWeightedHemisphere(Rand::unit(), Rand::unit(), 1.0);
+    return (basis.getU() * localDir.x()) + (basis.getV() * localDir.y()) + (basis.getW() * localDir.z());
 }
 
 std::tuple<Vector3, RGB, float> DiffuseMaterial::interactPhoton(const SceneRayHitInfo &hit, const RGB &incomingEnergy) const
