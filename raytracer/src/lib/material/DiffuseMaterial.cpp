@@ -102,12 +102,6 @@ struct TransportMetaData
     bool isNEERay = false;
 };
 
-RGB brdf(const RGB& lIn, const Vector3& surfaceNormal, const Vector3& outDir)
-{
-    double angle = std::max(0.0f, surfaceNormal.dot(outDir));
-    return lIn.scale(angle);
-}
-
 void DiffuseMaterial::sampleTransport(TransportBuildContext& ctx) const
 {
     auto& transport = ctx.getCurNode();
@@ -307,7 +301,8 @@ std::tuple<Vector3, RGB, float> DiffuseMaterial::interactPhoton(const SceneRayHi
     }
 
     Vector3 direction = sampleBounceDirection(normal);
-    return std::make_tuple(direction, diffuseColor.multiply(brdf(incomingEnergy, hit.normal, direction)), 1.0f);
+
+    return std::make_tuple(direction, diffuseColor.multiply(incomingEnergy), 1.0f);
 }
 
 bool DiffuseMaterial::hasVariance(const SceneRayHitInfo &hit, const Scene &scene) const
