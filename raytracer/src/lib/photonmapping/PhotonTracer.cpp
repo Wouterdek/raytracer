@@ -3,7 +3,7 @@
 #include "math/Sampler.h"
 #include "math/FastRandom.h"
 
-void tracePhoton(const Scene& scene, Ray& photonRay, RGB& photonEnergy, PhotonMapMode mode, tbb::concurrent_vector<Photon>& resultAcc)
+void tracePhoton(const Scene& scene, Ray& photonRay, RGB photonEnergy, PhotonMapMode mode, tbb::concurrent_vector<Photon>& resultAcc)
 {
     bool hasPassedDiffuse = false;
     bool hasPassedSpecular = false;
@@ -34,7 +34,7 @@ void tracePhoton(const Scene& scene, Ray& photonRay, RGB& photonEnergy, PhotonMa
         hasPassedDiffuse = hasPassedDiffuse || isDiffuseTransport;
         hasPassedSpecular = hasPassedSpecular || !isDiffuseTransport;
 
-        photonRay = Ray(hitpoint + newPhotonRayDir * 0.0001, newPhotonRayDir);
+        photonRay = Ray(hitpoint + newPhotonRayDir * 0.001, newPhotonRayDir);
         photonEnergy = newPhotonEnergy;
 
         if(Rand::unit() < russianRouletteRate)
@@ -51,9 +51,9 @@ tbb::task *PointLightPhotonTracingTask::execute()
 
     for (size_type photonI = startIdx; photonI < endIdx; ++photonI) {
         auto photonDir = sampleUniformSphere(1.0);
-        Ray photonRay(light.get().pos + photonDir*0.0001f, photonDir);
-        RGB photonEnergy = energyPerPhoton;
-        tracePhoton(scene, photonRay, photonEnergy, mode, photons);
+
+        Ray photonRay(light.get().pos, photonDir);
+        tracePhoton(scene, photonRay, energyPerPhoton, mode, photons);
     }
     progress.signalTaskFinished();
 
@@ -73,8 +73,7 @@ tbb::task *AreaLightPhotonTracingTask::execute()
         auto photonDir = (basis.getU() * localDir.x()) + (basis.getV() * localDir.y()) + (basis.getW() * localDir.z());
 
         Ray photonRay(photonPos + photonDir*0.0001f, photonDir);
-        RGB photonEnergy = energyPerPhoton;
-        tracePhoton(scene, photonRay, photonEnergy, mode, photons);
+        tracePhoton(scene, photonRay, energyPerPhoton, mode, photons);
     }
 
     progress.signalTaskFinished();
