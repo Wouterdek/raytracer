@@ -65,7 +65,7 @@ void PPMRenderer::render(const Scene& scene, FrameBuffer& buffer, const Tile& ti
             {
                 for (int x = tile.getXStart(); x < tile.getXEnd(); ++x)
                 {
-                    auto& hitinfo = hits[(y*masterTile.getWidth()) + x];
+                    /*auto& hitinfo = hits[(y*masterTile.getWidth()) + x];
                     if(!hitinfo.has_value())
                     {
                         continue;
@@ -111,7 +111,7 @@ void PPMRenderer::render(const Scene& scene, FrameBuffer& buffer, const Tile& ti
 
                     //buffer.setPixel(x, y, hitinfo->reflectedFlux);
                     //buffer.setPixel(x, y, RGB(hitinfo->radius));
-                    buffer.setPixel(x, y, totalEnergy);
+                    buffer.setPixel(x, y, totalEnergy);*/
                 }
             }
         });
