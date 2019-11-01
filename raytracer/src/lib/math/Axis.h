@@ -2,7 +2,7 @@
 
 #include <array>
 
-enum class Axis
+enum class Axis : unsigned char
 {
 	x = 0, y = 1, z = 2
 };
