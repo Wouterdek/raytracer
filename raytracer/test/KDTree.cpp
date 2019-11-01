@@ -31,8 +31,11 @@ TEST(KDTree, NNearestElements1)
     KDTree<Entry, &Entry::getPos> tree(std::move(node), 3);
 
     std::vector<const Entry*> resultsList(2);
-    tree.getElementsNearestTo(Point(-4, 0, 0), resultsList.size(), resultsList);
+    Point target(-4, 0, 0);
+    auto [nbPhotonsFound, maxDist] = tree.getElementsNearestTo(target, resultsList.size(), resultsList);
 
+    ASSERT_EQ(nbPhotonsFound, 2);
+    ASSERT_FLOAT_EQ(maxDist, (target - nodeB->pos).norm());
     ASSERT_EQ(resultsList[0], nodeB);
     ASSERT_EQ(resultsList[1], nodeA);
 }
@@ -51,8 +54,11 @@ TEST(KDTree, NNearestElements2)
     KDTree<Entry, &Entry::getPos> tree(std::move(node), 3);
 
     std::vector<const Entry*> resultsList(2);
-    tree.getElementsNearestTo(Point(5, 4, 0), resultsList.size(), resultsList);
+    Point target(5, 4, 0);
+    auto [nbPhotonsFound, maxDist] = tree.getElementsNearestTo(target, resultsList.size(), resultsList);
 
+    ASSERT_EQ(nbPhotonsFound, 2);
+    ASSERT_FLOAT_EQ(maxDist, (target - nodeC->pos).norm());
     ASSERT_EQ(resultsList[0], nodeC);
     ASSERT_EQ(resultsList[1], nodeA);
 }
@@ -71,8 +77,11 @@ TEST(KDTree, NNearestElements3)
     KDTree<Entry, &Entry::getPos> tree(std::move(node), 3);
 
     std::vector<const Entry*> resultsList(1);
-    tree.getElementsNearestTo(Point(1, 4, 0), resultsList.size(), resultsList);
+    Point target(1, 4, 0);
+    auto [nbPhotonsFound, maxDist] = tree.getElementsNearestTo(target, resultsList.size(), resultsList);
 
+    ASSERT_EQ(nbPhotonsFound, 1);
+    ASSERT_FLOAT_EQ(maxDist, (target - nodeB->pos).norm());
     ASSERT_EQ(resultsList[0], nodeB);
 }
 
@@ -93,8 +102,11 @@ TEST(KDTree, NNearestElements4)
     KDTree<Entry, &Entry::getPos> tree(std::move(node), 3);
 
     std::vector<const Entry*> resultsList(1);
-    tree.getElementsNearestTo(Point(2, -1, 0), resultsList.size(), resultsList);
+    Point target(2, -1, 0);
+    auto [nbPhotonsFound, maxDist] = tree.getElementsNearestTo(target, resultsList.size(), resultsList);
 
+    ASSERT_EQ(nbPhotonsFound, 1);
+    ASSERT_FLOAT_EQ(maxDist, (target - nodeC->pos).norm());
     ASSERT_EQ(resultsList[0], nodeC);
 }
 
@@ -115,8 +127,11 @@ TEST(KDTree, NNearestElements5)
     KDTree<Entry, &Entry::getPos> tree(std::move(node), 3);
 
     std::vector<const Entry*> resultsList(1);
-    tree.getElementsNearestTo(Point(-1, 1, 0), resultsList.size(), resultsList);
+    Point target(-1, 1, 0);
+    auto [nbPhotonsFound, maxDist] = tree.getElementsNearestTo(target, resultsList.size(), resultsList);
 
+    ASSERT_EQ(nbPhotonsFound, 1);
+    ASSERT_FLOAT_EQ(maxDist, (target - nodeA->pos).norm());
     ASSERT_EQ(resultsList[0], nodeA);
 }
 
@@ -138,8 +153,11 @@ TEST(KDTree, NNearestElements6)
     KDTree<Entry, &Entry::getPos> tree(std::move(node), 3);
 
     std::vector<const Entry*> resultsList(2);
-    tree.getElementsNearestTo(Point(3, 1, 0), resultsList.size(), resultsList);
+    Point target(3, 1, 0);
+    auto [nbPhotonsFound, maxDist] = tree.getElementsNearestTo(target, resultsList.size(), resultsList);
 
+    ASSERT_EQ(nbPhotonsFound, 2);
+    ASSERT_FLOAT_EQ(maxDist, (target - nodeC->pos).norm());
     ASSERT_EQ(resultsList[0], nodeC);
     ASSERT_EQ(resultsList[1], nodeD);
 }
