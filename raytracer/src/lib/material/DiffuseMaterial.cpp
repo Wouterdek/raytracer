@@ -265,17 +265,17 @@ RGB DiffuseMaterial::bsdf(const Scene &scene, const std::vector<TransportNode> &
         //The diffuse BRDF has a correction term of 1/pi to be energy conservant.
         //Finally, applying MC to (direct + indirect) with a 50% chance for each term means each term should be multiplied by 2.
 
+        double angle = std::max(0.0f, normal.dot(curNode.transportDirection));
         RGB value;
         if(meta->isNEERay)
         {
-            RGB direct = brdf(meta->directLighting, normal, curNode.transportDirection);
+            RGB direct = meta->directLighting.scale(angle);
             value = direct.scale(this->diffuseIntensity / PI).scale(2);
         }
         else
         {
-            RGB indirect = brdf(incomingEnergy, normal, curNode.transportDirection);
-            value = indirect.scale(this->diffuseIntensity * 2).scale(2);
-            //value = indirect.scale(this->diffuseIntensity * PI).scale(2);
+            RGB indirect = incomingEnergy.scale(angle);
+            value = indirect.scale(this->diffuseIntensity).scale(2);
         }
         return diffuseColor.multiply(value);
     }
