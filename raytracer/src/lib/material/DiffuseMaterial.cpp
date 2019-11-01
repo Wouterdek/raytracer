@@ -1,3 +1,4 @@
+#include <math/Sampler.h>
 #include "DiffuseMaterial.h"
 #include "scene/dynamic/DynamicScene.h"
 #include "math/Constants.h"
@@ -157,12 +158,11 @@ void DiffuseMaterial::sampleTransport(TransportBuildContext& ctx) const
             }, photons);
 
             RGB value {};
-            for(int i = 0; i < nbPhotonsFound; i++)
+            for(unsigned int i = 0; i < nbPhotonsFound; i++)
             {
-                const Photon* photon = photons[i];
-                value += brdf(photon->energy, normal, -photon->incomingDir);
+                value += photons[i]->energy;
             }
-            meta->photonLighting = value.scale(this->diffuseIntensity).divide(PI*(maxDist*maxDist));
+            meta->photonLighting = value.scale(this->diffuseIntensity).divide(PI*maxDist*maxDist).divide(PI);
             meta->photonLightingIsSet = true;
         }
     }
@@ -210,10 +210,9 @@ void DiffuseMaterial::sampleTransport(TransportBuildContext& ctx) const
                             RGB value {};
                             for(unsigned int i = 0; i < nbPhotonsFound; ++i)
                             {
-                                const Photon* photon = photons[i];
-                                value += brdf(photon->energy, normal, -photon->incomingDir);
+                                value += photons[i]->energy;
                             }
-                            meta->photonLighting = value.divide(PI*(maxDist*maxDist));
+                            meta->photonLighting = value.divide(PI*(maxDist*maxDist)).divide(PI);
                             meta->photonLightingIsSet = true;
                         }
 
