@@ -68,7 +68,7 @@ private:
     std::variant<NodePtr, IncompleteNode> buildNode(PhotonListSlice& photons, Axis presortedAxis);
 
     NodePtr buildTree(PhotonListSlice& photons, Axis presortedAxis);
-    std::pair<NodePtr, size_t> buildTreeThreaded(PhotonListSlice& photons, Axis presortedAxis);
+    NodePtr buildTreeThreaded(PhotonListSlice& photons, Axis presortedAxis);
 
     inline static std::mutex exec_mutex;
 };
@@ -83,21 +83,18 @@ public:
     std::reference_wrapper<PhotonListSlice> photons;
     Axis presortedAxis;
     NodePtr* outputTreePtr;
-    size_t* treeSizePtr;
 
-    KDTreeNodeBuildingTask(KDTreeBuilder& builder, PhotonListSlice& photons, Axis presortedAxis, /* OUTPUT */ NodePtr* outputTree, /* OUTPUT */ size_t* treeSize)
-            : builder(std::ref(builder)), photons(std::ref(photons)), presortedAxis(presortedAxis), outputTreePtr(outputTree), treeSizePtr(treeSize)
+    KDTreeNodeBuildingTask(KDTreeBuilder& builder, PhotonListSlice& photons, Axis presortedAxis, /* OUTPUT */ NodePtr* outputTree)
+            : builder(std::ref(builder)), photons(std::ref(photons)), presortedAxis(presortedAxis), outputTreePtr(outputTree)
     { }
 
     task* execute() override
     {
         auto& tree = *outputTreePtr;
-        auto& treeSize = *treeSizePtr;
 
         if(photons.get().count() == 0)
         {
             tree = nullptr;
-            treeSize = 0;
         }
         else
         {
@@ -105,27 +102,34 @@ public:
             if (std::holds_alternative<NodePtr>(result))
             {
                 tree = std::move(std::get<NodePtr>(result));
-                treeSize = 1;
             }
             else
             {
                 auto& incompleteNode = std::get<typename KDTreeBuilder::IncompleteNode>(result);
 
                 NodePtr subNodeA;
-                size_t subNodeSizeA;
                 NodePtr subNodeB;
-                size_t subNodeSizeB;
-                KDTreeNodeBuildingTask& a = *new(allocate_child()) KDTreeNodeBuildingTask(builder, incompleteNode.leftSubList, incompleteNode.presortedAxis, &subNodeA, &subNodeSizeA);
-                KDTreeNodeBuildingTask& b = *new(allocate_child()) KDTreeNodeBuildingTask(builder, incompleteNode.rightSubList, incompleteNode.presortedAxis, &subNodeB, &subNodeSizeB);
 
-                set_ref_count(3);
-                spawn(b);
-                spawn_and_wait_for_all(a);
+                bool useSubTasksForSubLists = incompleteNode.leftSubList.count() > 1000 || incompleteNode.rightSubList.count() > 1000;
+                if(useSubTasksForSubLists)
+                {
+                    KDTreeNodeBuildingTask& a = *new(allocate_child()) KDTreeNodeBuildingTask(builder, incompleteNode.leftSubList, incompleteNode.presortedAxis, &subNodeA);
+                    KDTreeNodeBuildingTask& b = *new(allocate_child()) KDTreeNodeBuildingTask(builder, incompleteNode.rightSubList, incompleteNode.presortedAxis, &subNodeB);
+
+                    set_ref_count(3);
+
+                    spawn(b);
+                    spawn_and_wait_for_all(a);
+                }
+                else
+                {
+                    subNodeA = builder.get().buildTree(incompleteNode.leftSubList, incompleteNode.presortedAxis);
+                    subNodeB = builder.get().buildTree(incompleteNode.rightSubList, incompleteNode.presortedAxis);
+                }
 
                 tree = std::move(incompleteNode.node);
                 tree->setChild(0, std::move(subNodeA));
                 tree->setChild(1, std::move(subNodeB));
-                treeSize = subNodeSizeA + subNodeSizeB + 1;
             }
         }
 
@@ -167,6 +171,43 @@ std::variant<typename KDTreeBuilder::NodePtr, typename KDTreeBuilder::Incomplete
 
 std::unique_ptr<typename KDTreeBuilder::Node> KDTreeBuilder::buildTree(PhotonListSlice& photons, Axis presortedAxis)
 {
+    struct Entry { PhotonListSlice photons; std::unique_ptr<Node>& targetStorage; Axis presortedAxis; };
+
+    std::queue<Entry> todo{};
+    std::unique_ptr<Node> root = nullptr;
+    todo.push(Entry{photons, root, presortedAxis});
+
+    while(!todo.empty())
+    {
+        auto& cur = todo.front();
+
+        auto result = buildNode(cur.photons, cur.presortedAxis);
+        if (std::holds_alternative<NodePtr>(result))
+        {
+            cur.targetStorage = NodePtr(std::move(std::get<NodePtr>(result)));
+        }
+        else
+        {
+            auto& incompleteNode = std::get<IncompleteNode>(result);
+            if(incompleteNode.leftSubList.count() > 0)
+            {
+                todo.push(Entry{incompleteNode.leftSubList, incompleteNode.node->getChildPtr(0), incompleteNode.presortedAxis});
+            }
+            if(incompleteNode.rightSubList.count() > 0)
+            {
+                todo.push(Entry{incompleteNode.rightSubList, incompleteNode.node->getChildPtr(1), incompleteNode.presortedAxis});
+            }
+            cur.targetStorage = std::move(incompleteNode.node);
+        }
+
+        todo.pop();
+    }
+
+    return std::move(root);
+}
+
+/*std::unique_ptr<typename KDTreeBuilder::Node> KDTreeBuilder::buildTree(PhotonListSlice& photons, Axis presortedAxis)
+{
     if(photons.count() == 0)
     {
         return nullptr;
@@ -175,8 +216,7 @@ std::unique_ptr<typename KDTreeBuilder::Node> KDTreeBuilder::buildTree(PhotonLis
     auto result = buildNode(photons, presortedAxis);
     if (std::holds_alternative<NodePtr>(result))
     {
-        NodePtr node(std::move(std::get<NodePtr>(result)));
-        return node;
+        return NodePtr(std::move(std::get<NodePtr>(result)));
     }
     else
     {
@@ -186,26 +226,26 @@ std::unique_ptr<typename KDTreeBuilder::Node> KDTreeBuilder::buildTree(PhotonLis
         node->setChild(1, this->buildTree(incompleteNode.rightSubList, incompleteNode.presortedAxis));
         return node;
     }
-}
+}*/
 
-std::pair<std::unique_ptr<typename KDTreeBuilder::Node>, size_t> KDTreeBuilder::buildTreeThreaded(PhotonListSlice& photons, Axis presortedAxis)
+std::unique_ptr<typename KDTreeBuilder::Node> KDTreeBuilder::buildTreeThreaded(PhotonListSlice& photons, Axis presortedAxis)
 {
     NodePtr node;
-    size_t size;
 
-    auto& task = *new(tbb::task::allocate_root()) KDTreeNodeBuildingTask(*this, photons, presortedAxis, &node, &size);
+    auto& task = *new(tbb::task::allocate_root()) KDTreeNodeBuildingTask(*this, photons, presortedAxis, &node/*, &size*/);
     tbb::task::spawn_root_and_wait(task);
-    return std::make_pair(std::move(node), size);
+    return std::move(node);
 }
 
 KDTree<Photon, &Photon::getPosition> KDTreeBuilder::build(PhotonList& photons)
 {
+    auto size = photons.size();
     PhotonListSlice list(photons.begin(), photons.end());
     list.sortByAxis(Axis::x);
 
     std::lock_guard lock(exec_mutex);
 
     KDTreeBuilder builder{};
-    auto [rootNode, size] = builder.buildTreeThreaded(list, Axis::x);
+    auto rootNode = builder.buildTreeThreaded(list, Axis::x);
     return KDTree<Photon, &Photon::getPosition>(std::move(rootNode), size);
 }
