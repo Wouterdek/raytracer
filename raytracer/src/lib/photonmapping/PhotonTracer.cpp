@@ -1,6 +1,6 @@
 #include <math/OrthonormalBasis.h>
 #include "PhotonTracer.h"
-#include "math/UniformSampler.h"
+#include "math/Sampler.h"
 #include "math/FastRandom.h"
 
 void tracePhoton(const Scene& scene, Ray& photonRay, RGB& photonEnergy, PhotonMapMode mode, tbb::concurrent_vector<Photon>& resultAcc)

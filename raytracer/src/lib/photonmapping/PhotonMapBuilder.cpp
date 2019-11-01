@@ -1,7 +1,7 @@
 #include "PhotonMapBuilder.h"
 #include "PhotonMap.h"
 #include "math/OrthonormalBasis.h"
-#include "math/UniformSampler.h"
+#include "math/Sampler.h"
 #include "math/Ray.h"
 #include "Photon.h"
 #include "KDTree.h"

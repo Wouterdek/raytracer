@@ -5,7 +5,7 @@
 #include "math/Constants.h"
 #include "math/Triangle.h"
 #include "NormalMapSampler.h"
-#include "math/UniformSampler.h"
+#include "math/Sampler.h"
 #include <cmath>
 
 GlossyMaterial::GlossyMaterial() = default;

@@ -3,7 +3,7 @@
 #include <cmath>
 #include "math/Transformation.h"
 #include "math/Triangle.h"
-#include "math/UniformSampler.h"
+#include "math/Sampler.h"
 #include "math/FastRandom.h"
 
 AreaLight::AreaLight()

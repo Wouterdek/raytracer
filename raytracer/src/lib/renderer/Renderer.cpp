@@ -4,7 +4,7 @@
 #include "math/Ray.h"
 #include "camera/ICamera.h"
 #include "utility/ProgressMonitor.h"
-#include "math/UniformSampler.h"
+#include "math/Sampler.h"
 #include "math/FastRandom.h"
 
 #undef min
@@ -131,7 +131,7 @@ void Renderer::render(const Scene &scene, FrameBuffer &buffer, const Tile &tile,
                     /**V3**/
                     // Build new path
                     path.clear();
-                    Vector2 sample = Vector2(x, y) + sampleStratifiedSquare(renderSettings.geometryAAModifier, i);
+                    Vector2 sample = Vector2(x, y) + sampleUniformStratifiedSquare(renderSettings.geometryAAModifier, i);
                     Ray ray = camera.generateRay(sample, buffer.getHorizontalResolution(), buffer.getVerticalResolution());
                     auto hit = scene.traceRay(ray);
                     if (hit.has_value())

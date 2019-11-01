@@ -3,7 +3,7 @@
     "*.cpp"
         )
 
-add_library(raytracer_lib ${raytracer_lib_SRC} math/FastRandom.h)
+add_library(raytracer_lib ${raytracer_lib_SRC})
 
 find_package(Eigen3 REQUIRED NO_MODULE)
 #find_package(Boost 1.69 REQUIRED COMPONENTS fiber)
