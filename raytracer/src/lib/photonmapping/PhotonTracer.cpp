@@ -34,7 +34,7 @@ void tracePhoton(const Scene& scene, Ray& photonRay, RGB photonEnergy, PhotonMap
         hasPassedDiffuse = hasPassedDiffuse || isDiffuseTransport;
         hasPassedSpecular = hasPassedSpecular || !isDiffuseTransport;
 
-        photonRay = Ray(hitpoint + newPhotonRayDir * 0.001, newPhotonRayDir);
+        photonRay = Ray(hitpoint + newPhotonRayDir * 0.00005, newPhotonRayDir);
         photonEnergy = newPhotonEnergy;
 
         if(Rand::unit() < russianRouletteRate)
