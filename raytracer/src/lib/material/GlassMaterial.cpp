@@ -6,6 +6,7 @@
 #include "math/FastRandom.h"
 #include <math/Triangle.h>
 
+using NoLight = bool;
 #pragma pack(push, 1)
 struct TransportMetaData
 {
@@ -13,9 +14,10 @@ struct TransportMetaData
     float t = 0;
     Vector3 reflectedRayDir;
     Vector3 transmittedRayDir;
-    AreaLight* lightHit = nullptr;
+    std::variant<NoLight, AreaLight*, PointLight*> lightHit = false;
 };
 #pragma pack(pop)
+
 void GlassMaterial::sampleTransport(TransportBuildContext &ctx) const
 {
     auto& transport = ctx.getCurNode();
@@ -114,9 +116,29 @@ void GlassMaterial::sampleTransport(TransportBuildContext &ctx) const
             bestT = intersection.t;
         }
     }
+
+    for(const auto& light : ctx.scene.getPointLights())
+    {
+        const auto MAX_ANGLE = M_PI / 128.0f;
+
+        Vector3 hitpointToLight = light->pos - hitpoint;
+        auto htlNorm = hitpointToLight.norm();
+        auto cosAngleLightToRay = hitpointToLight.dot(ray.getDirection()) / htlNorm; //Assuming ray dir is normalized
+        auto angleLightToRay = std::acos(cosAngleLightToRay);
+        if(angleLightToRay < MAX_ANGLE)
+        {
+            auto lightT = cosAngleLightToRay * htlNorm;
+            if(bestT > lightT)
+            {
+                meta->lightHit = &*light;
+                bestT = lightT;
+            }
+        }
+    }
+
     meta->t = bestT;
 
-    if(meta->lightHit == nullptr)
+    if(std::holds_alternative<NoLight>(meta->lightHit))
     {
         ctx.nextHit = result;
         transport.isEmissive = false;
@@ -145,9 +167,15 @@ RGB GlassMaterial::bsdf(const Scene &scene, const std::vector<TransportNode> &pa
     bool isInternalRay = normal.dot(direction) < 0;
 
     RGB val = incomingEnergy;
-    if(meta->lightHit != nullptr)
+    if(std::holds_alternative<AreaLight*>(meta->lightHit))
     {
-        val = meta->lightHit->color * meta->lightHit->intensity;
+        const auto& areaLight = *std::get<AreaLight*>(meta->lightHit);
+        val = areaLight.color * areaLight.intensity;
+    }
+    else if(std::holds_alternative<PointLight*>(meta->lightHit))
+    {
+        const auto& pointLight = *std::get<PointLight*>(meta->lightHit);
+        val = pointLight.color * pointLight.intensity;
     }
 
     if(isInternalRay)

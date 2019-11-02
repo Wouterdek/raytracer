@@ -21,7 +21,7 @@ public:
     float specularity;
     TransportType type;
     bool isEmissive;
-    DynAllocTree<40, 3, 2, unsigned char> metadata;
+    DynAllocTree<48, 3, 2, unsigned char> metadata;
 
     explicit TransportNode(SceneRayHitInfo hit) : hit(std::move(hit)), pathTerminationChance(), transportDirection(), type(), specularity(), isEmissive(), metadata()
         {}
