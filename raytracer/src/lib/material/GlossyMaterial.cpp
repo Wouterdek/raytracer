@@ -6,7 +6,6 @@
 #include "math/Triangle.h"
 #include "NormalMapSampler.h"
 #include "math/Sampler.h"
-#include <cmath>
 
 GlossyMaterial::GlossyMaterial() = default;
 
@@ -16,6 +15,23 @@ struct TransportMetaData
     Vector3 perfectReflectionDir;
 };
 
+Vector3 getPerfectReflectionDir(const Vector3& normal, const Vector3& incomingDir)
+{
+    return incomingDir + ((2.0*normal.dot(-incomingDir))*normal);
+}
+
+Vector3 sampleRoughReflectionDir(const Vector3& perfectReflectionDir, float roughness)
+{
+    Vector3 sampleDir = perfectReflectionDir;
+
+    auto offset = sampleUniformCircle(roughness); //TODO: is this correct? Seems like this is not actually uniform
+    OrthonormalBasis sampleSpace(sampleDir);
+    sampleDir += sampleSpace.getU() * offset.x(); // TODO: is this correct? Seems like the vector would not be unit anymore
+    sampleDir += sampleSpace.getV() * offset.y();
+
+    return sampleDir;
+}
+
 void GlossyMaterial::sampleTransport(TransportBuildContext &ctx) const
 {
     auto& transport = ctx.getCurNode();
@@ -24,24 +40,20 @@ void GlossyMaterial::sampleTransport(TransportBuildContext &ctx) const
     {
         meta = transport.metadata.alloc<TransportMetaData>();
 
-        auto& incomingDir = transport.hit.ray.getDirection();
-        auto& normal = transport.hit.normal;
+        const auto& incomingDir = transport.hit.ray.getDirection();
+        auto normal = transport.hit.normal;
         if(this->normalMap != nullptr)
         {
             auto mapNormal = sample_normal_map(transport.hit, *this->normalMap);
             normal = transport.hit.getModelNode().getTransform().transformNormal(mapNormal);
         }
-        meta->perfectReflectionDir = incomingDir + ((2.0*normal.dot(-incomingDir))*normal);
+        meta->perfectReflectionDir = getPerfectReflectionDir(normal, incomingDir);
     }
 
-    Vector3 sampleDir = meta->perfectReflectionDir;
-    auto offset = sampleUniformCircle(roughness);
-    OrthonormalBasis sampleSpace(sampleDir);
-    sampleDir += sampleSpace.getU() * offset.x();
-    sampleDir += sampleSpace.getV() * offset.y();
+    Vector3 sampleDir = sampleRoughReflectionDir(meta->perfectReflectionDir, roughness);
 
     transport.transportDirection = sampleDir;
-    transport.specularity = 1.0 - this->roughness;
+    transport.specularity = 1.0f - this->roughness;
     transport.type = TransportType::bounce;
 
     // Check if there are any lights in this direction
@@ -49,6 +61,7 @@ void GlossyMaterial::sampleTransport(TransportBuildContext &ctx) const
     Ray ray(hitpoint+(sampleDir*.001), sampleDir);
     auto result = ctx.scene.traceRay(ray);
 
+    meta->lightHit = nullptr;
     double bestT = result.has_value() ? result->t : 1E99;
     for(const auto& light : ctx.scene.getAreaLights())
     {
@@ -59,6 +72,8 @@ void GlossyMaterial::sampleTransport(TransportBuildContext &ctx) const
             bestT = intersection.t;
         }
     }
+
+    //TODO: check for point lights?
 
     if(meta->lightHit == nullptr)
     {
@@ -79,23 +94,10 @@ RGB GlossyMaterial::bsdf(const Scene &scene, const std::vector<TransportNode> &p
     RGB radiance = incomingEnergy;
     if(meta->lightHit != nullptr)
     {
-        radiance = meta->lightHit->color * meta->lightHit->intensity;
+        radiance = meta->lightHit->color * meta->lightHit->intensity; //TODO: This seems incorrect
     }
 
     return radiance.multiply(color);
-}
-
-
-Vector3 sampleReflectionDir(Vector3 normal, Vector3 incomingDir, float roughness)
-{
-    Vector3 sampleDir = incomingDir + ((2.0*normal.dot(-incomingDir))*normal);
-
-    auto offset = sampleUniformCircle(roughness);
-    OrthonormalBasis sampleSpace(sampleDir);
-    sampleDir += sampleSpace.getU() * offset.x();
-    sampleDir += sampleSpace.getV() * offset.y();
-
-    return sampleDir;
 }
 
 std::tuple<Vector3, RGB, float> GlossyMaterial::interactPhoton(const SceneRayHitInfo &hit, const RGB &incomingEnergy) const
@@ -107,7 +109,7 @@ std::tuple<Vector3, RGB, float> GlossyMaterial::interactPhoton(const SceneRayHit
         normal = hit.getModelNode().getTransform().transformNormal(mapNormal);
     }
 
-    Vector3 direction = sampleReflectionDir(normal, hit.ray.getDirection(), this->roughness);
+    Vector3 direction = sampleRoughReflectionDir(getPerfectReflectionDir(normal, hit.ray.getDirection()), this->roughness);
     //TODO: is this energy weight correct?
     //TODO: is using roughness for diffuse parameter correct?
     return std::make_tuple(direction, incomingEnergy, this->roughness);
