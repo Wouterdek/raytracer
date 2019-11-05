@@ -91,7 +91,8 @@ void PhotonTracer::createPhotonTracingTasks(const Scene &scene, tbb::task_list &
     {
         for(size_type i = 0; i < photonsPerPointLight; i += batchSize)
         {
-            auto& task = *new(tbb::task::allocate_root()) PointLightPhotonTracingTask(scene, *light, photons, mode, i, i+batchSize, photonsPerPointLight, progress);
+            auto endIdx = std::min(i+batchSize, photonsPerPointLight);
+            auto& task = *new(tbb::task::allocate_root()) PointLightPhotonTracingTask(scene, *light, photons, mode, i, endIdx, photonsPerPointLight, progress);
             tasks.push_back(task);
             taskCount++;
         }
@@ -111,7 +112,8 @@ void PhotonTracer::createPhotonTracingTasks(const Scene &scene, tbb::task_list &
     {
         for(size_type i = 0; i < photonsPerAreaLight; i += batchSize)
         {
-            auto& task = *new(tbb::task::allocate_root()) AreaLightPhotonTracingTask(scene, *light, photons, mode, i, i+batchSize, photonsPerAreaLight, progress);
+            auto endIdx = std::min(i+batchSize, photonsPerAreaLight);
+            auto& task = *new(tbb::task::allocate_root()) AreaLightPhotonTracingTask(scene, *light, photons, mode, i, endIdx, photonsPerAreaLight, progress);
             tasks.push_back(task);
             taskCount++;
         }
