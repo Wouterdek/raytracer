@@ -10,7 +10,7 @@
 #include "material/GlossyMaterial.h"
 #include "material/NormalMaterial.h"
 #include "material/TexCoordMaterial.h"
-#include "io/PNGWriter.h"
+#include "io/PNG.h"
 #include "io/EXRWriter.h"
 #include "io/GLTF.h"
 #include "io/OBJLoader.h"
