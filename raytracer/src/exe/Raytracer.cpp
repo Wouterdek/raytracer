@@ -12,7 +12,7 @@
 #include "material/TexCoordMaterial.h"
 #include "io/PNGWriter.h"
 #include "io/EXRWriter.h"
-#include "io/gltf/gltf.h"
+#include "io/GLTF.h"
 #include "io/OBJLoader.h"
 #include "io/TileFile.h"
 #include "io/PPMFile.h"

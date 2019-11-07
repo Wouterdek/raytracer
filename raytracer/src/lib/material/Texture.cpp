@@ -1,7 +1,7 @@
 #include "Texture.h"
 #include <vector>
 #include <cmath>
-#include "io/lodepng.h"
+#include "io/lib/lodepng.h"
 
 Texture::Texture(std::vector<unsigned char> image, unsigned width, unsigned height)
     : image(std::move(image)), width(width), height(height)

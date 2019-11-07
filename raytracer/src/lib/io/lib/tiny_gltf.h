@@ -1109,6 +1109,7 @@ class TinyGLTF {
 
 #ifndef TINYGLTF_NO_INCLUDE_JSON
 #include "json.hpp"
+
 #endif
 
 #ifdef TINYGLTF_ENABLE_DRACO

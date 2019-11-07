@@ -1,11 +1,11 @@
-#include "gltf.h"
+#include "GLTF.h"
 
 // Define these only in *one* .cc file.
 #define TINYGLTF_IMPLEMENTATION
 #define STB_IMAGE_IMPLEMENTATION
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 // #define TINYGLTF_NOEXCEPTION // optional. disable exception handling.
-#include "tiny_gltf.h"
+#include "io/lib/tiny_gltf.h"
 #include "shape/TriangleMesh.h"
 #include "material/DiffuseMaterial.h"
 #include "camera/PerspectiveCamera.h"

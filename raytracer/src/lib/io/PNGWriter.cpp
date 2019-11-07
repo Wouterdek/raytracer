@@ -1,5 +1,5 @@
 #include "PNGWriter.h"
-#include "lodepng.h"
+#include "io/lib/lodepng.h"
 #include "film/FrameBuffer.h"
 #include <algorithm>
 #include <cmath>

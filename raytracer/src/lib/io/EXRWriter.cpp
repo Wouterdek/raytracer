@@ -1,7 +1,7 @@
 #include "EXRWriter.h"
 #include "film/FrameBuffer.h"
 #define TINYEXR_IMPLEMENTATION
-#include "tinyexr.h"
+#include "io/lib/tinyexr.h"
 
 void write_to_exr_file(const FrameBuffer& buffer, std::string filepath)
 {

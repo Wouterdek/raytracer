@@ -1,6 +1,6 @@
 #include "OBJLoader.h"
 #define TINYOBJLOADER_IMPLEMENTATION
-#include "tiny_obj_loader.h"
+#include "io/lib/tiny_obj_loader.h"
 
 TriangleMesh loadOBJMesh(std::string path)
 {
