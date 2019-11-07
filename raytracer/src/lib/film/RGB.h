@@ -25,6 +25,7 @@ public:
 	RGB subtract(component r, component g, component b) const;
 	RGB scale(double scalar) const;
 	RGB divide(double divisor) const;
+    RGB divide(RGB divisor) const;
 	RGB multiply(RGB spectrum) const;
 	RGB pow(double power) const;
 	RGB clamp(component low, component high) const;
