@@ -24,8 +24,7 @@ void samplePath(std::vector<TransportNode>& path, int samplingStartIndex, int ma
     bool hasPassedNodeWithVariance = false;
     do{
         auto& curNode = ctx.getCurNode();
-
-        bool curNodeHasVariance = ctx.getCurNode().hit.getModelNode().getData().getMaterial().hasVariance(ctx.getCurNode().hit, scene);
+        bool curNodeHasVariance = ctx.getCurNode().hit.getModelNode().getData().getMaterial().hasVariance(ctx.path, ctx.curI, scene);
         bool isFirstNodeWithVariance = curNodeHasVariance && !hasPassedNodeWithVariance;
         ctx.sampleCount = isFirstNodeWithVariance ? materialAALevel : 1;
         ctx.sampleI = isFirstNodeWithVariance ? sampleI : 0;
@@ -147,7 +146,7 @@ void Renderer::render(const Scene &scene, FrameBuffer &buffer, const Tile &tile,
                     int firstNodeWithVariance = 0;
                     for(; firstNodeWithVariance < path.size(); firstNodeWithVariance++)
                     {
-                        if(path[firstNodeWithVariance].hit.getModelNode().getData().getMaterial().hasVariance(path[firstNodeWithVariance].hit, scene))
+                        if(path[firstNodeWithVariance].hit.getModelNode().getData().getMaterial().hasVariance(path, firstNodeWithVariance, scene))
                         {
                             break;
                         }
