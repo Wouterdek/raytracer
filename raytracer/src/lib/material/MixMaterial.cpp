@@ -56,8 +56,9 @@ std::tuple<Vector3, RGB, float> MixMaterial::interactPhoton(const SceneRayHitInf
     }
 }
 
-bool MixMaterial::hasVariance(const SceneRayHitInfo &hit, const Scene &scene) const
+bool MixMaterial::hasVariance(const std::vector<TransportNode> &path, int curI, const Scene &scene) const
 {
-    bool noVariance = (this->mixFactor == 0.0f && !first->hasVariance(hit, scene)) || (this->mixFactor == 1.0f && !second->hasVariance(hit, scene));
+    bool noVariance = (this->mixFactor == 0.0f && !first->hasVariance(path, curI, scene))
+            || (this->mixFactor == 1.0f && !second->hasVariance(path, curI, scene));
     return !noVariance;
 }

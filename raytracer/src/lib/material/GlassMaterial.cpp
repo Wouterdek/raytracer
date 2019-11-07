@@ -313,7 +313,7 @@ std::tuple<Vector3, RGB, float> GlassMaterial::interactPhoton(const SceneRayHitI
     return std::make_tuple(direction, energy, 0.0);
 }
 
-bool GlassMaterial::hasVariance(const SceneRayHitInfo &hit, const Scene &scene) const
+bool GlassMaterial::hasVariance(const std::vector<TransportNode> &path, int curI, const Scene &scene) const
 {
     return true;
 }

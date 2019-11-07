@@ -127,7 +127,7 @@ std::tuple<Vector3, RGB, float> CompositeMaterial::interactPhoton(const SceneRay
     return mat->interactPhoton(hit, incomingEnergy);
 }
 
-bool CompositeMaterial::hasVariance(const SceneRayHitInfo &hit, const Scene &scene) const
+bool CompositeMaterial::hasVariance(const std::vector<TransportNode> &path, int curI, const Scene &scene) const
 {
-    return findMaterial(hit)->hasVariance(hit, scene);
+    return findMaterial(path[curI].hit)->hasVariance(path, curI, scene);
 }

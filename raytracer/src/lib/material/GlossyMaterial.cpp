@@ -115,7 +115,7 @@ std::tuple<Vector3, RGB, float> GlossyMaterial::interactPhoton(const SceneRayHit
     return std::make_tuple(direction, incomingEnergy, this->roughness);
 }
 
-bool GlossyMaterial::hasVariance(const SceneRayHitInfo &hit, const Scene &scene) const
+bool GlossyMaterial::hasVariance(const std::vector<TransportNode> &path, int curI, const Scene &scene) const
 {
     return this->roughness > 0.0f;
 }

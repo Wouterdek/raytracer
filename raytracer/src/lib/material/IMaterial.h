@@ -77,5 +77,5 @@ public:
      */
     virtual std::tuple<Vector3, RGB, float> interactPhoton(const SceneRayHitInfo& hit, const RGB& incomingEnergy) const;
 
-    virtual bool hasVariance(const SceneRayHitInfo &hit, const Scene &scene) const;
+    virtual bool hasVariance(const std::vector<TransportNode> &path, int curI, const Scene &scene) const;
 };

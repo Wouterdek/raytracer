@@ -148,8 +148,9 @@ void DiffuseMaterial::sampleTransport(TransportBuildContext& ctx) const
             const auto& photonMap = ctx.scene.getPhotonMap();
             std::vector<const Photon*> photons(20);
 
+            auto hitpoint = transport.hit.getHitpoint();
             auto dir = -transport.hit.ray.getDirection();
-            auto [nbPhotonsFound, maxDist] = photonMap->getElementsNearestTo(transport.hit.getHitpoint(), photons.size(), 1E9, [dir](const Photon& photon){
+            auto [nbPhotonsFound, maxDist] = photonMap->getElementsNearestTo(hitpoint, photons.size(), 1E9, [dir](const Photon& photon){
                 return dir.dot(photon.surfaceNormal) >= 0;
             }, photons);
 
@@ -308,7 +309,23 @@ std::tuple<Vector3, RGB, float> DiffuseMaterial::interactPhoton(const SceneRayHi
     return std::make_tuple(direction, diffuseColor.multiply(incomingEnergy), 1.0f);
 }
 
-bool DiffuseMaterial::hasVariance(const SceneRayHitInfo &hit, const Scene &scene) const
+bool DiffuseMaterial::hasVariance(const std::vector<TransportNode> &path, int curI, const Scene &scene) const
 {
-    return scene.getPhotonMapMode() != PhotonMapMode::full;
+    if(scene.getPhotonMapMode() == PhotonMapMode::full)
+    {
+        int curDiffuseI = 0;
+        for(int i = 0; i < curI; i++)
+        {
+            if(path[i].specularity < 0.8)
+            {
+                curDiffuseI++;
+            }
+        }
+        if(curDiffuseI >= scene.getPhotonMapDepth())
+        {
+            return false;
+        }
+    }
+
+    return true;
 }
