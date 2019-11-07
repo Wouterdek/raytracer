@@ -23,4 +23,5 @@ public:
 
 //private:
 	std::unique_ptr<DynamicSceneNode> root;
+	std::unique_ptr<IEnvironmentMaterial> environmentMaterial;
 };

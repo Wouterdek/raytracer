@@ -10,6 +10,7 @@
 #include "SceneNode.h"
 #include "light/PointLight.h"
 #include "light/AreaLight.h"
+#include "material/environment/IEnvironmentMaterial.h"
 #include "photonmapping/PhotonMap.h"
 
 class Scene
@@ -38,6 +39,21 @@ public:
 	{
 		return this->cameras;
 	}
+
+    bool hasEnvironmentMaterial() const
+    {
+        return environmentMaterial != nullptr;
+    }
+
+    const IEnvironmentMaterial& getEnvironmentMaterial() const
+    {
+        return *environmentMaterial;
+    }
+
+    void setEnvironmentMaterial(std::unique_ptr<IEnvironmentMaterial> material)
+    {
+        environmentMaterial = std::move(material);
+    }
 
     const std::optional<PhotonMap>& getPhotonMap() const
     {
@@ -79,6 +95,7 @@ private:
 	std::vector<std::unique_ptr<PointLight>> pointLights;
 	std::vector<std::unique_ptr<AreaLight>> areaLights;
 	std::vector<SceneNode<ICamera>> cameras;
+	std::unique_ptr<IEnvironmentMaterial> environmentMaterial = nullptr;
 	std::optional<PhotonMap> photonMap;
     PhotonMapMode photonMappingMode = PhotonMapMode::none;
     int photonMapDepth = 0;

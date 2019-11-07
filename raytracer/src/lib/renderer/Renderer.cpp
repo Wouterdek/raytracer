@@ -9,12 +9,14 @@
 
 #undef min
 
-void samplePath(std::vector<TransportNode>& path, int samplingStartIndex, int maxPathLength, const Scene& scene, int materialAALevel, int sampleI)
+// Returns true if the returned path ends prematurely
+bool samplePath(std::vector<TransportNode>& path, int samplingStartIndex, int maxPathLength, const Scene& scene, int materialAALevel, int sampleI)
 {
     TransportBuildContext ctx(scene, path);
     ctx.curI = samplingStartIndex;
 
-    bool pathDone;
+    bool pathDone = false;
+    bool pathTerminated = false; //Max length was reached or russian roulette triggered
     std::optional<SceneRayHitInfo> hit;
     std::optional<std::function<void()>> curNodeCallback {};
     if(samplingStartIndex > 0)
@@ -46,7 +48,8 @@ void samplePath(std::vector<TransportNode>& path, int samplingStartIndex, int ma
         curNodeCallback = ctx.nextNodeCallback;
         ctx.nextNodeCallback.reset();
 
-        pathDone = curNode.isEmissive || (path.size() == maxPathLength) || (Rand::unit() < curNode.pathTerminationChance);
+        pathTerminated = (ctx.curI+1 == maxPathLength) || (!curNode.isEmissive && Rand::unit() < curNode.pathTerminationChance);
+        pathDone = curNode.isEmissive || pathTerminated;
 
         if(!pathDone)
         {
@@ -72,19 +75,26 @@ void samplePath(std::vector<TransportNode>& path, int samplingStartIndex, int ma
             }
         }
         ctx.curI++;
-        if(ctx.curI == path.size())
+        /*if(ctx.curI == maxPathLength)
         {
             pathDone = true;
-        }
+        }*/
     }while(!pathDone);
 
     path.erase(path.begin()+ctx.curI, path.end());
+    return pathTerminated;
 }
 
 RGB calculatePathEnergy(std::vector<TransportNode>& path, const Scene& scene)
 {
     // Calculate light transported along this path
-    RGB energy {};
+    const auto& lastNode = path[path.size()-1];
+
+    RGB energy;
+    if(scene.hasEnvironmentMaterial() && !lastNode.isEmissive)
+    {
+        energy = scene.getEnvironmentMaterial().getRadiance(scene, lastNode.transportDirection);
+    }
     for(int pathI = path.size()-1; pathI >= 0; --pathI) //From path end to front
     {
         auto& curPathElem = path[pathI];
@@ -133,10 +143,11 @@ void Renderer::render(const Scene &scene, FrameBuffer &buffer, const Tile &tile,
                     Vector2 sample = Vector2(x, y) + sampleUniformStratifiedSquare(renderSettings.geometryAAModifier, i);
                     Ray ray = camera.generateRay(sample, buffer.getHorizontalResolution(), buffer.getVerticalResolution());
                     auto hit = scene.traceRay(ray);
+                    bool pathWasTerminated;
                     if (hit.has_value())
                     {
                         auto& pathNode = path.emplace_back(*hit);
-                        samplePath(path, 0, maxPathLength, scene, renderSettings.materialAAModifier, 0);
+                        pathWasTerminated = samplePath(path, 0, maxPathLength, scene, renderSettings.materialAAModifier, 0);
                     }
                     else
                     {
@@ -152,14 +163,21 @@ void Renderer::render(const Scene &scene, FrameBuffer &buffer, const Tile &tile,
                         }
                     }
 
-                    RGB matSample = calculatePathEnergy(path, scene);
+                    RGB matSample {};
+                    if(!pathWasTerminated)
+                    {
+                        matSample = calculatePathEnergy(path, scene);
+                    }
                     if(firstNodeWithVariance < path.size())
                     {
                         for(int j = 1; j < renderSettings.materialAAModifier; j++)
                         {
                             // From the first geometry hit on, resample the transport path if the bsdf at the hitpoint has variance.
-                            samplePath(path, firstNodeWithVariance, maxPathLength, scene, renderSettings.materialAAModifier, j);
-                            matSample = matSample.add(calculatePathEnergy(path, scene));
+                            pathWasTerminated = samplePath(path, firstNodeWithVariance, maxPathLength, scene, renderSettings.materialAAModifier, j);
+                            if(!pathWasTerminated)
+                            {
+                                matSample = matSample.add(calculatePathEnergy(path, scene));
+                            }
                         }
                         matSample = matSample.divide(renderSettings.materialAAModifier);
                     }

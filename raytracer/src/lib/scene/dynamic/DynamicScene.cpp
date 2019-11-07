@@ -14,6 +14,10 @@ DynamicScene::DynamicScene()
 DynamicScene DynamicScene::soupifyScene(Statistics::Collector* stats) const
 {
     DynamicScene result {};
+    if(this->environmentMaterial != nullptr)
+    {
+        result.environmentMaterial = this->environmentMaterial->clone();
+    }
     result.root = std::make_unique<DynamicSceneNode>();
 
     auto mergedMesh = std::make_shared<TriangleMesh>(true);
@@ -118,5 +122,10 @@ Scene DynamicScene::build(Statistics::Collector* stats) const
 
 	auto sceneBVH = BVHBuilder<SceneRayHitInfo>::buildBVH(modelList, stats);
     LOGSTAT(stats, "TopLevelBVHNodeCount", sceneBVH.getSize());
-	return Scene(std::move(pointLights), std::move(areaLights), std::move(cameras), std::move(sceneBVH));
+	Scene scene(std::move(pointLights), std::move(areaLights), std::move(cameras), std::move(sceneBVH));
+	if(this->environmentMaterial != nullptr)
+    {
+        scene.setEnvironmentMaterial(this->environmentMaterial->clone());
+    }
+	return scene;
 }
