@@ -1,4 +1,4 @@
-#include "PNGWriter.h"
+#include "PNG.h"
 #include "io/lib/lodepng.h"
 #include "film/FrameBuffer.h"
 #include <algorithm>
@@ -24,4 +24,15 @@ void write_to_png_file(const FrameBuffer& buffer, std::string filepath, double e
 	}
 
 	lodepng::encode(filepath, rgb, width, height, LodePNGColorType::LCT_RGB);
+}
+
+void read_from_png_file(std::vector<unsigned char> &out, unsigned &w, unsigned &h, const std::string &filename)
+{
+    unsigned error = lodepng::decode(out, w, h, filename);
+    if(error)
+    {
+        std::stringstream errorMsg;
+        errorMsg << "Failed to load png (errorcode = " << error << ")";
+        throw std::runtime_error(errorMsg.str());
+    }
 }

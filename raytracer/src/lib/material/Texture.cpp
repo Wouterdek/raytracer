@@ -1,7 +1,7 @@
 #include "Texture.h"
 #include <vector>
 #include <cmath>
-#include "io/lib/lodepng.h"
+#include "io/PNG.h"
 
 Texture::Texture(std::vector<unsigned char> image, unsigned width, unsigned height)
     : image(std::move(image)), width(width), height(height)
@@ -17,7 +17,7 @@ Texture Texture::loadPNG(std::string path)
 	//decode
     std::vector<unsigned char> imageData;
     unsigned width, height;
-	unsigned error = lodepng::decode(imageData, width, height, path);
+    read_from_png_file(imageData, width, height, path);
 	
 	return Texture(std::move(imageData), width, height);
 }
