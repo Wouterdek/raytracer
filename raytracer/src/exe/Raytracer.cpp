@@ -245,10 +245,12 @@ int main(int argc, char** argv)
                 std::cout << "Loading photon map..." << std::endl;
                 std::fstream in(photonMapFilePath, std::fstream::in | std::fstream::binary);
                 photonMap = PhotonMap::deserialize(in);
+                std::cout << "Loaded " << photonMap.getSize() << " photons" << std::endl;
             }
             else
             {
                 std::cout << "Building photon map..." << std::endl;
+
                 photonMap = PhotonMapBuilder::buildPhotonMap(scene, photonMappingMode, progressPrinter);
             }
 
