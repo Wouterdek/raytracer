@@ -117,7 +117,7 @@ void GlassMaterial::sampleTransport(TransportBuildContext &ctx) const
         }
     }
 
-    for(const auto& light : ctx.scene.getPointLights())
+    /*for(const auto& light : ctx.scene.getPointLights())
     {
         const auto MAX_ANGLE = M_PI / 128.0f;
 
@@ -134,7 +134,7 @@ void GlassMaterial::sampleTransport(TransportBuildContext &ctx) const
                 bestT = lightT;
             }
         }
-    }
+    }*/
 
     meta->t = bestT;
 
