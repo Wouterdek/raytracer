@@ -229,8 +229,9 @@ int main(int argc, char** argv)
         auto memUsageDelta = getMemoryUsage() - memUsageBefore;
         std::cout << "Scene loaded, total memory delta = " << memUsageDelta << " bytes" << std::endl;
 
-        auto progressPrinter = [](const std::string& taskDesc, float progress, bool done){
-            std::cout << taskDesc << " - " << progress*100 << "%\r";
+        auto progressPrinter = [](const std::string& taskDesc, float progress, std::chrono::high_resolution_clock::duration duration, bool done){
+            auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(duration).count();
+            std::cout << taskDesc << " - " << progress*100 << "% (" << ms << " ms)\r";
             if(done)
             {
                 std::cout << "\n";

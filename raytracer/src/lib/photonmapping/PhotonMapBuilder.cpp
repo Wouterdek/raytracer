@@ -32,7 +32,6 @@ PhotonMap PhotonMapBuilder::buildPhotonMap(const Scene& scene, PhotonMapMode mod
         tbb::task::spawn_root_and_wait(tasks);
     }
 
-    //return photons;
     // Build KD-tree from photon list
     std::stringstream msg;
     msg << "Building photon KD-tree (" << photons.size() << " photons)";
