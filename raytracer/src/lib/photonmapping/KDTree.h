@@ -303,17 +303,7 @@ public:
 
         // Restore all pointers
         auto memBaseOffset = reinterpret_cast<uintptr_t>(packedNodes.data());
-        for(PackedNode& node : packedNodes)
-        {
-            for(int i = 0; i < PackedNode::ChildCount; i++)
-            {
-                if(node.children[i] != nullptr)
-                {
-                    auto childOffset = reinterpret_cast<uintptr_t>(node.children[i].ptr);
-                    node.children[i].ptr = reinterpret_cast<PackedNode *>(childOffset - diskBaseOffset + memBaseOffset);
-                }
-            }
-        }
+        rebasePackedNodePtrs(packedNodes, diskBaseOffset, memBaseOffset);
 
         return KDTree<TContent, posAccessor>(std::move(packedNodes), treeSize);
     }
@@ -328,35 +318,53 @@ public:
         std::unique_ptr<LinkedNode> root = std::move(std::get<std::unique_ptr<LinkedNode>>(nodes));
 
         std::vector<PackedNode> packedNodes;
-        packedNodes.reserve(treeSize);
+        //packedNodes.reserve(treeSize);
 
-        std::queue<std::tuple<std::unique_ptr<LinkedNode>, PackedNode*, int>> remainingNodes;
-        remainingNodes.push(std::make_tuple(std::move(root), nullptr, 0));
+        struct QueuedNode { std::unique_ptr<LinkedNode> node; size_t parentId; int childIndex; };
+        std::queue<QueuedNode> remainingNodes;
+        const auto nullNodeId = 0;
+        remainingNodes.push(QueuedNode{std::move(root), nullNodeId, 0});
 
         while(!remainingNodes.empty())
         {
             auto& cur = remainingNodes.front();
-            std::unique_ptr<LinkedNode> node = std::move(std::get<0>(cur));
-            PackedNode* parentNode = std::get<1>(cur);
-            int childI = std::get<2>(cur);
-            remainingNodes.pop();
 
-            packedNodes.emplace_back(node->getContent(), node->getAxis());
-            if(!node->isLeafNode())
+            PackedNode& curNodePacked = packedNodes.emplace_back(cur.node->getContent(), cur.node->getAxis());
+            auto curNodeId = packedNodes.size();
+            if(!cur.node->isLeafNode())
             {
-                for(int i = 0; i < 2; i++)
+                for(int i = 0; i < PackedNode::ChildCount; i++)
                 {
-                    if(node->hasChild(i))
+                    if(cur.node->hasChild(i))
                     {
-                        remainingNodes.push(std::make_tuple(std::move(node->getChildPtr(i)), &packedNodes.back(), i));
+                        remainingNodes.push(QueuedNode{std::move(cur.node->getChildPtr(i)), curNodeId, i});
                     }
                 }
             }
-            PackedNode& curNode = packedNodes.back();
 
-            if(parentNode != nullptr)
+            if(cur.parentId != nullNodeId)
             {
-                parentNode->setChild(childI, raw_pointer(&curNode));
+                // A pointer to the current node is to be stored in the parent.
+                // To allow movement of the packed nodes vector while it grows, we temporarily store the node ID instead.
+                // After construction completes, the IDs are replaced with the real pointers.
+                // The alternative is to reserve enough space in the vector to make sure it never reallocates,
+                // which also prevents copying. However, this requires having enough system memory to
+                // store a full additional copy of the data, which is unacceptable.
+                packedNodes[cur.parentId-1].setChild(cur.childIndex, raw_pointer(reinterpret_cast<PackedNode*>(curNodeId)));
+            }
+
+            remainingNodes.pop();
+        }
+
+        for(PackedNode& node : packedNodes)
+        {
+            for(int i = 0; i < PackedNode::ChildCount; i++)
+            {
+                if(node.children[i] != nullptr)
+                {
+                    auto childId = reinterpret_cast<size_t>(node.children[i].ptr);
+                    node.children[i].ptr = &packedNodes[childId-1];
+                }
             }
         }
 
@@ -407,4 +415,19 @@ private:
             std::vector<PackedNode>
     > nodes;
     size_t treeSize;
+
+    static void rebasePackedNodePtrs(std::vector<PackedNode>& packedNodes, uintptr_t currentOffset, uintptr_t newOffset)
+    {
+        for(PackedNode& node : packedNodes)
+        {
+            for(int i = 0; i < PackedNode::ChildCount; i++)
+            {
+                if(node.children[i] != nullptr)
+                {
+                    auto childOffset = reinterpret_cast<uintptr_t>(node.children[i].ptr);
+                    node.children[i].ptr = reinterpret_cast<PackedNode *>(childOffset - currentOffset + newOffset);
+                }
+            }
+        }
+    }
 };
