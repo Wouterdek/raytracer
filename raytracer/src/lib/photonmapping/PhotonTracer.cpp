@@ -3,7 +3,7 @@
 #include "math/Sampler.h"
 #include "math/FastRandom.h"
 
-void tracePhoton(const Scene& scene, Ray& photonRay, RGB photonEnergy, PhotonMapMode mode, tbb::concurrent_vector<Photon>& resultAcc)
+void tracePhoton(const Scene& scene, Ray& photonRay, RGB photonEnergy, PhotonMapMode mode, PhotonList& resultAcc)
 {
     bool hasPassedDiffuse = false;
     bool hasPassedSpecular = false;
@@ -50,47 +50,129 @@ void tracePhoton(const Scene& scene, Ray& photonRay, RGB photonEnergy, PhotonMap
     }
 }
 
-tbb::task *PointLightPhotonTracingTask::execute()
+class Task
 {
-    // Trace photons from light source into scene
-    RGB energyPerPhoton = light.get().color * (light.get().intensity / (double)totalPhotonCount);
+public:
+    virtual ~Task() = default;
+    virtual void execute() = 0;
+};
 
-    for (size_type photonI = startIdx; photonI < endIdx; ++photonI) {
-        auto photonDir = sampleUniformSphere(1.0);
+class PointLightPhotonTracingTask : public Task
+{
+public:
+    using size_type = std::vector<Photon>::size_type;
 
-        Ray photonRay(light.get().pos, photonDir);
-        tracePhoton(scene, photonRay, energyPerPhoton, mode, photons);
+    std::reference_wrapper<const Scene> scene;
+    std::reference_wrapper<const PointLight> light;
+    std::reference_wrapper<PhotonList> photons;
+    ProgressTracker& progress;
+    PhotonMapMode mode;
+    size_type startIdx;
+    size_type endIdx;
+    size_type totalPhotonCount;
+
+    PointLightPhotonTracingTask(const Scene& scene, const PointLight& light, PhotonList& photons,
+                                PhotonMapMode mode, size_type startIdx, size_type endIdx, size_type totalPhotonCount, ProgressTracker& progress)
+            : scene(std::ref(scene)), light(std::ref(light)), photons(photons), mode(mode), startIdx(startIdx),
+              endIdx(endIdx), totalPhotonCount(totalPhotonCount), progress(progress)
+    { }
+
+    void execute() override
+    {
+        // Trace photons from light source into scene
+        RGB energyPerPhoton = light.get().color * (light.get().intensity / (double)totalPhotonCount);
+
+        for (size_type photonI = startIdx; photonI < endIdx; ++photonI) {
+            auto photonDir = sampleUniformSphere(1.0);
+
+            Ray photonRay(light.get().pos, photonDir);
+            tracePhoton(scene, photonRay, energyPerPhoton, mode, photons);
+        }
+        progress.signalTaskFinished();
     }
-    progress.signalTaskFinished();
+};
 
-    return nullptr;
-}
-
-tbb::task *AreaLightPhotonTracingTask::execute()
+class AreaLightPhotonTracingTask : public Task
 {
-    // Trace photons from light source into scene
-    const auto& light = lightRef.get();
-    auto lightEnergy = light.color * light.intensity;
-    RGB energyPerPhoton = lightEnergy.divide(totalPhotonCount);
-    OrthonormalBasis basis((light.b - light.a).cross(light.c - light.a));
+public:
+    using size_type = std::vector<Photon>::size_type;
 
-    for (size_type photonI = startIdx; photonI < endIdx; ++photonI) {
-        auto photonPos = light.generateStratifiedJitteredRandomPoint(endIdx-startIdx, photonI-startIdx);
-        auto localDir = mapSampleToCosineWeightedHemisphere(Rand::unit(), Rand::unit(), 1.0);
-        auto photonDir = (basis.getU() * localDir.x()) + (basis.getV() * localDir.y()) + (basis.getW() * localDir.z());
+    std::reference_wrapper<const Scene> scene;
+    std::reference_wrapper<const AreaLight> lightRef;
+    std::reference_wrapper<PhotonList> photons;
+    PhotonMapMode mode;
+    ProgressTracker& progress;
+    size_type startIdx;
+    size_type endIdx;
+    size_type totalPhotonCount;
 
-        Ray photonRay(photonPos + photonDir*0.0001f, photonDir);
-        tracePhoton(scene, photonRay, energyPerPhoton, mode, photons);
+    AreaLightPhotonTracingTask(const Scene& scene, const AreaLight& light, PhotonList& photons,
+                               PhotonMapMode mode, size_type startIdx, size_type endIdx, size_type totalPhotonCount, ProgressTracker& progress)
+            : scene(std::ref(scene)), lightRef(std::ref(light)), photons(photons), mode(mode), startIdx(startIdx),
+              endIdx(endIdx), totalPhotonCount(totalPhotonCount), progress(progress)
+    { }
+
+    void execute() override
+    {
+        // Trace photons from light source into scene
+        const auto& light = lightRef.get();
+        auto lightEnergy = light.color * light.intensity;
+        RGB energyPerPhoton = lightEnergy.divide(totalPhotonCount);
+        OrthonormalBasis basis((light.b - light.a).cross(light.c - light.a));
+
+        for (size_type photonI = startIdx; photonI < endIdx; ++photonI) {
+            auto photonPos = light.generateStratifiedJitteredRandomPoint(endIdx-startIdx, photonI-startIdx);
+            auto localDir = mapSampleToCosineWeightedHemisphere(Rand::unit(), Rand::unit(), 1.0);
+            auto photonDir = (basis.getU() * localDir.x()) + (basis.getV() * localDir.y()) + (basis.getW() * localDir.z());
+
+            Ray photonRay(photonPos + photonDir*0.0001f, photonDir);
+            tracePhoton(scene, photonRay, energyPerPhoton, mode, photons);
+        }
+
+        progress.signalTaskFinished();
     }
+};
 
-    progress.signalTaskFinished();
-
-    return nullptr;
-}
-
-void PhotonTracer::createPhotonTracingTasks(const Scene &scene, tbb::task_list &tasks, PhotonTracer::size_type &taskCount,
-                                       tbb::concurrent_vector<Photon> &photons, ProgressTracker& progress)
+#ifdef NO_TBB
+void runTasks(std::vector<std::unique_ptr<Task>>& tasks)
 {
+    for(auto& task : tasks)
+    {
+        task->execute();
+    }
+}
+#else
+class TBBTaskWrapper : public tbb::task
+{
+public:
+    std::unique_ptr<Task> task;
+    TBBTaskWrapper(std::unique_ptr<Task> task) : task(std::move(task)) {}
+
+    task* execute() override
+    {
+        task->execute();
+    }
+};
+
+void runTasks(std::vector<std::unique_ptr<Task>>& tasks)
+{
+    tbb::task_list tbbTasks{};
+    for(auto& task : tasks)
+    {
+        auto& tbbTask = *new(tbb::task::allocate_root()) TBBTaskWrapper(std::move(task));
+        tbbTasks.push_back(task);
+    }
+    tbb::task::spawn_root_and_wait(tbbTasks);
+}
+#endif
+
+void PhotonTracer::tracePhotons(const Scene &scene, PhotonList& photons, ProgressMonitor progressMon)
+{
+    ProgressTracker progress(progressMon);
+
+    std::vector<std::unique_ptr<Task>> tasks{};
+    size_type taskCount = 0;
+
     taskCount = 0;
 
     // Emit photons from all point light sources
@@ -99,8 +181,7 @@ void PhotonTracer::createPhotonTracingTasks(const Scene &scene, tbb::task_list &
         for(size_type i = 0; i < photonsPerPointLight; i += batchSize)
         {
             auto endIdx = std::min(i+batchSize, photonsPerPointLight);
-            auto& task = *new(tbb::task::allocate_root()) PointLightPhotonTracingTask(scene, *light, photons, mode, i, endIdx, photonsPerPointLight, progress);
-            tasks.push_back(task);
+            tasks.push_back(std::make_unique<PointLightPhotonTracingTask>(scene, *light, photons, mode, i, endIdx, photonsPerPointLight, progress));
             taskCount++;
         }
         auto remainingPhotons = photonsPerPointLight % batchSize;
@@ -108,8 +189,7 @@ void PhotonTracer::createPhotonTracingTasks(const Scene &scene, tbb::task_list &
         {
             auto startIdx = photonsPerPointLight - remainingPhotons;
             auto endIdx = photonsPerPointLight;
-            auto& task = *new(tbb::task::allocate_root()) PointLightPhotonTracingTask(scene, *light, photons, mode, startIdx, endIdx, photonsPerPointLight, progress);
-            tasks.push_back(task);
+            tasks.push_back(std::make_unique<PointLightPhotonTracingTask>(scene, *light, photons, mode, startIdx, endIdx, photonsPerPointLight, progress));
             taskCount++;
         }
     }
@@ -120,8 +200,7 @@ void PhotonTracer::createPhotonTracingTasks(const Scene &scene, tbb::task_list &
         for(size_type i = 0; i < photonsPerAreaLight; i += batchSize)
         {
             auto endIdx = std::min(i+batchSize, photonsPerAreaLight);
-            auto& task = *new(tbb::task::allocate_root()) AreaLightPhotonTracingTask(scene, *light, photons, mode, i, endIdx, photonsPerAreaLight, progress);
-            tasks.push_back(task);
+            tasks.push_back(std::make_unique<AreaLightPhotonTracingTask>(scene, *light, photons, mode, i, endIdx, photonsPerAreaLight, progress));
             taskCount++;
         }
         auto remainingPhotons = photonsPerAreaLight % batchSize;
@@ -129,9 +208,11 @@ void PhotonTracer::createPhotonTracingTasks(const Scene &scene, tbb::task_list &
         {
             auto startIdx = photonsPerAreaLight - remainingPhotons;
             auto endIdx = photonsPerAreaLight;
-            auto& task = *new(tbb::task::allocate_root()) AreaLightPhotonTracingTask(scene, *light, photons, mode, startIdx, endIdx, photonsPerAreaLight, progress);
-            tasks.push_back(task);
+            tasks.push_back(std::make_unique<AreaLightPhotonTracingTask>(scene, *light, photons, mode, startIdx, endIdx, photonsPerAreaLight, progress));
             taskCount++;
         }
     }
+
+    progress.startNewJob("Tracing photons", taskCount);
+
 }

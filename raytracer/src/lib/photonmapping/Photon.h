@@ -21,3 +21,10 @@ struct Photon
         return pos;
     }
 };
+
+#ifdef NO_TBB
+using PhotonList = std::vector<Photon>;
+#else
+#include <tbb/tbb.h>
+using PhotonList = tbb::concurrent_vector<Photon>;
+#endif
