@@ -7,8 +7,9 @@ void tracePhoton(const Scene& scene, Ray& photonRay, RGB photonEnergy, PhotonMap
 {
     bool hasPassedDiffuse = false;
     bool hasPassedSpecular = false;
-    float russianRouletteRate = 0.01f;
-    while(true){
+    //while(true){
+    int maxDepth = 12;
+    for(int i = 0; i < maxDepth; ++i){
         auto hit = scene.traceRay(photonRay);
 
         if(!hit.has_value())
@@ -35,12 +36,17 @@ void tracePhoton(const Scene& scene, Ray& photonRay, RGB photonEnergy, PhotonMap
         hasPassedSpecular = hasPassedSpecular || !isDiffuseTransport;
 
         photonRay = Ray(hitpoint + newPhotonRayDir * 0.00005, newPhotonRayDir);
+
         photonEnergy = newPhotonEnergy;
 
-        if(Rand::unit() < russianRouletteRate)
+        /*auto reflectance = newPhotonEnergy.divide(photonEnergy+RGB{1E-6, 1E-6, 1E-6});
+        auto avgReflectance = (reflectance.getRed() + reflectance.getGreen() + reflectance.getBlue())/3.0f;
+        photonEnergy = newPhotonEnergy.divide(avgReflectance);
+
+        if(Rand::unit() > avgReflectance)
         {
             break;
-        }
+        }*/
     }
 }
 
@@ -64,7 +70,8 @@ tbb::task *AreaLightPhotonTracingTask::execute()
 {
     // Trace photons from light source into scene
     const auto& light = lightRef.get();
-    RGB energyPerPhoton = light.color * (light.intensity / (double)totalPhotonCount);
+    auto lightEnergy = light.color * light.intensity;
+    RGB energyPerPhoton = lightEnergy.divide(totalPhotonCount);
     OrthonormalBasis basis((light.b - light.a).cross(light.c - light.a));
 
     for (size_type photonI = startIdx; photonI < endIdx; ++photonI) {
