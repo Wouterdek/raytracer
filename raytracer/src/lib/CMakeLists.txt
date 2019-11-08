@@ -5,13 +5,25 @@
 
 add_library(raytracer_lib ${raytracer_lib_SRC})
 
-find_package(Eigen3 REQUIRED NO_MODULE)
-#find_package(Boost 1.69 REQUIRED COMPONENTS fiber)
-find_package(TBB CONFIG REQUIRED)
-
 target_include_directories(raytracer_lib PRIVATE ${RAYTRACER_SOURCE_DIR}/src/lib)
-if(UNIX)
-    target_link_libraries(raytracer_lib PRIVATE Eigen3::Eigen TBB::tbb -lpthread -lm stdc++fs)
+
+#Eigen3
+if(EMSCRIPTEN)
+    target_include_directories(raytracer_lib PRIVATE "/home/wouter/vcpkg/packages/eigen3_x86-wasm/include")
 else()
-    target_link_libraries(raytracer_lib PRIVATE Eigen3::Eigen TBB::tbb)
+    find_package(Eigen3 REQUIRED NO_MODULE)
+    target_link_libraries(raytracer_lib PRIVATE Eigen3::Eigen)
+endif()
+
+#TBB
+if(TRUE)
+    target_compile_definitions(raytracer_lib PRIVATE NO_TBB=1)
+else()
+    find_package(TBB CONFIG REQUIRED)
+    target_link_libraries(raytracer_lib PRIVATE TBB::tbb)
+endif()
+
+#UNIX stdlib
+if(UNIX)
+    target_link_libraries(raytracer_lib PRIVATE -lpthread -lm stdc++fs)
 endif()

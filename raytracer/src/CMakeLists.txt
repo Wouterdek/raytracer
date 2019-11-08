@@ -1,2 +1,5 @@
 ﻿add_subdirectory (lib)
-add_subdirectory (exe)
+if(EMSCRIPTEN)
+else()
+    add_subdirectory (exe)
+endif()

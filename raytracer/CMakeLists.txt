@@ -1,4 +1,4 @@
-﻿cmake_minimum_required (VERSION 3.12)
+﻿cmake_minimum_required (VERSION 3.10)
 project(RAYTRACER)
 
 set(CMAKE_CXX_STANDARD 17)
@@ -23,6 +23,10 @@ if(WIN32)
 	set (CMAKE_CXX_FLAGS_RELEASE  "${CMAKE_CXX_FLAGS_RELEASE} /GS- /fp:fast")
 endif()
 
+if(EMSCRIPTEN)
+  set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++17")
+endif()
+
 set(CMAKE_VERBOSE_MAKEFILE ON)
 
 if(UNIX)
@@ -31,5 +35,5 @@ if(UNIX)
 endif()
 
 add_subdirectory (src) 
-add_subdirectory (test)
+#add_subdirectory (test)
 

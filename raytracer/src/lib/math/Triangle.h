@@ -27,6 +27,8 @@ namespace Triangle
 #define FORCE_TOTAL_INLINE __attribute__((always_inline)) __attribute__((flatten))
 #elif WIN32
 #define FORCE_TOTAL_INLINE __forceinline
+#else
+#define FORCE_TOTAL_INLINE
 #endif
 
     FORCE_TOTAL_INLINE inline bool intersect(const Ray& ray, const Vector3& a, const Vector3& b, const Vector3& c, TriangleIntersection& result) noexcept
