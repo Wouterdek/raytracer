@@ -9,14 +9,18 @@ target_include_directories(raytracer_lib PRIVATE ${RAYTRACER_SOURCE_DIR}/src/lib
 
 #Eigen3
 if(EMSCRIPTEN)
-    target_include_directories(raytracer_lib PRIVATE "/home/wouter/vcpkg/packages/eigen3_x86-wasm/include")
+    if(DEFINED ENV{EIGEN3_INCLUDE_DIR})
+        target_include_directories(raytracer_lib PRIVATE $ENV{EIGEN3_INCLUDE_DIR})
+    else()
+        message("Missing Eigen3, please set EIGEN3_INCLUDE_DIR")
+    endif()
 else()
     find_package(Eigen3 REQUIRED NO_MODULE)
     target_link_libraries(raytracer_lib PRIVATE Eigen3::Eigen)
 endif()
 
 #TBB
-if(TRUE)
+if(EMSCRIPTEN)
     target_compile_definitions(raytracer_lib PRIVATE NO_TBB=1)
 else()
     find_package(TBB CONFIG REQUIRED)
@@ -24,6 +28,8 @@ else()
 endif()
 
 #UNIX stdlib
-if(UNIX)
+if(EMSCRIPTEN)
+    target_link_libraries(raytracer_lib PRIVATE -lpthread -lm)
+elseif(UNIX)
     target_link_libraries(raytracer_lib PRIVATE -lpthread -lm stdc++fs)
 endif()

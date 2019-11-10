@@ -25,14 +25,14 @@ set_target_properties(gmock PROPERTIES FOLDER extern)
 set_target_properties(gmock_main PROPERTIES FOLDER extern)
 ###
 
-#find_package(Eigen3 REQUIRED NO_MODULE)
+find_package(Eigen3 REQUIRED NO_MODULE)
 #find_package(Boost 1.69 REQUIRED COMPONENTS fiber)
-#find_package(TBB CONFIG REQUIRED)
+find_package(TBB CONFIG REQUIRED)
 
 add_executable(tests ${tests_SRC})
 
 target_include_directories(tests PRIVATE ${RAYTRACER_SOURCE_DIR}/src/lib)
-target_link_libraries (tests PRIVATE gmock gtest gtest_main raytracer_lib) #Eigen3::Eigen TBB::tbb
+target_link_libraries (tests PRIVATE gmock gtest gtest_main raytracer_lib Eigen3::Eigen TBB::tbb)
 
 #find_package(GTest MODULE REQUIRED)
 

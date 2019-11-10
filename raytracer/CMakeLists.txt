@@ -23,10 +23,6 @@ if(WIN32)
 	set (CMAKE_CXX_FLAGS_RELEASE  "${CMAKE_CXX_FLAGS_RELEASE} /GS- /fp:fast")
 endif()
 
-if(EMSCRIPTEN)
-  set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++17")
-endif()
-
 set(CMAKE_VERBOSE_MAKEFILE ON)
 
 if(UNIX)
@@ -34,6 +30,12 @@ if(UNIX)
   set (CMAKE_CXX_FLAGS_RELEASE  "${CMAKE_CXX_FLAGS_RELEASE} -ftree-vectorize -march=native -mtune=native -mavx -mavx2")
 endif()
 
-add_subdirectory (src) 
-#add_subdirectory (test)
+if(EMSCRIPTEN)
+  set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -s ALLOW_MEMORY_GROWTH=1 -s USE_WEBGL2=1 -s USE_PTHREADS=1 -s WASM_MEM_MAX=2GB -s OFFSCREEN_FRAMEBUFFER=1")
+endif()
 
+add_subdirectory (src)
+
+if(DEFINED ENV{ENABLE_TESTS})
+  add_subdirectory (test)
+endif()
