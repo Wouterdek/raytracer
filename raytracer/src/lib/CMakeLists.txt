@@ -6,6 +6,10 @@
 add_library(raytracer_lib ${raytracer_lib_SRC})
 
 target_include_directories(raytracer_lib PRIVATE ${RAYTRACER_SOURCE_DIR}/src/lib)
+if(EMSCRIPTEN)
+else()
+    target_compile_definitions(raytracer_lib PRIVATE ENABLE_SIMD ENABLE_L2_BVH_PACK)
+endif()
 
 #Eigen3
 if(EMSCRIPTEN)

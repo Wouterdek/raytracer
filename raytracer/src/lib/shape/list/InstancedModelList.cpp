@@ -70,7 +70,9 @@ void InstancedModelList::buildShapeBVHCache(Statistics::Collector* stats) const
             if(it == this->data->shapeBVHs.end())
             {
                 auto bvh = BVHBuilder<RayHitInfo>::buildBVH(*list, stats);
+#ifdef ENABLE_L2_BVH_PACK
                 bvh.pack();
+#endif
                 LOGSTAT(stats, "SecondLevelBVHNodeCount", bvh.getSize());
                 this->data->shapeBVHs.insert({ shape, std::move(bvh) });
             }
