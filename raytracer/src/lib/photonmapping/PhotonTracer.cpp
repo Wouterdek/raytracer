@@ -2,6 +2,7 @@
 #include "PhotonTracer.h"
 #include "math/Sampler.h"
 #include "math/FastRandom.h"
+#include "utility/Task.h"
 
 void tracePhoton(const Scene& scene, Ray& photonRay, RGB photonEnergy, PhotonMapMode mode, PhotonList& resultAcc)
 {
@@ -49,13 +50,6 @@ void tracePhoton(const Scene& scene, Ray& photonRay, RGB photonEnergy, PhotonMap
         }*/
     }
 }
-
-class Task
-{
-public:
-    virtual ~Task() = default;
-    virtual void execute() = 0;
-};
 
 class PointLightPhotonTracingTask : public Task
 {
@@ -133,39 +127,6 @@ public:
     }
 };
 
-#ifdef NO_TBB
-void runTasks(std::vector<std::unique_ptr<Task>>& tasks)
-{
-    for(auto& task : tasks)
-    {
-        task->execute();
-    }
-}
-#else
-class TBBTaskWrapper : public tbb::task
-{
-public:
-    std::unique_ptr<Task> task;
-    TBBTaskWrapper(std::unique_ptr<Task> task) : task(std::move(task)) {}
-
-    task* execute() override
-    {
-        task->execute();
-    }
-};
-
-void runTasks(std::vector<std::unique_ptr<Task>>& tasks)
-{
-    tbb::task_list tbbTasks{};
-    for(auto& task : tasks)
-    {
-        auto& tbbTask = *new(tbb::task::allocate_root()) TBBTaskWrapper(std::move(task));
-        tbbTasks.push_back(task);
-    }
-    tbb::task::spawn_root_and_wait(tbbTasks);
-}
-#endif
-
 void PhotonTracer::tracePhotons(const Scene &scene, PhotonList& photons, ProgressMonitor progressMon)
 {
     ProgressTracker progress(progressMon);
@@ -214,5 +175,5 @@ void PhotonTracer::tracePhotons(const Scene &scene, PhotonList& photons, Progres
     }
 
     progress.startNewJob("Tracing photons", taskCount);
-
+    Task::runTasks(tasks);
 }
