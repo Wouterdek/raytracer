@@ -1,9 +1,10 @@
 #pragma once
 
+#include <memory>
+#include <unordered_map>
+#include "utility/StatCollector.h"
 #include "IShapeList.h"
 #include "math/Transformation.h"
-#include <memory>
-#include <utility/StatCollector.h>
 #include "model/Model.h"
 #include "scene/renderable/SceneRayHitInfo.h"
 #include "shape/bvh/BVH.h"

@@ -278,7 +278,7 @@ std::pair<std::unique_ptr<typename BVHBuilder<TRayHitInfo>::Node>, size_t> BVHBu
 		NodePtr node(std::move(incompleteNode.node));
 		auto [childA, childASize] = this->buildTree(*incompleteNode.leftSubList, incompleteNode.presortedAxis);
 		node->setChild(0, std::move(childA));
-        auto [childB, childBSize] =this->buildTree(*incompleteNode.rightSubList, incompleteNode.presortedAxis);
+        auto [childB, childBSize] = this->buildTree(*incompleteNode.rightSubList, incompleteNode.presortedAxis);
         node->setChild(1, std::move(childB));
 		return std::make_pair(std::move(node), childASize + childBSize);
 	}
@@ -329,6 +329,7 @@ BVH<IShapeList<TRayHitInfo>, TRayHitInfo, 2> BVHBuilder<TRayHitInfo>::buildBVH(I
     {
         logLeafNodeSizes(*rootNode, stats);
     }
+
 	return BVH<ShapeList, TRayHitInfo, 2>(std::move(rootNode), size);
 }
 

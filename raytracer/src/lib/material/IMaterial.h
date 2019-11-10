@@ -4,6 +4,8 @@
 #include "film/RGB.h"
 #include "utility/DynAllocTree.h"
 #include <functional>
+#include <optional>
+#include <vector>
 
 class Scene;
 

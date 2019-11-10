@@ -1,6 +1,8 @@
 #pragma once
 
 #include <film/RGB.h>
+#include <math/Vector3.h>
+#include <vector>
 
 struct Photon
 {
