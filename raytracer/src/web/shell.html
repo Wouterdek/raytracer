@@ -161,6 +161,23 @@
         margin-top: 0px;
       }
 
+      #shared-mem-info
+      {
+        width: 300px;
+        display: block;
+      }
+
+      #shared-mem-info h3, p
+      {
+        margin: 0px;
+        margin-bottom: 5px;
+      }
+
+      #shared-mem-info a
+      {
+        color: white;
+      }
+
     </style>
   </head>
   <body>
@@ -179,6 +196,14 @@
     <div id="page">
       <div id="controls-pane">
         <h1>WASM Raytracer</h1>
+
+        <div id="shared-mem-info">
+          <h3>⚠️ Important</h3>
+          <p>Make sure to enable shared memory support in your browser.</p>
+          <p><b>Firefox</b><br>In <a href="about:config">about:config</a>, set <i>javascript.options.shared_memory</i> to <i>true</i></p>
+          <p><b>Chrome</b><br>In <a href="chrome://flags">chrome://flags</a>, set <i>Experimental enabled SharedArrayBuffer support in JavaScript</i> to <i>enabled</i></p>
+        </div>
+
         <div id="controls">
           <h3>Scene</h3>
           <div class="controls-row">
