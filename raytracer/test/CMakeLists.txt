@@ -32,7 +32,7 @@ find_package(TBB CONFIG REQUIRED)
 add_executable(tests ${tests_SRC})
 
 target_include_directories(tests PRIVATE ${RAYTRACER_SOURCE_DIR}/src/lib)
-target_link_libraries (tests PRIVATE gmock gtest gtest_main Eigen3::Eigen raytracer_lib TBB::tbb)
+target_link_libraries (tests PRIVATE gmock gtest gtest_main raytracer_lib Eigen3::Eigen TBB::tbb)
 
 #find_package(GTest MODULE REQUIRED)
 

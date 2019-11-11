@@ -3,7 +3,6 @@
 #include <numeric>
 #include "utility/soa_sort.h"
 
-#define ENABLE_SIMD
 #ifdef ENABLE_SIMD
 #pragma GCC optimize("O3","unroll-loops","omit-frame-pointer","inline") //Optimization flags
 #pragma GCC option("arch=native","tune=native","no-zero-upper") //Enable AVX

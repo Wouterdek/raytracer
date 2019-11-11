@@ -7,29 +7,23 @@
 #include "KDTree.h"
 #include "KDTreeBuilder.h"
 #include <vector>
-#include <tbb/tbb.h>
 #include "PhotonTracer.h"
 
 using size_type = std::vector<Photon>::size_type;
 
-PhotonMap PhotonMapBuilder::buildPhotonMap(const Scene& scene, PhotonMapMode mode, ProgressMonitor progressMon)
+PhotonMap PhotonMapBuilder::buildPhotonMap(const Scene& scene, PhotonMapMode mode, size_t photonsPerAreaLight, size_t photonsPerPointLight, ProgressMonitor progressMon)
 {
     ProgressTracker progress(progressMon);
-    tbb::concurrent_vector<Photon> photons{};
+    PhotonList photons{};
 
     if(mode != PhotonMapMode::none)
     {
-        tbb::task_list tasks{};
-        size_type taskCount = 0;
         PhotonTracer tracer{};
         tracer.batchSize = 10000;
-        tracer.photonsPerAreaLight = 1E9;
-        tracer.photonsPerPointLight = 1E8;
+        tracer.photonsPerAreaLight = photonsPerAreaLight;
+        tracer.photonsPerPointLight = photonsPerPointLight;
         tracer.mode = mode;
-        tracer.createPhotonTracingTasks(scene, tasks, taskCount, photons, progress);
-
-        progress.startNewJob("Tracing photons", taskCount);
-        tbb::task::spawn_root_and_wait(tasks);
+        tracer.tracePhotons(scene, photons, progressMon);
     }
 
     // Build KD-tree from photon list

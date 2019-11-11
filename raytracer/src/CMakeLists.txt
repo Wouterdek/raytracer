@@ -1,2 +1,7 @@
 ﻿add_subdirectory (lib)
-add_subdirectory (exe)
+
+if(EMSCRIPTEN)
+    add_subdirectory (web)
+else()
+    add_subdirectory (exe)
+endif()

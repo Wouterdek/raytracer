@@ -6,11 +6,12 @@
 #include "KDTree.h"
 #include "Photon.h"
 #include "utility/unique_ptr_template.h"
+
+#ifndef NO_TBB
 #include <tbb/tbb.h>
-
 class KDTreeNodeBuildingTask;
+#endif
 
-using PhotonList = tbb::concurrent_vector<Photon>;
 struct PhotonListSlice
 {
     using iterator = PhotonList::iterator;
@@ -68,11 +69,15 @@ private:
     std::variant<NodePtr, IncompleteNode> buildNode(PhotonListSlice& photons, Axis presortedAxis);
 
     NodePtr buildTree(PhotonListSlice& photons, Axis presortedAxis);
+
+#ifndef NO_TBB
     NodePtr buildTreeThreaded(PhotonListSlice& photons, Axis presortedAxis);
+#endif
 
     inline static std::mutex exec_mutex;
 };
 
+#ifndef NO_TBB
 class KDTreeNodeBuildingTask : public tbb::task
 {
 public:
@@ -136,6 +141,7 @@ public:
         return nullptr;
     }
 };
+#endif
 
 /**************************************/
 /**** KDTreeBuilder implementation ****/
@@ -228,6 +234,7 @@ std::unique_ptr<typename KDTreeBuilder::Node> KDTreeBuilder::buildTree(PhotonLis
     }
 }*/
 
+#ifndef NO_TBB
 std::unique_ptr<typename KDTreeBuilder::Node> KDTreeBuilder::buildTreeThreaded(PhotonListSlice& photons, Axis presortedAxis)
 {
     NodePtr node;
@@ -236,6 +243,7 @@ std::unique_ptr<typename KDTreeBuilder::Node> KDTreeBuilder::buildTreeThreaded(P
     tbb::task::spawn_root_and_wait(task);
     return std::move(node);
 }
+#endif
 
 KDTree<Photon, &Photon::getPosition> KDTreeBuilder::build(PhotonList& photons)
 {
@@ -246,6 +254,12 @@ KDTree<Photon, &Photon::getPosition> KDTreeBuilder::build(PhotonList& photons)
     std::lock_guard lock(exec_mutex);
 
     KDTreeBuilder builder{};
+
+#ifdef NO_TBB
+    auto rootNode = builder.buildTree(list, Axis::x);
+#else
     auto rootNode = builder.buildTreeThreaded(list, Axis::x);
+#endif
+
     return KDTree<Photon, &Photon::getPosition>(std::move(rootNode), size);
 }

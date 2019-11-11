@@ -4,7 +4,10 @@
 #include "shape/TriangleMesh.h"
 #include "material/CompositeMaterial.h"
 #include <iostream>
+
+#ifndef NO_TBB
 #include <tbb/tbb.h>
+#endif
 
 DynamicScene::DynamicScene()
 {
@@ -59,11 +62,20 @@ DynamicScene DynamicScene::soupifyScene(Statistics::Collector* stats) const
         return std::make_pair(std::make_pair(resultNodePtr, transform), true);
     }, Accumulator(&(*result.root), Transformation::IDENTITY));
 
+#ifdef NO_TBB
+    for(auto& task : transformTasks)
+    {
+        TriangleMesh& mesh = std::get<0>(task);
+        Transformation& transform = std::get<1>(task);
+        mesh.applyTransform(transform);
+    }
+#else
     tbb::parallel_for_each(transformTasks.begin(), transformTasks.end(), [](auto& task){
         TriangleMesh& mesh = std::get<0>(task);
         Transformation& transform = std::get<1>(task);
         mesh.applyTransform(transform);
     });
+#endif
 
     LOGSTAT(stats, "TriangleCount", mergedMesh->count());
     LOGSTAT(stats, "ModelsMerged", modelCount);

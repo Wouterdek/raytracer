@@ -3,7 +3,10 @@
 #include <iostream>
 #include <future>
 #include <mutex>
+
+#ifndef NO_TBB
 #include <tbb/task.h>
+#endif
 
 #include "BVH.h"
 #include "shape/list/IShapeList.h"
@@ -45,14 +48,17 @@ private:
 
 	std::variant<NodePtr, IncompleteNode> buildNode(IShapeList<TRayHitInfo>& shapes, Axis presortedAxis);
 
-	NodePtr buildTree(IShapeList<TRayHitInfo>& shapes, Axis presortedAxis);
+    std::pair<NodePtr, size_t> buildTree(IShapeList<TRayHitInfo>& shapes, Axis presortedAxis);
+#ifndef NO_TBB
 	std::pair<NodePtr, size_t> buildTreeThreaded(IShapeList<TRayHitInfo>& shapes, Axis presortedAxis);
+#endif
 
 	static void logLeafNodeSizes(const Node& bvh, Statistics::Collector* stats);
 
 	inline static std::mutex exec_mutex;
 };
 
+#ifndef NO_TBB
 template<typename TRayHitInfo>
 class NodeBuildingTask : public tbb::task
 {
@@ -106,6 +112,7 @@ public:
 		return nullptr;
 	}
 };
+#endif
 
 /***********************************/
 /**** BVHBuilder implementation ****/
@@ -258,24 +265,26 @@ std::variant<typename BVHBuilder<TRayHitInfo>::NodePtr, typename BVHBuilder<TRay
 }
 
 template <typename TRayHitInfo>
-std::unique_ptr<typename BVHBuilder<TRayHitInfo>::Node> BVHBuilder<TRayHitInfo>::buildTree(IShapeList<TRayHitInfo> & shapes, Axis presortedAxis)
+std::pair<std::unique_ptr<typename BVHBuilder<TRayHitInfo>::Node>, size_t> BVHBuilder<TRayHitInfo>::buildTree(IShapeList<TRayHitInfo> & shapes, Axis presortedAxis)
 {
 	auto result = buildNode(shapes, presortedAxis);
 	if (std::holds_alternative<NodePtr>(result))
 	{
-		NodePtr node(std::move(std::get<NodePtr>(result)));
-		return node;
+		return std::make_pair(std::move(std::get<NodePtr>(result)), 1);
 	}
 	else
 	{
 		auto& incompleteNode = std::get<IncompleteNode>(result);
 		NodePtr node(std::move(incompleteNode.node));
-		node->setChild(0, this->buildTree(*incompleteNode.leftSubList, incompleteNode.presortedAxis));
-		node->setChild(1, this->buildTree(*incompleteNode.rightSubList, incompleteNode.presortedAxis));
-		return node;
+		auto [childA, childASize] = this->buildTree(*incompleteNode.leftSubList, incompleteNode.presortedAxis);
+		node->setChild(0, std::move(childA));
+        auto [childB, childBSize] = this->buildTree(*incompleteNode.rightSubList, incompleteNode.presortedAxis);
+        node->setChild(1, std::move(childB));
+		return std::make_pair(std::move(node), childASize + childBSize);
 	}
 }
 
+#ifndef NO_TBB
 template <typename TRayHitInfo>
 std::pair<std::unique_ptr<typename BVHBuilder<TRayHitInfo>::Node>, size_t> BVHBuilder<TRayHitInfo>::buildTreeThreaded(IShapeList<TRayHitInfo>& shapes, Axis presortedAxis)
 {
@@ -285,6 +294,7 @@ std::pair<std::unique_ptr<typename BVHBuilder<TRayHitInfo>::Node>, size_t> BVHBu
 	tbb::task::spawn_root_and_wait(task);
 	return std::make_pair(std::move(node), size);
 }
+#endif
 
 template<typename TRayHitInfo>
 void BVHBuilder<TRayHitInfo>::logLeafNodeSizes(const BVHBuilder::Node &bvh, Statistics::Collector *stats)
@@ -310,11 +320,16 @@ BVH<IShapeList<TRayHitInfo>, TRayHitInfo, 2> BVHBuilder<TRayHitInfo>::buildBVH(I
 	auto intersectionCost = 1;
 	auto traversalCost = 4;
 	BVHBuilder builder(intersectionCost, traversalCost);
-	auto [rootNode, size] = builder.buildTreeThreaded(shapes, Axis::x);
+#ifdef NO_TBB
+	auto [rootNode, size] = builder.buildTree(shapes, Axis::x);
+#else
+    auto [rootNode, size] = builder.buildTreeThreaded(shapes, Axis::x);
+#endif
 	if(stats != nullptr)
     {
         logLeafNodeSizes(*rootNode, stats);
     }
+
 	return BVH<ShapeList, TRayHitInfo, 2>(std::move(rootNode), size);
 }
 

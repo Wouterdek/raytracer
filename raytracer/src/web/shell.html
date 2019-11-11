@@ -1,0 +1,568 @@
+<!doctype html>
+<html lang="en-us">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+    <title>Raytracer</title>
+    <style>
+      html, body {
+        font-family: sans-serif;
+        height: 100%;
+        margin: 0;
+        color: white;
+        background-color: #333;
+      }
+      .emscripten { padding-right: 0; margin-left: auto; margin-right: auto; display: block; }
+      textarea.emscripten { font-family: monospace; width: 100%; }
+      div.emscripten { text-align: center; }
+      div.emscripten_border { border: 1px solid black; }
+      /* the canvas *must not* have any border or padding, or mouse coords will be wrong */
+      canvas.emscripten { border: 0px none; background-color: black; }
+
+      .spinner {
+        height: 50px;
+        width: 50px;
+        margin: 0px auto;
+        -webkit-animation: rotation .8s linear infinite;
+        -moz-animation: rotation .8s linear infinite;
+        -o-animation: rotation .8s linear infinite;
+        animation: rotation 0.8s linear infinite;
+        border-left: 10px solid rgb(0,150,240);
+        border-right: 10px solid rgb(0,150,240);
+        border-bottom: 10px solid rgb(0,150,240);
+        border-top: 10px solid rgb(100,0,200);
+        border-radius: 100%;
+        background-color: rgb(200,100,250);
+      }
+      @-webkit-keyframes rotation {
+        from {-webkit-transform: rotate(0deg);}
+        to {-webkit-transform: rotate(360deg);}
+      }
+      @-moz-keyframes rotation {
+        from {-moz-transform: rotate(0deg);}
+        to {-moz-transform: rotate(360deg);}
+      }
+      @-o-keyframes rotation {
+        from {-o-transform: rotate(0deg);}
+        to {-o-transform: rotate(360deg);}
+      }
+      @keyframes rotation {
+        from {transform: rotate(0deg);}
+        to {transform: rotate(360deg);}
+      }
+
+      .overlay {
+        position: absolute;
+        top:0;
+        left: 0;
+        background: #111;
+        z-index: 9999;
+        display: block;
+        height: 100%;
+        width: 100%;
+        opacity: 0;
+        transition-property: opacity, height;
+        transition-duration: 1s, 0s;
+      }
+
+      .shown{
+        transition-delay: 0s, 0s;
+        transition-timing-function: ease-in;
+        opacity: 1;
+        height: 100%;
+      }
+
+      .hidden{
+        transition-delay: 0s, 1s;
+        transition-timing-function: ease-out;
+        opacity: 0;
+        height: 0%;
+      }
+
+      .vertical-center
+      {
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        height: inherit;
+      }
+
+      #page
+      {
+        display: flex;
+        flex-direction: column;
+        height: 100%;
+      }
+
+      @media only screen and (min-width: 769px) {
+        #page
+        {
+          flex-direction: row;
+        }
+      }
+      
+      #controls-pane
+      {
+        padding: 10px;
+        flex-grow: 0;
+      }
+
+      #controls
+      {
+        display: table;
+      }
+
+      #controls h1, h3, div
+      {
+        display: table-row;
+        border-spacing: 4px 8px;
+      }
+
+      #controls h3
+      {
+        border-spacing: 4px 20px;
+      }
+
+      .controls-row
+      {
+        display: table-row;
+      }
+
+      .controls-row label, input
+      {
+        display: table-cell;
+      }
+
+      .controls-row input[type=number] {
+        width: 60px;
+        -moz-appearance:textfield; /* Firefox */
+      }
+
+      input::-webkit-outer-spin-button,
+      input::-webkit-inner-spin-button {
+        /* display: none; <- Crashes Chrome on hover */
+        -webkit-appearance: none;
+        margin: 0; /* <-- Apparently some margin are still there even though it's hidden */
+      }
+
+      .shortNumber
+      {
+        width: 20px !important;
+      }
+
+      #outputs
+      {
+        background-color: #111;
+        display: flex;
+        flex-direction: column;
+        flex-grow: 1;
+      }
+
+      #output
+      {
+        flex-grow: 1;
+      }
+
+      #canvas
+      {
+        flex-grow: 10;
+      }
+
+      h1
+      {
+        margin-top: 0px;
+      }
+
+      #shared-mem-info
+      {
+        width: 300px;
+        display: block;
+      }
+
+      #shared-mem-info h3, p
+      {
+        margin: 0px;
+        margin-bottom: 5px;
+      }
+
+      #shared-mem-info a
+      {
+        color: white;
+      }
+
+    </style>
+  </head>
+  <body>
+    <div id="overlay" class="overlay shown">
+      <div class="vertical-center">
+        <figure style="overflow:visible;" id="spinner">
+          <div class="spinner"></div>
+        </figure>
+        <div class="emscripten" id="status">Downloading...</div>
+        <div class="emscripten">
+          <progress value="0" max="100" id="progress" hidden=1></progress>  
+        </div>
+      </div>
+    </div>
+
+    <div id="page">
+      <div id="controls-pane">
+        <h1>WASM Raytracer</h1>
+
+        <div id="shared-mem-info">
+          <h3>⚠️ Important</h3>
+          <p>Works best in Firefox</p>
+          <p>Make sure to enable shared memory support in your browser.</p>
+          <p><b>Firefox</b><br>In <a href="about:config?filter=javascript.options.shared_memory">about:config</a>, set <i>javascript.options.shared_memory</i> to <i>true</i></p>
+          <p><b>Chrome</b><br>In <a href="chrome://flags">chrome://flags</a>, set <i>Experimental enabled SharedArrayBuffer support in JavaScript</i> to <i>enabled</i></p>
+        </div>
+
+        <div id="controls">
+          <h3>Scene</h3>
+          <div class="controls-row">
+            <input id="useDemoScene" type="checkbox" checked>Use demo scene</input>
+          </div>
+          <div id="sceneSelectionRow" class="controls-row">
+            <label for="file-input">Input file:</label>
+            <input type="file" id="file-input" accept=".glb" style="display: none;" onchange="document.getElementById('selectedFile').innerText=this.files[0].name"/>
+            <input type="button" value="Browse..." onclick="document.getElementById('file-input').click(); " />
+          </div>
+          <div class="controls-row">
+            <label></label>
+            <label id="selectedFile"></label>
+          </div>
+
+          <h3>Image</h3>
+          <div class="controls-row">
+            <label for="width">Width:</label>
+            <input type="number" id="width" min="10" max="10000" value="640">
+          </div>
+          <div class="controls-row">
+            <label for="height">Height:</label>
+            <input type="number" id="height" min="10" max="10000" value="480">
+          </div>
+
+          <h3>Tile to render</h3>
+          <div class="controls-row">
+            <label for="xstart">X start:</label>
+            <input type="number" id="xstart" min="0" max="10000" value="0">
+          </div>
+          <div class="controls-row">
+            <label for="xend">X end:</label>
+            <input type="number" id="xend" min="1" max="10000" value="640">
+          </div>
+          <div class="controls-row">
+            <label for="ystart">Y start:</label>
+            <input type="number" id="ystart" min="0" max="10000" value="0">
+          </div>
+          <div class="controls-row">
+            <label for="yend">Y end:</label>
+            <input type="number" id="yend" min="1" max="10000" value="480">
+          </div>
+          
+          <h3>Render settings</h3>
+          <div class="controls-row">
+            <label for="geometryAA">Geometry AA modifier:</label>
+            <input type="number" id="geometryAA" min="1" max="1000" value="1">
+          </div>
+          <div class="controls-row">
+            <label for="materialAA">Material AA modifier:</label>
+            <input type="number" id="materialAA" min="1" max="1000" value="1">
+          </div>
+          <div class="controls-row">
+            <label for="photonmapMode">Photonmapping mode:</label>
+            <select id="photonmapMode">
+              <option value="none">None</option>
+              <option value="caustics">Caustics</option>
+              <option value="full">Full</option>
+            </select>
+          </div>
+          <div class="controls-row">
+            <label for="photonsPerAreaLightMantisse">Photons per area light:</label>
+            <input type="number" class="shortNumber" id="photonsPerAreaLightMantisse" min="1" max="10" value="1">
+            x10^
+            <input type="number" class="shortNumber" id="photonsPerAreaLightExponent" min="2" max="10" value="5">
+          </div>
+          <div class="controls-row">
+            <label for="photonsPerPointLightMantisse">Photons per point light:</label>
+            <input type="number" class="shortNumber" id="photonsPerPointLightMantisse" min="1" max="10" value="1">
+            x10^
+            <input type="number" class="shortNumber" id="photonsPerPointLightExponent" min="2" max="10" value="6">
+          </div>
+          <div class="controls-row">
+            <label for="pmdepth">PM sampling depth:</label>
+            <input type="number" id="pmdepth" min="0" max="10" value="0">
+          </div>
+          
+          <h3>Output</h3>
+          <div class="controls-row">
+            <label for="exposure">Exposure:</label>
+            <input type="number" id="exposure" min="-5" max="5" value="0">
+          </div>
+          <div class="controls-row">
+            <label for="gamma">Gamma:</label>
+            <input type="number" id="gamma" min="0" max="5" value="2.20">
+          </div>
+          <div class="controls-row">
+            <label for="outputType">Output format:</label>
+            <select id="outputType">
+              <option value="png">PNG</option>
+              <option value="exr">EXR</option>
+              <option value="ppm">PPM</option>
+              <option value="tile">Tile</option>
+            </select>
+          </div>
+
+          <button id="renderButton" onclick="runRT()">Render</button>
+          <button id="downloadButton" onclick="downloadRender()" disabled>Save render</button>
+        </div>
+      </div>
+      <div id="outputs">
+        <canvas class="emscripten" id="canvas" oncontextmenu="event.preventDefault()"></canvas>
+        <textarea class="emscripten" id="output" rows="8"></textarea>
+      </div>
+    </div>
+
+    <script type="text/javascript">
+      var useDemoSceneCheckbox = document.getElementById("useDemoScene");
+      var sceneSelectionRow = document.getElementById("sceneSelectionRow");
+      function updateSceneSelectionRowVisibility(){
+        sceneSelectionRow.style.display = useDemoSceneCheckbox.checked ? "none" : "";
+      };
+      useDemoSceneCheckbox.onchange = updateSceneSelectionRowVisibility;
+      updateSceneSelectionRowVisibility();
+
+      function allocString(str)
+      {
+        var bytes = intArrayFromString(str);
+        var strPtr = _malloc(bytes.length);
+        Module.HEAPU8.set(bytes, strPtr);
+        return strPtr;
+      }
+
+      function startRender(data)
+      {
+        FS.writeFile("/scene.glb", data);
+        var settings = _newSettings();
+        //_setWorkingDirectory();
+        //_setSceneFile();
+
+        var width = document.getElementById("width").value;
+        var height = document.getElementById("height").value;
+        var xstart = document.getElementById("xstart").value;
+        var xend = document.getElementById("xend").value;
+        var ystart = document.getElementById("ystart").value;
+        var yend = document.getElementById("yend").value;
+        _setImageDimensions(settings, width, height, xstart, ystart, xend, yend);
+
+        var exposure = document.getElementById("exposure").value;
+        var gamma = document.getElementById("gamma").value;
+        _setImageLDRSettings(settings, exposure, gamma);
+
+        var geometryAA = document.getElementById("geometryAA").value;
+        var materialAA = document.getElementById("materialAA").value;
+        _setAntiAliasing(settings, geometryAA, materialAA);
+
+        var filenameStr = allocString("/output.out");
+        var filetype = document.getElementById("outputType").value;
+        var filetypeStr = allocString(filetype);
+        _setOutputFile(settings, filetypeStr, filenameStr);
+        _free(filenameStr);
+        _free(filetypeStr);
+
+        //_setPhotonMapFile(settings);
+        var pmmode = document.getElementById("photonmapMode").value;
+        var pmmodeStr = allocString(pmmode);
+        _setPhotonMapMode(settings, pmmodeStr);
+        _free(pmmodeStr);
+
+        var pmdepth = document.getElementById("pmdepth").value;
+        _setPhotonMapSampleDepth(settings, pmdepth);
+
+        var photonsPerAreaLightMantisse = document.getElementById("photonsPerAreaLightMantisse").value;
+        var photonsPerAreaLightExponent = document.getElementById("photonsPerAreaLightExponent").value;
+        var photonsPerAreaLight = photonsPerAreaLightMantisse * Math.pow(10, photonsPerAreaLightExponent);
+        var photonsPerPointLightMantisse = document.getElementById("photonsPerPointLightMantisse").value;
+        var photonsPerPointLightExponent = document.getElementById("photonsPerPointLightExponent").value;
+        var photonsPerPointLight = photonsPerPointLightMantisse * Math.pow(10, photonsPerPointLightExponent);
+        _setPhotonCount(settings, photonsPerAreaLight, photonsPerPointLight);
+
+        var buffer = _newBuffer(settings);
+        var canvasIdStr = allocString("#canvas");
+        var display = _startDisplay(canvasIdStr, buffer);
+        _free(canvasIdStr);
+
+        var checkRenderDone = function() {
+          if(_isRenderFinished())
+          {
+            _stopDisplay(display);
+            _freeBuffer(buffer);
+            _freeSettings(settings);
+            renderButton.disabled = false;
+            downloadButton.disabled = false;
+          }
+          else
+          {
+            setTimeout(checkRenderDone, 500);
+          }
+        };
+        setTimeout(checkRenderDone, 500);
+
+        _startRender(settings, buffer);
+      }
+
+      function runRT() {
+        var renderButton = document.getElementById("renderButton");
+        var downloadButton = document.getElementById("downloadButton");
+        renderButton.disabled = true;
+
+        if(useDemoSceneCheckbox.checked)
+        {
+          var oReq = new XMLHttpRequest();
+          oReq.open("GET", "demoscene.glb", true);
+          oReq.responseType = "arraybuffer";
+
+          oReq.onload = function (oEvent) {
+            var data = oReq.response; // Note: not oReq.responseText
+            if (data) {
+              startRender(new Uint8Array(data));
+            }
+          };
+
+          oReq.send(null);
+        }
+        else
+        {
+          var fileinput = document.getElementById('file-input')
+          var file = fileinput.files[0];
+          if (!file) {
+            alert("Please select a scene file");
+            renderButton.disabled = false;
+            return;
+          }
+
+          var reader = new FileReader();
+          reader.onload = function(e) {
+            var data = e.target.result;
+            startRender(new Uint8Array(data));
+          };
+          reader.readAsArrayBuffer(file);
+        }
+      }
+
+      var downloadURL = function(data, fileName) {
+        var a;
+        a = document.createElement('a');
+        a.href = data;
+        a.download = fileName;
+        document.body.appendChild(a);
+        a.style = 'display: none';
+        a.click();
+        a.remove();
+      };
+
+      var downloadBlob = function(data, fileName) {
+        var blob, url;
+        blob = new Blob([data]);
+        url = window.URL.createObjectURL(blob);
+        downloadURL(url, fileName);
+        setTimeout(function() {
+          return window.URL.revokeObjectURL(url);
+        }, 1000);
+      };
+      
+      function downloadRender() {
+        var output = FS.readFile("/output.out");
+        var filetype = document.getElementById("outputType").value;
+        downloadBlob(output, "output."+filetype);
+      }
+    </script>
+    <script type='text/javascript'>
+      var statusElement = document.getElementById('status');
+      var progressElement = document.getElementById('progress');
+      var spinnerElement = document.getElementById('spinner');
+      var overlayElement = document.getElementById('overlay');
+
+      var Module = {
+        preRun: [],
+        postRun: [],
+        print: (function() {
+          var element = document.getElementById('output');
+          if (element) element.value = ''; // clear browser cache
+          return function(text) {
+            if (arguments.length > 1) text = Array.prototype.slice.call(arguments).join(' ');
+            // These replacements are necessary if you render to raw HTML
+            //text = text.replace(/&/g, "&amp;");
+            //text = text.replace(/</g, "&lt;");
+            //text = text.replace(/>/g, "&gt;");
+            //text = text.replace('\n', '<br>', 'g');
+            console.log(text);
+            if (element) {
+              element.value += text + "\n";
+              element.scrollTop = element.scrollHeight; // focus on bottom
+            }
+          };
+        })(),
+        printErr: function(text) {
+          if (arguments.length > 1) text = Array.prototype.slice.call(arguments).join(' ');
+          if (0) { // XXX disabled for safety typeof dump == 'function') {
+            dump(text + '\n'); // fast, straight to the real console
+          } else {
+            console.error(text);
+          }
+        },
+        canvas: (function() {
+          var canvas = document.getElementById('canvas');
+
+          // As a default initial behavior, pop up an alert when webgl context is lost. To make your
+          // application robust, you may want to override this behavior before shipping!
+          // See http://www.khronos.org/registry/webgl/specs/latest/1.0/#5.15.2
+          canvas.addEventListener("webglcontextlost", function(e) { alert('WebGL context lost. You will need to reload the page.'); e.preventDefault(); }, false);
+
+          return canvas;
+        })(),
+        setStatus: function(text) {
+          if (!Module.setStatus.last) Module.setStatus.last = { time: Date.now(), text: '' };
+          if (text === Module.setStatus.last.text) return;
+          var m = text.match(/([^(]+)\((\d+(\.\d+)?)\/(\d+)\)/);
+          var now = Date.now();
+          if (m && now - Module.setStatus.last.time < 30) return; // if this is a progress update, skip it if too soon
+          Module.setStatus.last.time = now;
+          Module.setStatus.last.text = text;
+          if (m) {
+            text = m[1];
+            progressElement.value = parseInt(m[2])*100;
+            progressElement.max = parseInt(m[4])*100;
+            progressElement.hidden = false;
+            overlayElement.classList.add("shown");
+            overlayElement.classList.remove("hidden");
+            spinnerElement.hidden = false;
+          } else {
+            progressElement.value = null;
+            progressElement.max = null;
+            progressElement.hidden = true;
+            overlayElement.classList.add("hidden");
+            overlayElement.classList.remove("shown");
+            if (!text) spinnerElement.hidden = true;
+          }
+          statusElement.innerHTML = text;
+        },
+        totalDependencies: 0,
+        monitorRunDependencies: function(left) {
+          this.totalDependencies = Math.max(this.totalDependencies, left);
+          Module.setStatus(left ? 'Preparing... (' + (this.totalDependencies-left) + '/' + this.totalDependencies + ')' : 'All downloads complete.');
+        }
+      };
+      Module.setStatus('Downloading...');
+      window.onerror = function() {
+        Module.setStatus('Exception thrown, see JavaScript console');
+        spinnerElement.style.display = 'none';
+        Module.setStatus = function(text) {
+          if (text) Module.printErr('[post-exception status] ' + text);
+        };
+      };
+    </script>
+    {{{ SCRIPT }}}
+  </body>
+</html>
+

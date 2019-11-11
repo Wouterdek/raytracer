@@ -1,6 +1,8 @@
 #pragma once
 
 #include <film/RGB.h>
+#include <math/Vector3.h>
+#include <vector>
 
 struct Photon
 {
@@ -21,3 +23,10 @@ struct Photon
         return pos;
     }
 };
+
+#ifdef NO_TBB
+using PhotonList = std::vector<Photon>;
+#else
+#include <tbb/tbb.h>
+using PhotonList = tbb::concurrent_vector<Photon>;
+#endif

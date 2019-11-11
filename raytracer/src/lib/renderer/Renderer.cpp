@@ -1,11 +1,11 @@
 #include "Renderer.h"
 #include <thread>
-#include "tbb/tbb.h"
 #include "math/Ray.h"
 #include "camera/ICamera.h"
 #include "utility/ProgressMonitor.h"
 #include "math/Sampler.h"
 #include "math/FastRandom.h"
+#include "utility/Task.h"
 
 #undef min
 
@@ -107,37 +107,33 @@ RGB calculatePathEnergy(std::vector<TransportNode>& path, const Scene& scene)
     return energy;
 }
 
-void Renderer::render(const Scene &scene, FrameBuffer &buffer, const Tile &tile, const RenderSettings &renderSettings, ProgressMonitor progressMon, bool multithreaded)
+class RenderTileTask : public Task
 {
-    std::vector<Tile> tiles;
+private:
+    const Tile& tile;
+    const RenderSettings& renderSettings;
+    const ICamera& camera;
+    const Scene& scene;
+    FrameBuffer& buffer;
+    ProgressTracker& progress;
 
-    if(multithreaded)
-    {
-        tiles = subdivideTilePerCores(tile);
-    }
-    else
-    {
-        tiles.push_back(tile);
-    }
+public:
+    RenderTileTask(const Tile &tile, const RenderSettings &renderSettings, const ICamera &camera, const Scene &scene, FrameBuffer &buffer, ProgressTracker &progress)
+                   : tile(tile), renderSettings(renderSettings), camera(camera), scene(scene), buffer(buffer), progress(progress)
+                   {}
 
-    ProgressTracker progress(progressMon);
-    progress.startNewJob("Rendering tiles", tiles.size());
-
-    const ICamera& camera = findCamera(scene);
-
-    tbb::parallel_for_each(tiles.begin(), tiles.end(), [&scene, &buffer, &renderSettings, &progress, &camera](const Tile& curTile)
+    void execute() override
     {
         std::vector<TransportNode> path;
         const int maxPathLength = 10;
         path.reserve(maxPathLength);
 
-        for (int y = curTile.getYStart(); y < curTile.getYEnd(); ++y) {
-            for (int x = curTile.getXStart(); x < curTile.getXEnd(); ++x) {
+        for (int y = tile.getYStart(); y < tile.getYEnd(); ++y) {
+            for (int x = tile.getXStart(); x < tile.getXEnd(); ++x) {
                 RGB pixelValue{};
 
                 for(int i = 0; i < renderSettings.geometryAAModifier; i++)
                 {
-                    /**V3**/
                     // Build new path
                     path.clear();
                     Vector2 sample = Vector2(x, y) + sampleUniformStratifiedSquare(renderSettings.geometryAAModifier, i);
@@ -182,72 +178,41 @@ void Renderer::render(const Scene &scene, FrameBuffer &buffer, const Tile &tile,
                         matSample = matSample.divide(renderSettings.materialAAModifier);
                     }
                     pixelValue = pixelValue.add(matSample);
-
-
-                    /**V2**/
-                    // create a ray through the pixel.
-                    /*Vector2 sample = Vector2(x, y) + sampleStratifiedSquare(renderSettings.geometryAAModifier, i);
-                    Ray ray = camera.generateRay(sample, buffer.getHorizontalResolution(), buffer.getVerticalResolution());
-                    auto hit = scene.traceRay(ray);
-
-                    if (hit.has_value())
-                    {
-                        const auto& material = hit->getModelNode().getData().getMaterial();
-                        RGB curContribution = material.getTotalRadianceTowards(*hit, scene, 0);
-                        int curMatSampleCount = material.hasVariance(*hit, scene) ? renderSettings.materialAAModifier : 1;
-
-                        if(curMatSampleCount > 1)
-                        {
-                            auto materialSamplesToDo = renderSettings.materialAAModifier - 1;
-                            for(int j = 0; j < materialSamplesToDo; j++)
-                            {
-                                curContribution = curContribution.add(material.getTotalRadianceTowards(*hit, scene, 0));
-                            }
-                        }
-                        pixelValue = pixelValue.add(curContribution.divide(curMatSampleCount));
-                    }*/
-
-                    /**V1**/
-                    // test the scene on intersections
-                    //auto start = std::chrono::high_resolution_clock::now();
-
-
-
-                    //auto finish = std::chrono::high_resolution_clock::now();
-                    //double duration = std::chrono::duration_cast<std::chrono::nanoseconds>(finish - start).count()/1000.0;
-
-                    //buffer.setPixel(x, y, RGB(duration));
-                    //maxVal = std::max(maxVal, duration);
-
-                    /*RGB bvhMarker(0, BVHDiag::Levels, 0);
-                    pixelValue = pixelValue.add(bvhMarker);
-                    BVHDiag::Levels = 0;*/
-
-
-                    // add a color contribution to the pixel
-                    /*if (hit.has_value())
-                    {*/
-                        /*auto hitpoint = hit->getGeometryInfo().getHitpoint();
-                        auto depth = std::log(hitpoint.norm())/4.0f;
-                        depth = std::clamp<float>(depth, 0, 1);
-                        buffer.setPixel(x, y, RGB(depth));*/
-
-                        //pixelValue = pixelValue.add(hit->getModelNode().getData().getMaterial().getTotalRadianceTowards(*hit, scene, 0));
-                        //hit->getModelNode().getData().getMaterial().getTotalRadianceTowards(*hit, scene, 0);
-
-                        /*RGB kdMarker(0, KDTreeDiag::Levels, 0);
-                        pixelValue = pixelValue.add(kdMarker);
-                        KDTreeDiag::Levels = 0;*/
-                    //}
                 }
 
                 buffer.setPixel(x, y, pixelValue.divide(renderSettings.geometryAAModifier));
             }
-
-            //std::cout << y * 100 / curTile.getYEnd() << "% done\r";
         }
         progress.signalTaskFinished();
-    });
+    }
+};
+
+void Renderer::render(const Scene &scene, FrameBuffer &buffer, const Tile &tile, const RenderSettings &renderSettings, ProgressMonitor progressMon, bool multithreaded)
+{
+    std::vector<Tile> tiles;
+
+    if(multithreaded)
+    {
+        tiles = subdivideTilePerCores(tile);
+    }
+    else
+    {
+        tiles.push_back(tile);
+    }
+
+    ProgressTracker progress(progressMon);
+    progress.startNewJob("Rendering tiles", tiles.size());
+
+    const ICamera& camera = findCamera(scene);
+
+    std::vector<std::unique_ptr<Task>> tasks;
+    for(const auto& curTile : tiles)
+    {
+        tasks.push_back(std::make_unique<RenderTileTask>(
+            curTile, renderSettings, camera, scene, buffer, progress
+        ));
+    }
+    Task::runTasks(tasks);
 }
 
 void Renderer::render(const Scene &scene, FrameBuffer &buffer, const RenderSettings &renderSettings, ProgressMonitor progressMon)
