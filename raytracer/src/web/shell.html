@@ -10,6 +10,7 @@
         height: 100%;
         margin: 0;
         color: white;
+        background-color: #333;
       }
       .emscripten { padding-right: 0; margin-left: auto; margin-right: auto; display: block; }
       textarea.emscripten { font-family: monospace; width: 100%; }
@@ -104,7 +105,6 @@
       {
         padding: 10px;
         flex-grow: 0;
-        background-color: #333;
       }
 
       #controls
@@ -211,8 +211,9 @@
 
         <div id="shared-mem-info">
           <h3>⚠️ Important</h3>
+          <p>Works best in Firefox</p>
           <p>Make sure to enable shared memory support in your browser.</p>
-          <p><b>Firefox</b><br>In <a href="about:config">about:config</a>, set <i>javascript.options.shared_memory</i> to <i>true</i></p>
+          <p><b>Firefox</b><br>In <a href="about:config?filter=javascript.options.shared_memory">about:config</a>, set <i>javascript.options.shared_memory</i> to <i>true</i></p>
           <p><b>Chrome</b><br>In <a href="chrome://flags">chrome://flags</a>, set <i>Experimental enabled SharedArrayBuffer support in JavaScript</i> to <i>enabled</i></p>
         </div>
 
