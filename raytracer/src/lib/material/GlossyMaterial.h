@@ -16,6 +16,6 @@ public:
     bool hasVariance(const std::vector<TransportNode> &path, int curI, const Scene &scene) const override;
 
     float roughness = 0.0f;
-    std::shared_ptr<Texture> normalMap;
+    std::shared_ptr<TextureUInt8> normalMap;
     RGB color = {1.0, 1.0, 1.0};
 };

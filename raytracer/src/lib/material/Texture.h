@@ -2,25 +2,34 @@
 #include "film/RGB.h"
 #include <vector>
 
+template<typename DataType>
 class Texture
 {
 private:
 	std::vector<unsigned char> image; //the raw pixels in RGBA order
 	unsigned int width, height;
 	double gamma = 1.0;
+	float maxValue;
 
 public:
-    Texture(std::vector<unsigned char> image, unsigned width, unsigned height);
-	static Texture loadPNG(std::string path);
+    Texture(std::vector<unsigned char> image, unsigned width, unsigned height, float maxValue)
+            : image(std::move(image)), width(width), height(height), maxValue(maxValue)
+    {
+        if(this->image.size() != width * height * 4 * sizeof(DataType)) //RGBA = 4 channels
+        {
+            throw std::runtime_error("Invalid image buffer size. Must be of size width*height*4*sizeof(DataType)");
+        }
+    }
 
 	RGB get(unsigned int x, unsigned int y) const
     {
-        auto offset = ((y * this->width) + x) * 4; //Left to right, 4 bytes per pixel
-        auto r = this->image[offset];
-        auto g = this->image[offset+1];
-        auto b = this->image[offset+2];
-        auto a = this->image[offset+3];
-		auto color = RGB{ (float)r / 255.0f, (float)g / 255.0f, (float)b / 255.0f };
+        auto values = reinterpret_cast<const DataType*>(&image[0]);
+        auto offset = ((y * this->width) + x) * 4; //Left to right, 4 components per pixel, 1 DataType per component
+        auto r = values[offset];
+        auto g = values[offset+1];
+        auto b = values[offset+2];
+        auto a = values[offset+3];
+		auto color = RGB{ (float)r / maxValue, (float)g / maxValue, (float)b / maxValue };
         return color.pow(this->gamma);
     }
 
@@ -43,4 +52,11 @@ public:
     double getGammaFactor() { return this->gamma; }
 };
 
+class TextureUInt8 : public Texture<unsigned char>
+{
+public:
+    TextureUInt8(const std::vector<unsigned char>& image, unsigned width, unsigned height)
+     : Texture(image, width, height, 255.0f){}
 
+    static TextureUInt8 loadPNG(std::string path);
+};

@@ -180,7 +180,7 @@ std::shared_ptr<TriangleMesh> loadPrimitiveShape(tinygltf::Model& file, tinygltf
 	}
 }
 
-std::shared_ptr<Texture> loadImage(tinygltf::Model& file, tinygltf::Image& img)
+std::shared_ptr<TextureUInt8> loadImage(tinygltf::Model& file, tinygltf::Image& img)
 {
     if(img.component != 4) {
         throw std::runtime_error("Image data must be in RGBA format");
@@ -190,11 +190,11 @@ std::shared_ptr<Texture> loadImage(tinygltf::Model& file, tinygltf::Image& img)
         throw std::runtime_error("Can't load image data");
     }
 
-    return std::make_shared<Texture>(img.image, img.width, img.height);
+    return std::make_shared<TextureUInt8>(img.image, img.width, img.height);
 }
 
 
-std::shared_ptr<Texture> loadTexture(tinygltf::Model& file, tinygltf::Texture& tex)
+std::shared_ptr<TextureUInt8> loadTexture(tinygltf::Model& file, tinygltf::Texture& tex)
 {
     return loadImage(file, file.images[tex.source]);
 }
