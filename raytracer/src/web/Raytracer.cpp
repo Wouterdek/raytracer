@@ -229,7 +229,8 @@ API_EXPORT void startRender(Settings* settings, std::shared_ptr<FrameBuffer>* bu
             {
                 std::cout << "Building photon map..." << std::endl;
 
-                photonMap = PhotonMapBuilder::buildPhotonMap(scene, settings->photonMappingMode, progressPrinter);
+                photonMap = PhotonMapBuilder::buildPhotonMap(scene, settings->photonMappingMode,
+                        settings->photonsPerAreaLight, settings->photonsPerPointLight, progressPrinter);
             }
 
             if(settings->savePhotonMapToFile)

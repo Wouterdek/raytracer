@@ -11,7 +11,7 @@
 
 using size_type = std::vector<Photon>::size_type;
 
-PhotonMap PhotonMapBuilder::buildPhotonMap(const Scene& scene, PhotonMapMode mode, ProgressMonitor progressMon)
+PhotonMap PhotonMapBuilder::buildPhotonMap(const Scene& scene, PhotonMapMode mode, size_t photonsPerAreaLight, size_t photonsPerPointLight, ProgressMonitor progressMon)
 {
     ProgressTracker progress(progressMon);
     PhotonList photons{};
@@ -20,8 +20,8 @@ PhotonMap PhotonMapBuilder::buildPhotonMap(const Scene& scene, PhotonMapMode mod
     {
         PhotonTracer tracer{};
         tracer.batchSize = 10000;
-        tracer.photonsPerAreaLight = 1E9;
-        tracer.photonsPerPointLight = 1E8;
+        tracer.photonsPerAreaLight = photonsPerAreaLight;
+        tracer.photonsPerPointLight = photonsPerPointLight;
         tracer.mode = mode;
         tracer.tracePhotons(scene, photons, progressMon);
     }

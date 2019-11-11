@@ -30,4 +30,6 @@ struct Settings
     std::string photonMapFile = "/photonmap";
     PhotonMapMode photonMappingMode;
     int photonMappingSampleDepth = 0;
+    unsigned long long photonsPerAreaLight;
+    unsigned long long photonsPerPointLight;
 };

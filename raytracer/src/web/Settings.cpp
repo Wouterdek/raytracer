@@ -89,3 +89,9 @@ API_EXPORT void setPhotonMapSampleDepth(Settings* settings, int depth)
 {
     settings->photonMappingSampleDepth = depth;
 }
+
+API_EXPORT void setPhotonCount(Settings* settings, unsigned long long photonsPerAreaLight, unsigned long long photonsPerPointLight)
+{
+    settings->photonsPerAreaLight = photonsPerAreaLight;
+    settings->photonsPerPointLight = photonsPerPointLight;
+}

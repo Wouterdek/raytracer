@@ -133,9 +133,21 @@
         display: table-cell;
       }
 
-      .controls-row input[type="number"]
-      {
+      .controls-row input[type=number] {
         width: 60px;
+        -moz-appearance:textfield; /* Firefox */
+      }
+
+      input::-webkit-outer-spin-button,
+      input::-webkit-inner-spin-button {
+        /* display: none; <- Crashes Chrome on hover */
+        -webkit-appearance: none;
+        margin: 0; /* <-- Apparently some margin are still there even though it's hidden */
+      }
+
+      .shortNumber
+      {
+        width: 20px !important;
       }
 
       #outputs
@@ -265,6 +277,18 @@
             </select>
           </div>
           <div class="controls-row">
+            <label for="photonsPerAreaLightMantisse">Photons per area light:</label>
+            <input type="number" class="shortNumber" id="photonsPerAreaLightMantisse" min="1" max="10" value="1">
+            x10^
+            <input type="number" class="shortNumber" id="photonsPerAreaLightExponent" min="2" max="10" value="5">
+          </div>
+          <div class="controls-row">
+            <label for="photonsPerPointLightMantisse">Photons per point light:</label>
+            <input type="number" class="shortNumber" id="photonsPerPointLightMantisse" min="1" max="10" value="1">
+            x10^
+            <input type="number" class="shortNumber" id="photonsPerPointLightExponent" min="2" max="10" value="6">
+          </div>
+          <div class="controls-row">
             <label for="pmdepth">PM sampling depth:</label>
             <input type="number" id="pmdepth" min="0" max="10" value="0">
           </div>
@@ -353,6 +377,14 @@
 
         var pmdepth = document.getElementById("pmdepth").value;
         _setPhotonMapSampleDepth(settings, pmdepth);
+
+        var photonsPerAreaLightMantisse = document.getElementById("photonsPerAreaLightMantisse").value;
+        var photonsPerAreaLightExponent = document.getElementById("photonsPerAreaLightExponent").value;
+        var photonsPerAreaLight = photonsPerAreaLightMantisse * Math.pow(10, photonsPerAreaLightExponent);
+        var photonsPerPointLightMantisse = document.getElementById("photonsPerPointLightMantisse").value;
+        var photonsPerPointLightExponent = document.getElementById("photonsPerPointLightExponent").value;
+        var photonsPerPointLight = photonsPerPointLightMantisse * Math.pow(10, photonsPerPointLightExponent);
+        _setPhotonCount(settings, photonsPerAreaLight, photonsPerPointLight);
 
         var buffer = _newBuffer(settings);
         var canvasIdStr = allocString("#canvas");
