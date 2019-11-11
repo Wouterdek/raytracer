@@ -5,7 +5,7 @@
 void read_hdr_file(std::vector<float>& out, int& width, int& height, const std::string& filename)
 {
     int bitDepth;
-    int channelCount = 3;
+    int channelCount = 4;
     float* data = stbi_loadf(filename.c_str(), &width, &height, &bitDepth, channelCount);
     if(data == nullptr)
     {
@@ -13,6 +13,6 @@ void read_hdr_file(std::vector<float>& out, int& width, int& height, const std::
     }
 
     size_t datasize = width * height * channelCount;
-    out.reserve(datasize);
+    out.resize(datasize);
     std::copy(data, data + datasize, out.begin());
 }
