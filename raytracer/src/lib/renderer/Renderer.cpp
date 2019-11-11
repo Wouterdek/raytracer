@@ -147,6 +147,11 @@ public:
                     }
                     else
                     {
+                        if(scene.hasEnvironmentMaterial())
+                        {
+                            RGB energy = scene.getEnvironmentMaterial().getRadiance(scene, ray.getDirection());
+                            pixelValue = pixelValue.add(energy);
+                        }
                         continue;
                     }
 
