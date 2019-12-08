@@ -253,7 +253,7 @@ int main(int argc, char** argv)
                 std::cout << "Building photon map..." << std::endl;
 
                 size_t photonsPerPointLight = 1E6;
-                size_t photonsPerAreaLight = 1E5;
+                size_t photonsPerAreaLight = 1E6;
                 photonMap = PhotonMapBuilder::buildPhotonMap(scene, photonMappingMode, photonsPerAreaLight, photonsPerPointLight, progressPrinter);
             }
 

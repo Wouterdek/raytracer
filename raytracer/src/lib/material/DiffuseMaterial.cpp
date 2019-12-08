@@ -8,6 +8,7 @@
 #include "math/FastRandom.h"
 #include "scene/renderable/SceneRayHitInfo.h"
 #include "NormalMapSampler.h"
+#include "photonmapping/KDTreeSearch.h"
 
 DiffuseMaterial::DiffuseMaterial() = default;
 
@@ -146,18 +147,31 @@ void DiffuseMaterial::sampleTransport(TransportBuildContext& ctx) const
         if(!meta->photonLightingIsSet)
         {
             const auto& photonMap = ctx.scene.getPhotonMap();
-            std::vector<const Photon*> photons(20);
+            //std::vector<const Photon*> photons(20);
+
+            KDTreeSearch::ResultsList results;
+            float searchRadius = 1E9;
+            KDTreeSearch::GetNearestNeighbours(&photonMap->getNodes()[0], transport.hit.getHitpoint(), results, searchRadius);
+            float maxDist = 0;
+            for(unsigned int i = 0; i < results.Count; ++i)
+            {
+                auto& curPos = photonMap->getNodes()[results.Contents[i]].getContent().getPosition();
+                auto curDist = (curPos - transport.hit.getHitpoint()).norm();
+                maxDist = std::max(maxDist, curDist);
+            }
+            auto nbPhotonsFound = results.Count;
 
             auto hitpoint = transport.hit.getHitpoint();
             auto dir = -transport.hit.ray.getDirection();
-            auto [nbPhotonsFound, maxDist] = photonMap->getElementsNearestTo(hitpoint, photons.size(), 1E9, [dir](const Photon& photon){
+            /*auto [nbPhotonsFound, maxDist] = photonMap->getElementsNearestTo(hitpoint, photons.size(), 1E9, [dir](const Photon& photon){
                 return dir.dot(photon.surfaceNormal) >= 0;
-            }, photons);
+            }, photons);*/
 
             RGB value {};
             for(unsigned int i = 0; i < nbPhotonsFound; i++)
             {
-                value += photons[i]->energy;
+                //value += photons[i]->energy;
+                value += photonMap->getNodes()[results.Contents[i]].getContent().energy;
             }
             meta->photonLighting = value.scale(this->diffuseIntensity).divide(PI*maxDist*maxDist).divide(PI);
             meta->photonLightingIsSet = true;
@@ -196,20 +210,36 @@ void DiffuseMaterial::sampleTransport(TransportBuildContext& ctx) const
                         if(!meta->photonLightingIsSet)
                         {
                             const auto& photonMap = ctx.scene.getPhotonMap();
-                            std::vector<const Photon*> photons(20);
 
-                            auto dir = -transport.hit.ray.getDirection();
+                            KDTreeSearch::ResultsList results;
+                            float searchRadius = 1E9;
+                            KDTreeSearch::GetNearestNeighbours(&photonMap->getNodes()[0], transport.hit.getHitpoint(), results, searchRadius);
+                            float maxDist = 0;
+                            for(unsigned int i = 0; i < results.Count; ++i)
+                            {
+                                auto& curPos = photonMap->getNodes()[results.Contents[i]].getContent().getPosition();
+                                auto curDist = (curPos - transport.hit.getHitpoint()).norm();
+                                maxDist = std::max(maxDist, curDist);
+                            }
+                            auto nbPhotonsFound = results.Count;
+
+
+                            //std::vector<const Photon*> photons(20);
+
+                            /*auto dir = -transport.hit.ray.getDirection();
                             auto [nbPhotonsFound, maxDist] = photonMap->getElementsNearestTo(transport.hit.getHitpoint(), photons.size(), 1E9, [dir](const Photon& photon)
                             {
                                 return dir.dot(photon.surfaceNormal) >= 0;
-                            }, photons);
+                            }, photons);*/
 
                             RGB value {};
                             for(unsigned int i = 0; i < nbPhotonsFound; ++i)
                             {
-                                value += photons[i]->energy;
+                                //value += photons[i]->energy;
+                                value += photonMap->getNodes()[results.Contents[i]].getContent().energy;
                             }
                             meta->photonLighting = value.divide(PI*(maxDist*maxDist)).divide(PI);
+                            //meta->photonLighting = value.divide(PI*(searchRadius*searchRadius)).divide(PI);
                             meta->photonLightingIsSet = true;
                         }
 

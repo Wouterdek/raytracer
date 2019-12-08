@@ -8,6 +8,7 @@
 #include <queue>
 #include <limits>
 #include <fstream>
+#include <utility/array_offset_pointer.h>
 #include "math/Vector3.h"
 #include "shape/AABB.h"
 #include "photonmapping/Photon.h"
@@ -63,12 +64,17 @@ public:
         children[idx] = std::move(child);
     }
 
+    const SubNodePointer<KDTreeNode>& getChildPtr(int i) const
+    {
+        return children[i];
+    }
+
     SubNodePointer<KDTreeNode>& getChildPtr(int i)
     {
         return children[i];
     }
 
-    Axis getAxis() { return axis; }
+    Axis getAxis() const { return axis; }
 
     void setAxis(Axis axis)
     {
@@ -250,7 +256,7 @@ class KDTree
 {
 public:
     using LinkedNode = KDTreeNode<TContent, posAccessor, unique_pointer>;
-    using PackedNode = KDTreeNode<TContent, posAccessor, raw_pointer>;
+    using PackedNode = KDTreeNode<TContent, posAccessor, array_offset_pointer>;
 
     KDTree(std::unique_ptr<LinkedNode> rootNode, size_t treeSize)
         : nodes(std::move(rootNode)), treeSize(treeSize)
@@ -305,6 +311,7 @@ public:
         auto memBaseOffset = reinterpret_cast<uintptr_t>(packedNodes.data());
         rebasePackedNodePtrs(packedNodes, diskBaseOffset, memBaseOffset);
 
+        array_offset_pointer<PackedNode>::array = &packedNodes[0];
         return KDTree<TContent, posAccessor>(std::move(packedNodes), treeSize);
     }
 
@@ -350,7 +357,7 @@ public:
                 // The alternative is to reserve enough space in the vector to make sure it never reallocates,
                 // which also prevents copying. However, this requires having enough system memory to
                 // store a full additional copy of the data, which is unacceptable.
-                packedNodes[cur.parentId-1].setChild(cur.childIndex, raw_pointer(reinterpret_cast<PackedNode*>(curNodeId)));
+                packedNodes[cur.parentId-1].setChild(cur.childIndex, array_offset_pointer(reinterpret_cast<PackedNode*>(curNodeId)));
             }
 
             remainingNodes.pop();
@@ -369,6 +376,7 @@ public:
         }
 
         nodes = std::move(packedNodes);
+        array_offset_pointer<PackedNode>::array = &std::get<std::vector<PackedNode>>(nodes)[0];
     }
 
     template<typename Filter>
@@ -407,6 +415,11 @@ public:
     {
         auto filter = [](const TContent& elem){return true;};
         return getElementsInRadiusFrom(target, radius, filter, resultsList);
+    }
+
+    const std::vector<PackedNode>& getNodes() const
+    {
+        return std::get<std::vector<PackedNode>>(nodes);
     }
 
 private:

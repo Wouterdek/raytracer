@@ -36,6 +36,6 @@ endif()
 
 add_subdirectory (src)
 
-if(DEFINED ENV{ENABLE_TESTS})
+#if(DEFINED ENV{ENABLE_TESTS})
   add_subdirectory (test)
-endif()
+#endif()
