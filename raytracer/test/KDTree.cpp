@@ -35,7 +35,7 @@ TEST(KDTree, NNearestElements1)
     auto [nbPhotonsFound, maxDist] = tree.getElementsNearestTo(target, resultsList.size(), resultsList);
 
     ASSERT_EQ(nbPhotonsFound, 2);
-    ASSERT_FLOAT_EQ(maxDist, (target - nodeB->pos).norm());
+    ASSERT_FLOAT_EQ(maxDist, (target - nodeA->pos).norm());
     ASSERT_EQ(resultsList[0], nodeB);
     ASSERT_EQ(resultsList[1], nodeA);
 }
@@ -58,7 +58,7 @@ TEST(KDTree, NNearestElements2)
     auto [nbPhotonsFound, maxDist] = tree.getElementsNearestTo(target, resultsList.size(), resultsList);
 
     ASSERT_EQ(nbPhotonsFound, 2);
-    ASSERT_FLOAT_EQ(maxDist, (target - nodeC->pos).norm());
+    ASSERT_FLOAT_EQ(maxDist, (target - nodeA->pos).norm());
     ASSERT_EQ(resultsList[0], nodeC);
     ASSERT_EQ(resultsList[1], nodeA);
 }
@@ -157,7 +157,7 @@ TEST(KDTree, NNearestElements6)
     auto [nbPhotonsFound, maxDist] = tree.getElementsNearestTo(target, resultsList.size(), resultsList);
 
     ASSERT_EQ(nbPhotonsFound, 2);
-    ASSERT_FLOAT_EQ(maxDist, (target - nodeC->pos).norm());
+    ASSERT_FLOAT_EQ(maxDist, (target - nodeD->pos).norm());
     ASSERT_EQ(resultsList[0], nodeC);
     ASSERT_EQ(resultsList[1], nodeD);
 }
