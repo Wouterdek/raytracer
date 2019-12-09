@@ -84,15 +84,16 @@ private:
         AABB aabb;
     };
 
-    static unsigned int TraverseDown(unsigned int startDepth, const Node* nodes, const Point& target, StackFrame stack[])
+    static int TraverseDown(unsigned int startDepth, const Node* nodes, const Point& target, StackFrame stack[])
     {
-        unsigned int curDepth = startDepth;
+        int curDepth = startDepth;
         while(true) //curDepth < MAX_SEARCH_DEPTH-1
         {
             stack[curDepth].hasBeenProcessed = false;
 
             const Node* cur = &nodes[stack[curDepth].curNodeI];
             if(cur->isLeafNode()){
+                //stack[curDepth].rightChildContainsTarget is undefined at this point, but it isn't used anyway.
                 break;
             }
 
@@ -145,15 +146,14 @@ public:
                         search other child by recursing to *
          */
 
-
         StackFrame stack[MAX_SEARCH_DEPTH];
         stack[0].curNodeI = 0; // Start at root
         stack[0].aabb.minCoord[0] = stack[0].aabb.minCoord[1] = stack[0].aabb.minCoord[2] = -INFINITY;
         stack[0].aabb.maxCoord[0] = stack[0].aabb.maxCoord[1] = stack[0].aabb.maxCoord[2] = INFINITY;
 
-        int TreePathLength = TraverseDown(0, nodes, target, stack);
+        int TreePathDepth = TraverseDown(0, nodes, target, stack);
 
-        for(int32_t i = TreePathLength-1; i >= 0; i--)
+        for(int32_t i = TreePathDepth; i >= 0; i--)
         {
             StackFrame& cur = stack[i];
             if(cur.hasBeenProcessed)
@@ -195,8 +195,8 @@ public:
                 if(distanceToSplitPlane <= searchRadius)
                 {
                     stack[i+1].curNodeI = curNode.getChildPtr(otherChildIdx).offset();
-                    TreePathLength = TraverseDown(i+1, nodes, target, stack);
-                    i = TreePathLength-1;
+                    TreePathDepth = TraverseDown(i+1, nodes, target, stack);
+                    i = TreePathDepth+1;
                 }
             }
 
