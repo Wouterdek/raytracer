@@ -446,16 +446,22 @@ std::unique_ptr<DynamicSceneNode> loadNode(tinygltf::Model& file, int nodeI, flo
 
             result->camera->isMainCamera = getBoolOrDefault(tryGetExtras(&node), "IsMainCamera", false) || getBoolOrDefault(tryGetExtras(parent), "IsMainCamera", false);
 
-            if(node.extras.Has("Aperture")){
-                result->camera->aperture = getDoubleOrDefault(tryGetExtras(&node), "Aperture", 0.0);
-            }else{
-                result->camera->aperture = getDoubleOrDefault(tryGetExtras(parent), "Aperture", 0.0);
-            }
-
             if(node.extras.Has("FocalDistance")){
                 result->camera->focalDistance = getDoubleOrDefault(tryGetExtras(&node), "FocalDistance", 0.0);
             }else{
                 result->camera->focalDistance = getDoubleOrDefault(tryGetExtras(parent), "FocalDistance", 0.0);
+            }
+
+            if(node.extras.Has("FStop") && result->camera->focalDistance > 0){
+                auto fstop = getDoubleOrDefault(tryGetExtras(&node), "FStop", 0.0);
+                result->camera->aperture = 0.5 * result->camera->focalDistance / fstop;
+            }else if(parent->extras.Has("FStop") && result->camera->focalDistance > 0){
+                auto fstop = getDoubleOrDefault(tryGetExtras(parent), "FStop", 0.0);
+                result->camera->aperture = 0.5 * result->camera->focalDistance / fstop;
+            }else if(node.extras.Has("Aperture")){
+                result->camera->aperture = getDoubleOrDefault(tryGetExtras(&node), "Aperture", 0.0);
+            }else{
+                result->camera->aperture = getDoubleOrDefault(tryGetExtras(parent), "Aperture", 0.0);
             }
 		}
 	}
