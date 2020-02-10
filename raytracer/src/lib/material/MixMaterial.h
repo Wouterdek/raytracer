@@ -11,7 +11,16 @@ public:
     std::tuple<Vector3, RGB, float> interactPhoton(const SceneRayHitInfo &hit, const RGB &incomingEnergy) const override;
     bool hasVariance(const std::vector<TransportNode> &path, int curI, const Scene &scene) const override;
 
-    double mixFactor = 0.0; // 0 = 100% first, 1 = 100% second
+    virtual float calcMixFactor(const SceneRayHitInfo &hit) const = 0;
     std::shared_ptr<IMaterial> first;
     std::shared_ptr<IMaterial> second;
+};
+
+class ConstMixMaterial : public MixMaterial {
+public:
+    float calcMixFactor(const SceneRayHitInfo &hit) const override
+    {
+        return mixFactor;
+    }
+    double mixFactor = 0.0; // 0 = 100% first, 1 = 100% second
 };

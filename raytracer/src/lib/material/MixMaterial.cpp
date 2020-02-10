@@ -10,7 +10,7 @@ void MixMaterial::sampleTransport(TransportBuildContext &ctx) const
 {
     auto& transport = ctx.getCurNode();
     auto* meta = transport.metadata.alloc<TransportMetaData>();
-    meta->choseFirst = Rand::unit() > mixFactor;
+    meta->choseFirst = Rand::unit() > calcMixFactor(ctx.getCurNode().hit);
     transport.metadata.branch(meta->choseFirst);
 
     if(meta->choseFirst)
@@ -46,7 +46,7 @@ RGB MixMaterial::bsdf(const Scene &scene, const std::vector<TransportNode> &path
 
 std::tuple<Vector3, RGB, float> MixMaterial::interactPhoton(const SceneRayHitInfo &hit, const RGB &incomingEnergy) const
 {
-    if(Rand::unit() > mixFactor)
+    if(Rand::unit() > calcMixFactor(hit))
     {
         return this->first->interactPhoton(hit, incomingEnergy);
     }
@@ -58,7 +58,8 @@ std::tuple<Vector3, RGB, float> MixMaterial::interactPhoton(const SceneRayHitInf
 
 bool MixMaterial::hasVariance(const std::vector<TransportNode> &path, int curI, const Scene &scene) const
 {
-    bool noVariance = (this->mixFactor == 0.0f && !first->hasVariance(path, curI, scene))
-            || (this->mixFactor == 1.0f && !second->hasVariance(path, curI, scene));
+    float mixFactor = calcMixFactor(path[curI].hit);
+    bool noVariance = (mixFactor == 0.0f && !first->hasVariance(path, curI, scene))
+            || (mixFactor == 1.0f && !second->hasVariance(path, curI, scene));
     return !noVariance;
 }

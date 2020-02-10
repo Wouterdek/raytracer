@@ -11,6 +11,7 @@
 #include "camera/PerspectiveCamera.h"
 #include <Eigen/Dense>
 #include <material/MixMaterial.h>
+#include <material/FresnelMixMaterial.h>
 #include <math/Constants.h>
 #include <material/TexCoordMaterial.h>
 #include <material/GlassMaterial.h>
@@ -238,7 +239,28 @@ double getDoubleOrDefault(const tinygltf::Value* extras, const std::string &para
 
 std::shared_ptr<IMaterial> loadMaterial(tinygltf::Model& file, tinygltf::Material& mat, tinygltf::Value& nodeProps)
 {
-    auto mixMat = std::make_shared<MixMaterial>();
+    bool clearCoat = getBoolOrDefault(&nodeProps, "Material.ClearCoat", false);
+
+    std::shared_ptr<MixMaterial> mixMat;
+    if(clearCoat)
+    {
+        auto clearCoatMixMat = std::make_shared<FresnelMixMaterial>();
+        auto clearCoatIor = getDoubleOrDefault(&nodeProps, "Material.ClearCoatIOR", 1.45f);
+        clearCoatMixMat->IOR = clearCoatIor;
+        mixMat = clearCoatMixMat;
+    }
+    else
+    {
+        auto constMixMat = std::make_shared<ConstMixMaterial>();
+
+        auto metallicFactorIt = mat.values.find("metallicFactor");
+        if(metallicFactorIt != mat.values.end()){
+            auto metallicFactor = metallicFactorIt->second.number_value;
+            constMixMat->mixFactor = metallicFactor;
+        }
+
+        mixMat = constMixMat;
+    }
     auto diffuse = std::make_shared<DiffuseMaterial>();
     auto glossy = std::make_shared<GlossyMaterial>();
     mixMat->first = diffuse;
@@ -262,12 +284,6 @@ std::shared_ptr<IMaterial> loadMaterial(tinygltf::Model& file, tinygltf::Materia
         glossy->color = baseColor;
     }
 
-    auto metallicFactorIt = mat.values.find("metallicFactor");
-    if(metallicFactorIt != mat.values.end()){
-        auto metallicFactor = metallicFactorIt->second.number_value;
-        mixMat->mixFactor = metallicFactor;
-    }
-
     auto roughnessFactorIt = mat.values.find("roughnessFactor");
     if(roughnessFactorIt != mat.values.end()){
         auto roughnessFactor = roughnessFactorIt ->second.number_value;
@@ -287,7 +303,7 @@ std::shared_ptr<IMaterial> loadMaterial(tinygltf::Model& file, tinygltf::Materia
     auto transmission = getDoubleOrDefault(&nodeProps, "Material.Transmission", 0.0);
     if(transmission > 0)
     {
-        auto parentMixMat = std::make_shared<MixMaterial>();
+        auto parentMixMat = std::make_shared<ConstMixMaterial>();
         auto glass = std::make_shared<GlassMaterial>();
         glass->ior = ior;
         glass->color = baseColor;
