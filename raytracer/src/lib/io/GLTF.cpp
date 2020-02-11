@@ -237,6 +237,24 @@ double getDoubleOrDefault(const tinygltf::Value* extras, const std::string &para
     return defaultVal;
 }
 
+RGB getColorOrDefault(const tinygltf::Value* extras, const std::string &paramName, RGB defaultVal)
+{
+    if(extras != nullptr && extras->Has(paramName)){
+        const auto& val = extras->Get(paramName);
+        if(val.IsArray()){
+            auto arr = val.Get<tinygltf::Value::Array>();
+            if(arr.size() < 3 || !arr[0].IsNumber() || !arr[1].IsNumber() || !arr[2].IsNumber())
+            {
+                return defaultVal;
+            }
+
+            return RGB(arr[0].Get<double>(), arr[1].Get<double>(), arr[2].Get<double>());
+        }
+    }
+
+    return defaultVal;
+}
+
 std::shared_ptr<IMaterial> loadMaterial(tinygltf::Model& file, tinygltf::Material& mat, tinygltf::Value& nodeProps)
 {
     bool clearCoat = getBoolOrDefault(&nodeProps, "Material.ClearCoat", false);
@@ -409,12 +427,21 @@ std::unique_ptr<DynamicSceneNode> loadNode(tinygltf::Model& file, int nodeI, flo
         result->areaLight->b = primData.vertices[primData.vertexIndices[0][1]];
         result->areaLight->c = primData.vertices[primData.vertexIndices[0][2]];
         result->areaLight->intensity = getDoubleOrDefault(tryGetExtras(&node), "LightIntensity", 500);
-        //result->areaLight->color
+        result->areaLight->color = getColorOrDefault(tryGetExtras(&node), "LightColor", RGB(1.0, 1.0, 1.0));
     }
     else if(getBoolOrDefault(tryGetExtras(&node), "IsPointLight", false))
     {
         result->pointLight = std::make_unique<PointLight>();
         result->pointLight->intensity = getDoubleOrDefault(tryGetExtras(&node), "LightIntensity", 500);
+        result->pointLight->color = getColorOrDefault(tryGetExtras(&node), "LightColor", RGB(1.0, 1.0, 1.0));
+    }
+    else if(getBoolOrDefault(tryGetExtras(&node), "IsDirectionalLight", false))
+    {
+        result->directionalLight = std::make_unique<DirectionalLight>();
+        result->directionalLight->intensity = getDoubleOrDefault(tryGetExtras(&node), "LightIntensity", 500);
+        result->directionalLight->angle = 0.5 * getDoubleOrDefault(tryGetExtras(&node), "DirectionalLight.Angle", 0.009180);
+        result->directionalLight->direction = Vector3(0, -1, 0);
+        result->directionalLight->color = getColorOrDefault(tryGetExtras(&node), "LightColor", RGB(1.0, 1.0, 1.0));
     }
 	else if (node.mesh != -1)
 	{

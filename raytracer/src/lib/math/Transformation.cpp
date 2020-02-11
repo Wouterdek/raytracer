@@ -26,9 +26,8 @@ Transformation Transformation::scale(double x, double y, double z)
 	return Transformation(transform, inverse);
 }
 
-Transformation Transformation::rotateX(double angle)
+Transformation Transformation::rotateX(double rad)
 {
-	auto rad = (angle / 180.0) * PI;
 	auto sinval = sin(rad);
 	auto cosval = cos(rad);
 
@@ -42,9 +41,8 @@ Transformation Transformation::rotateX(double angle)
 	return Transformation(transform, inverse);
 }
 
-Transformation Transformation::rotateY(double angle)
+Transformation Transformation::rotateY(double rad)
 {
-	auto rad = (angle / 180.0) * PI;
 	auto sinval = sin(rad);
 	auto cosval = cos(rad);
 
@@ -58,9 +56,8 @@ Transformation Transformation::rotateY(double angle)
 	return Transformation(transform, inverse);
 }
 
-Transformation Transformation::rotateZ(double angle)
+Transformation Transformation::rotateZ(double rad)
 {
-	auto rad = (angle / 180.0) * PI;
 	auto sinval = sin(rad);
 	auto cosval = cos(rad);
 
@@ -74,11 +71,10 @@ Transformation Transformation::rotateZ(double angle)
 	return Transformation(transform, inverse);
 }
 
-Transformation Transformation::rotate(const Vector3 & axis, double angle)
+Transformation Transformation::rotate(const Vector3 & axis, double rad)
 {
 	auto n = axis.normalized();
 
-	auto rad = (angle / 180.0) * PI;
 	auto sinval = sin(rad);
 	auto cosval = cos(rad);
 	auto ncos = 1.0 - cosval;

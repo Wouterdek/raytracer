@@ -49,21 +49,6 @@ OrthonormalBasis::OrthonormalBasis(const Vector3 & a, const Vector3 & b)
 	v = w.cross(u);
 }
 
-const Vector3& OrthonormalBasis::getU() const
-{
-	return this->u;
-}
-
-const Vector3& OrthonormalBasis::getV() const
-{
-	return this->v;
-}
-
-const Vector3& OrthonormalBasis::getW() const
-{
-	return this->w;
-}
-
 std::ostream & operator<<(std::ostream & in, const OrthonormalBasis & b)
 {
 	in << "[OrthonormalBasis]"

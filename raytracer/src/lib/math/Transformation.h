@@ -26,10 +26,10 @@ public:
 	static Transformation translate(double x, double y, double z);
 	static Transformation translate(Vector3 vect);
 	static Transformation scale(double x, double y, double z);
-	static Transformation rotateX(double angle);
-	static Transformation rotateY(double angle);
-	static Transformation rotateZ(double angle);
-	static Transformation rotate(const Vector3& axis, double angle);
+	static Transformation rotateX(double rad);
+	static Transformation rotateY(double rad);
+	static Transformation rotateZ(double rad);
+	static Transformation rotate(const Vector3& axis, double rad);
 	static Transformation rotateQuaternion(double i, double j, double k, double r);
 	static Transformation lookat(Vector3 direction, Vector3 up);
 

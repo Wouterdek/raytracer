@@ -5,6 +5,8 @@
 #include "math/Vector2.h"
 #include "math/Constants.h"
 #include "math/FastRandom.h"
+#include "math/OrthonormalBasis.h"
+#include "math/Transformation.h"
 #include "Vector3.h"
 
 // sample square between (0, 0) and (1, 1)
@@ -51,6 +53,20 @@ inline Vector3 sampleStratifiedCosineWeightedHemisphere(int level, int sampleI, 
 inline Vector3 sampleUniformHemisphere(float radius)
 {
     return mapSampleToCosineWeightedHemisphere(Rand::unit(), Rand::unit(), radius, 0.0f);
+}
+
+inline Vector3 sampleUniformSteradianSphere(const Vector3& center, float angle)
+{
+    float alpha = (Rand::unit() - 0.5f) * 2.0f * angle;
+    float beta = (Rand::unit() - 0.5f) * 2.0f * angle;
+    auto transformedResult = Transformation::rotateX(alpha).append(Transformation::rotateY(beta)).transform(Vector3(0.0f, 0.0f, 1.0f));
+
+    OrthonormalBasis basis(center);
+    Eigen::Matrix3f transform{};
+    transform.col(0) = basis.getU();
+    transform.col(1) = basis.getV();
+    transform.col(2) = basis.getW();
+    return transform * transformedResult;
 }
 
 inline Vector2 sampleUniformCircle(float radius)

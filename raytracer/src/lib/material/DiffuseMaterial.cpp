@@ -25,7 +25,7 @@ RGB neePointLight(const PointLight& light, const Scene& scene, const Point& hitp
     if (isVisible)
     {
         //auto angle = std::max(0.0f, normal.dot(objectToLamp));
-        auto geometricFactor = 1.0f / (4.0f * PI * pow(lampT, 2));
+        auto geometricFactor = 1.0f / (4.0f * PI * pow(lampT, 2)); // unit: 1/m^2
 
         return light.color * (light.intensity * geometricFactor);
     }
@@ -59,21 +59,44 @@ RGB neeAreaLight(const AreaLight& light, const Scene& scene, const Point& hitpoi
     return RGB::BLACK;
 }
 
+RGB neeDirectionalLight(const DirectionalLight& light, const Scene& scene, const Point& hitpoint, const Vector3& normal, int sampleI, int sampleCount, /* OUT */ Vector3& lightDirection)
+{
+    lightDirection = sampleUniformSteradianSphere(-light.direction, light.angle);
+
+    Ray visibilityRay(hitpoint + (lightDirection * 0.0001f), lightDirection);
+    bool isVisible = !scene.testVisibility(visibilityRay, INFINITY).has_value();
+    if (isVisible)
+    {
+        auto irradianceFromLamp = light.color * light.intensity;
+        return irradianceFromLamp;
+    }
+    return RGB::BLACK;
+}
+
 RGB doNextEventEstimation(const Scene& scene, const Point& hitpoint, const Vector3& normal, int sampleI, int sampleCount, /* OUT */ Vector3& lightDirection)
 {
-    bool hasAreaLights = !scene.getAreaLights().empty();
     bool hasPointLights = !scene.getPointLights().empty();
+    bool hasAreaLights = !scene.getAreaLights().empty();
+    bool hasDirectionalLights = !scene.getDirectionalLights().empty();
 
     /*
-     * probability of choosing point light:
-     *        HPL
-     *        Y   N
-     * HAL Y 0.5 0.0
-     *     N 1.0 0.0
+     * To choose a light type, uniformly sample a number in [0;1] and pick corresponding type from diagram below
+     *
+     * ----------------
+     * | PL | AL | DL |
+     * ----------------
+     * 0              1
+     *
+     * Types are removed from the diagram if they are not present in the scene and the space is divided equally amongst all present types.
+     * After sampling, the resulting light intensity is divided by the probability of choosing the light type, as should be done when sampling a sum
      */
-    float pointLightProbability = std::max((hasPointLights * 1.0f) - (hasAreaLights * 0.5f), 0.0f);
+    float totalAvailableLightTypes = (hasAreaLights ? 1.0f : 0.0f) + (hasPointLights ? 1.0f : 0.0f) + (hasDirectionalLights ? 1.0f : 0.0f);
+    float pointLightProbability = (hasPointLights ? 1.0f : 0.0f) / totalAvailableLightTypes;
+    float areaLightProbability = (hasAreaLights ? 1.0f : 0.0f) / totalAvailableLightTypes;
+    float directionalLightProbability = (hasDirectionalLights ? 1.0f : 0.0f) / totalAvailableLightTypes;
 
-    if(Rand::unit() < pointLightProbability) // Choose point light
+    float choice = Rand::unit();
+    if(choice < pointLightProbability) // Choose point light
     {
         float chosenLightProbability = 1.0f/scene.getPointLights().size();
         auto lightIndex = Rand::intInRange(scene.getPointLights().size()-1);
@@ -81,13 +104,21 @@ RGB doNextEventEstimation(const Scene& scene, const Point& hitpoint, const Vecto
 
         return neePointLight(light, scene, hitpoint, normal, lightDirection).divide(pointLightProbability * chosenLightProbability);
     }
-    else if(hasAreaLights) // Choose area light
+    else if(choice < pointLightProbability + areaLightProbability) // Choose area light
     {
         float chosenLightProbability = 1.0f/scene.getAreaLights().size();
         auto lightIndex = Rand::intInRange(scene.getAreaLights().size()-1);
         const auto& light = *scene.getAreaLights()[lightIndex].get();
 
-        return neeAreaLight(light, scene, hitpoint, normal, sampleI, sampleCount, lightDirection).divide((1.0f-pointLightProbability) * chosenLightProbability);
+        return neeAreaLight(light, scene, hitpoint, normal, sampleI, sampleCount, lightDirection).divide(areaLightProbability * chosenLightProbability);
+    }
+    else if(hasDirectionalLights)
+    {
+        float chosenLightProbability = 1.0f/scene.getDirectionalLights().size();
+        auto lightIndex = Rand::intInRange(scene.getDirectionalLights().size()-1);
+        const auto& light = *scene.getDirectionalLights()[lightIndex].get();
+
+        return neeDirectionalLight(light, scene, hitpoint, normal, sampleI, sampleCount, lightDirection).divide(directionalLightProbability * chosenLightProbability);
     }
     else
     {

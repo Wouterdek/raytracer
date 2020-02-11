@@ -9,9 +9,20 @@ public:
 	explicit OrthonormalBasis(const Vector3& a);
 	OrthonormalBasis(const Vector3& a, const Vector3& b);
 
-	const Vector3& getU() const;
-	const Vector3& getV() const;
-	const Vector3& getW() const;
+	const Vector3& getU() const
+    {
+        return this->u;
+    }
+
+	const Vector3& getV() const
+    {
+        return this->v;
+    }
+
+	const Vector3& getW() const
+    {
+        return this->w;
+    }
 
 private:
 	Vector3 u;

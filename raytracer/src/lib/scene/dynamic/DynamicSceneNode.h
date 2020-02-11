@@ -10,6 +10,7 @@
 #include "camera/ICamera.h"
 #include "light/PointLight.h"
 #include "light/AreaLight.h"
+#include "light/DirectionalLight.h"
 
 class DynamicSceneNode
 {
@@ -46,4 +47,5 @@ public:
 	std::unique_ptr<ICamera> camera;
 	std::unique_ptr<PointLight> pointLight;
 	std::unique_ptr<AreaLight> areaLight;
+    std::unique_ptr<DirectionalLight> directionalLight;
 };

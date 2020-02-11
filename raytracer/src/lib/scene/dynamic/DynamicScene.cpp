@@ -39,6 +39,7 @@ DynamicScene DynamicScene::soupifyScene(Statistics::Collector* stats) const
         resultNode->camera = node.camera == nullptr ? nullptr : node.camera->clone();
         resultNode->areaLight = node.areaLight == nullptr ? nullptr : node.areaLight->clone();
         resultNode->pointLight = node.pointLight == nullptr ? nullptr : node.pointLight->clone();
+        resultNode->directionalLight = node.directionalLight == nullptr ? nullptr : node.directionalLight->clone();
 
         auto transform = parentTransform.append(node.transform);
         if(node.model != nullptr)
@@ -91,10 +92,11 @@ Scene DynamicScene::build(Statistics::Collector* stats) const
 	// Flatten scene
 	std::vector<std::unique_ptr<PointLight>> pointLights{};
 	std::vector<std::unique_ptr<AreaLight>> areaLights{};
+    std::vector<std::unique_ptr<DirectionalLight>> directionalLights{};
 	std::vector<SceneNode<ICamera>> cameras{};
 	std::vector<SceneNode<Model>> models{};
 
-	this->walkDepthFirst<Transformation>([&pointLights, &areaLights, &cameras, &models](const DynamicSceneNode& node, const Transformation& parentTransform)
+	this->walkDepthFirst<Transformation>([&pointLights, &areaLights, &directionalLights, &cameras, &models](const DynamicSceneNode& node, const Transformation& parentTransform)
 	{
 		auto transform = parentTransform.append(node.transform);
 
@@ -104,12 +106,18 @@ Scene DynamicScene::build(Statistics::Collector* stats) const
 			light->applyTransform(transform);
 			pointLights.push_back(std::move(light));
 		}
-		if (node.areaLight != nullptr)
-		{
-			auto light = node.areaLight->clone();
-			light->applyTransform(transform);
-			areaLights.push_back(std::move(light));
-		}
+        if (node.areaLight != nullptr)
+        {
+            auto light = node.areaLight->clone();
+            light->applyTransform(transform);
+            areaLights.push_back(std::move(light));
+        }
+        if (node.directionalLight != nullptr)
+        {
+            auto light = node.directionalLight->clone();
+            light->applyTransform(transform);
+            directionalLights.push_back(std::move(light));
+        }
 		if(node.camera != nullptr)
 		{
 			auto& camera = cameras.emplace_back(transform, node.camera->clone());
@@ -125,6 +133,7 @@ Scene DynamicScene::build(Statistics::Collector* stats) const
 
     LOGSTAT(stats, "PointLightCount", pointLights.size());
     LOGSTAT(stats, "AreaLightCount", areaLights.size());
+    LOGSTAT(stats, "DirectionalLightCount", directionalLights.size());
     LOGSTAT(stats, "CameraCount", cameras.size());
     LOGSTAT(stats, "ModelCount", models.size());
 
@@ -134,7 +143,7 @@ Scene DynamicScene::build(Statistics::Collector* stats) const
 
 	auto sceneBVH = BVHBuilder<SceneRayHitInfo>::buildBVH(modelList, stats);
     LOGSTAT(stats, "TopLevelBVHNodeCount", sceneBVH.getSize());
-	Scene scene(std::move(pointLights), std::move(areaLights), std::move(cameras), std::move(sceneBVH));
+	Scene scene(std::move(pointLights), std::move(areaLights), std::move(directionalLights), std::move(cameras), std::move(sceneBVH));
 	if(this->environmentMaterial != nullptr)
     {
         scene.setEnvironmentMaterial(this->environmentMaterial->clone());

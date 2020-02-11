@@ -10,6 +10,7 @@
 #include "SceneNode.h"
 #include "light/PointLight.h"
 #include "light/AreaLight.h"
+#include "light/DirectionalLight.h"
 #include "material/environment/IEnvironmentMaterial.h"
 #include "photonmapping/PhotonMap.h"
 
@@ -21,6 +22,7 @@ public:
 	Scene(
 		std::vector<std::unique_ptr<PointLight>>&& pointLights,
 		std::vector<std::unique_ptr<AreaLight>>&& areaLights,
+        std::vector<std::unique_ptr<DirectionalLight>>&& directionalLights,
 		std::vector<SceneNode<ICamera>>&& cameras,
 		SceneBVH&& sceneBVH
 	);
@@ -34,6 +36,11 @@ public:
 	{
 		return this->areaLights;
 	}
+
+    const std::vector<std::unique_ptr<DirectionalLight>>& getDirectionalLights() const
+    {
+        return this->directionalLights;
+    }
 
 	const std::vector<SceneNode<ICamera>>& getCameras() const
 	{
@@ -94,6 +101,7 @@ public:
 private:
 	std::vector<std::unique_ptr<PointLight>> pointLights;
 	std::vector<std::unique_ptr<AreaLight>> areaLights;
+    std::vector<std::unique_ptr<DirectionalLight>> directionalLights;
 	std::vector<SceneNode<ICamera>> cameras;
 	std::unique_ptr<IEnvironmentMaterial> environmentMaterial = nullptr;
 	std::optional<PhotonMap> photonMap;
