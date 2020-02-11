@@ -15,6 +15,8 @@
 #include <math/Constants.h>
 #include <material/TexCoordMaterial.h>
 #include <material/GlassMaterial.h>
+#include <material/EmissiveMaterial.h>
+#include <material/AddMaterial.h>
 #include "material/GlossyMaterial.h"
 #include "material/NormalMaterial.h"
 #include "material/PositionMaterial.h"
@@ -259,6 +261,8 @@ std::shared_ptr<IMaterial> loadMaterial(tinygltf::Model& file, tinygltf::Materia
 {
     bool clearCoat = getBoolOrDefault(&nodeProps, "Material.ClearCoat", false);
 
+    std::shared_ptr<IMaterial> resultMaterial;
+
     std::shared_ptr<MixMaterial> mixMat;
     if(clearCoat)
     {
@@ -279,6 +283,7 @@ std::shared_ptr<IMaterial> loadMaterial(tinygltf::Model& file, tinygltf::Materia
 
         mixMat = constMixMat;
     }
+    resultMaterial = mixMat;
     auto diffuse = std::make_shared<DiffuseMaterial>();
     auto glossy = std::make_shared<GlossyMaterial>();
     mixMat->first = diffuse;
@@ -325,10 +330,34 @@ std::shared_ptr<IMaterial> loadMaterial(tinygltf::Model& file, tinygltf::Materia
         auto glass = std::make_shared<GlassMaterial>();
         glass->ior = ior;
         glass->color = baseColor;
-        parentMixMat->first = mixMat;
+        parentMixMat->first = resultMaterial;
         parentMixMat->second = glass;
         parentMixMat->mixFactor = transmission;
-        mixMat = parentMixMat;
+        resultMaterial = parentMixMat;
+    }
+
+    auto emissiveFactorIt = mat.additionalValues.find("emissiveFactor");
+    auto emissiveTextureIt = mat.additionalValues.find("emissiveTexture");
+    if(emissiveFactorIt != mat.additionalValues.end() || emissiveTextureIt != mat.additionalValues.end())
+    {
+        auto emissive = std::make_shared<EmissiveMaterial>();
+
+        if(emissiveTextureIt != mat.additionalValues.end())
+        {
+            int index = static_cast<int>(emissiveTextureIt->second.json_double_value["index"]);
+            emissive->emissionMap = loadTexture(file, file.textures[index]);
+        }
+
+        if(emissiveFactorIt != mat.additionalValues.end())
+        {
+            auto arr = emissiveFactorIt->second.number_array;
+            emissive->color = RGB(arr[0], arr[1], arr[2]);
+        }
+
+        auto addMat = std::make_shared<AddMaterial>();
+        addMat->first = emissive;
+        addMat->second = resultMaterial;
+        resultMaterial = addMat;
     }
 
     return mixMat;
