@@ -360,7 +360,7 @@ std::shared_ptr<IMaterial> loadMaterial(tinygltf::Model& file, tinygltf::Materia
         resultMaterial = addMat;
     }
 
-    return mixMat;
+    return resultMaterial;
 }
 
 std::unique_ptr<Model> loadPrimitive(tinygltf::Model& file, tinygltf::Primitive& primitive, tinygltf::Value& nodeProps,
