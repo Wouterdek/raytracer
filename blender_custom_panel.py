@@ -1,5 +1,7 @@
 import bpy
 
+# OBJECT
+
 class SetupExtraProps(bpy.types.Operator) :
     bl_idname = "obj.setup_extra_props"
     bl_label = "Setup Extra Props"
@@ -92,14 +94,74 @@ class ExtraPropsPanel(bpy.types.Panel):
                 self.new_prop(box, obj, "Material.ClearCoat", "ClearCoat")
                 self.new_prop(box, obj, "Material.ClearCoatIOR", "ClearCoat IOR")
 
+# SCENE
+
+class SceneSetupExtraProps(bpy.types.Operator) :
+    bl_idname = "scene.setup_extra_props"
+    bl_label = "Setup Extra Props"
+    bl_options = {"UNDO"}
+    
+    def new_prop(self, scene, prop_name, default_val, min = 0.0, max = 1.0, soft_min = 0.0, soft_max = 1.0):
+        if prop_name not in scene:
+            scene[prop_name] = default_val
+            if "_RNA_UI" not in scene:
+                scene["_RNA_UI"] = {}
+            scene["_RNA_UI"][prop_name] = {"min":min, "max": max, "soft_min":soft_min, "soft_max":soft_max}
+
+    def new_color_prop(self, scene, prop_name, default_val):
+        if prop_name not in scene:
+            scene[prop_name] = default_val
+            if "_RNA_UI" not in scene:
+                obj["_RNA_UI"] = {}
+            scene["_RNA_UI"][prop_name] = {"subtype": "COLOR"}
+
+    def invoke(self, context, event):
+        scene = context.scene
+        self.new_prop(scene, "EnvironmentIntensity", 000.0, max = 1000.0, soft_max = 1000.0)
+        self.new_color_prop(scene, "EnvironmentColor", [1.0, 1.0, 1.0])
+                
+        return {"FINISHED"}
+
+class SceneExtraPropsPanel(bpy.types.Panel):
+    bl_label = "Raytracer Properties"
+    #bl_idname = "OBJECT_PT_extra_props"
+    bl_space_type = 'PROPERTIES'
+    bl_region_type = 'WINDOW'
+    bl_context = "scene"
+    
+    def new_prop(self, layout, scene, prop_name, label):
+        row = layout.row()
+        row.label(text=label)
+        row.prop(scene, '["'+prop_name+'"]', text="")
+
+    def draw(self, context):
+        layout = self.layout
+
+        scene = context.scene
+        
+        row = layout.row()
+        row.operator("scene.setup_extra_props", text = "Setup properties")
+        
+        box = layout.box()
+        row = box.row()
+        row.label(text="Scene", icon='SCENE')
+        self.new_prop(box, scene, "EnvironmentColor", "EnvironmentColor")
+        self.new_prop(box, scene, "EnvironmentIntensity", "EnvironmentIntensity")
+
+# REGISTRATION
+
 def register():
     bpy.utils.register_class(SetupExtraProps)
     bpy.utils.register_class(ExtraPropsPanel)
+    bpy.utils.register_class(SceneSetupExtraProps)
+    bpy.utils.register_class(SceneExtraPropsPanel)
 
 
 def unregister():
     bpy.utils.unregister_class(SetupExtraProps)
     bpy.utils.unregister_class(ExtraPropsPanel)
+    bpy.utils.unregister_class(SceneSetupExtraProps)
+    bpy.utils.unregister_class(SceneExtraPropsPanel)
 
 
 if __name__ == "__main__":

@@ -17,6 +17,7 @@
 #include <material/GlassMaterial.h>
 #include <material/EmissiveMaterial.h>
 #include <material/AddMaterial.h>
+#include <material/environment/ColorEnvironment.h>
 #include "material/GlossyMaterial.h"
 #include "material/NormalMaterial.h"
 #include "material/PositionMaterial.h"
@@ -530,6 +531,24 @@ std::unique_ptr<DynamicSceneNode> loadNode(tinygltf::Model& file, int nodeI, flo
 	return result;
 }
 
+void loadEnvironmentInfo(const tinygltf::Scene& gltfScene, DynamicScene& outputScene)
+{
+    double envIntensity = getDoubleOrDefault(&gltfScene.extras, "EnvironmentIntensity", 0.0);
+    if(envIntensity > 0)
+    {
+        if(gltfScene.extras.Has("EnvironmentColor"))
+        {
+            RGB color = getColorOrDefault(&gltfScene.extras, "EnvironmentColor", RGB::BLACK);
+            auto env = std::make_unique<ColorEnvironment>();
+            env->color = color;
+            env->intensity = envIntensity;
+            outputScene.environmentMaterial = std::move(env);
+        }
+    }
+    //
+    //model.materials
+}
+
 }
 
 DynamicScene loadGLTFScene(const std::string& file, float imageAspectRatio)
@@ -562,5 +581,7 @@ DynamicScene loadGLTFScene(const std::string& file, float imageAspectRatio)
 	{
 		scene.root->children.push_back(loadNode(model, nodeI, imageAspectRatio, meshCache, materialCache));
 	}
+	loadEnvironmentInfo(model.scenes[model.defaultScene], scene);
+
 	return scene;
 }
