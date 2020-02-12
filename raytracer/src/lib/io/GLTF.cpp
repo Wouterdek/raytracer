@@ -18,6 +18,7 @@
 #include <material/EmissiveMaterial.h>
 #include <material/AddMaterial.h>
 #include <material/environment/ColorEnvironment.h>
+#include <material/TransparentMaterial.h>
 #include "material/GlossyMaterial.h"
 #include "material/NormalMaterial.h"
 #include "material/PositionMaterial.h"
@@ -359,6 +360,16 @@ std::shared_ptr<IMaterial> loadMaterial(tinygltf::Model& file, tinygltf::Materia
         addMat->first = emissive;
         addMat->second = resultMaterial;
         resultMaterial = addMat;
+    }
+
+    auto alpha = getDoubleOrDefault(&nodeProps, "Material.Alpha", 1.0);
+    if(alpha < 1.0)
+    {
+        auto parentMixMat = std::make_shared<ConstMixMaterial>();
+        parentMixMat->first = std::make_shared<TransparentMaterial>();
+        parentMixMat->second = resultMaterial;
+        parentMixMat->mixFactor = alpha;
+        resultMaterial = parentMixMat;
     }
 
     return resultMaterial;
