@@ -6,6 +6,7 @@
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 // #define TINYGLTF_NOEXCEPTION // optional. disable exception handling.
 #include "io/lib/tiny_gltf.h"
+#include "io/JPEG.h"
 #include "shape/TriangleMesh.h"
 #include "material/DiffuseMaterial.h"
 #include "camera/PerspectiveCamera.h"
@@ -132,6 +133,72 @@ void loadVec2s(tinygltf::Model & file, tinygltf::Accessor & accessor, std::vecto
 	}
 }
 
+const tinygltf::Value* tryGetExtras(const tinygltf::Node* node)
+{
+    return node == nullptr ? nullptr : &node->extras;
+}
+
+bool getBoolOrDefault(const tinygltf::Value* extras, const std::string &paramName, bool defaultVal = false)
+{
+    if(extras != nullptr && extras->Has(paramName)){
+        const auto& val = extras->Get(paramName);
+        if(val.IsBool()){
+            return val.Get<bool>();
+        }else if(val.IsInt()){
+            return val.Get<int>() != 0;
+        }else if(val.IsNumber()){
+            return val.Get<double>() > 0;
+        }
+    }
+
+    return defaultVal;
+}
+
+double asDoubleOrDefault(const tinygltf::Value& val, double defaultVal)
+{
+    if(val.IsBool()){
+        return val.Get<bool>() ? 1.0 : 0.0;
+    }else if(val.IsInt()){
+        return static_cast<double>(val.Get<int>());
+    }else if(val.IsNumber()){
+        return val.Get<double>();
+    }else{
+        return defaultVal;
+    }
+}
+
+double getDoubleOrDefault(const tinygltf::Value* extras, const std::string &paramName, double defaultVal = 0.0)
+{
+    if(extras != nullptr && extras->Has(paramName)){
+        const auto& val = extras->Get(paramName);
+        return asDoubleOrDefault(val, defaultVal);
+    }
+
+    return defaultVal;
+}
+
+RGB getColorOrDefault(const tinygltf::Value* extras, const std::string &paramName, RGB defaultVal)
+{
+    if(extras != nullptr && extras->Has(paramName)){
+        const auto& val = extras->Get(paramName);
+        if(val.IsArray()){
+            auto arr = val.Get<tinygltf::Value::Array>();
+            if(arr.size() < 3)
+            {
+                return defaultVal;
+            }
+
+            return RGB(
+                    asDoubleOrDefault(arr[0], 1.0),
+                    asDoubleOrDefault(arr[1], 1.0),
+                    asDoubleOrDefault(arr[2], 1.0)
+                );
+        }
+    }
+
+    return defaultVal;
+}
+
 std::shared_ptr<TriangleMesh> loadPrimitiveShape(tinygltf::Model& file, tinygltf::Primitive& primitive)
 {
 	if (primitive.mode != TINYGLTF_MODE_TRIANGLES)
@@ -185,8 +252,55 @@ std::shared_ptr<TriangleMesh> loadPrimitiveShape(tinygltf::Model& file, tinygltf
 	}
 }
 
-std::shared_ptr<TextureUInt8> loadImage(tinygltf::Model& file, tinygltf::Image& img)
+struct VideoFrameDefinition
 {
+    std::string frameDirectory;
+    int frameIndex;
+};
+using VideoImageMapping = std::map<std::string, VideoFrameDefinition>;
+
+VideoImageMapping loadVideoImageMapping(tinygltf::Material& mat)
+{
+    VideoImageMapping videoImageMapping;
+    if(mat.extras.Has("VideoImageMapping"))
+    {
+        const auto& viMapping = mat.extras.Get("VideoImageMapping");
+        if(viMapping.IsArray())
+        {
+            for(size_t i = 0; i < viMapping.ArrayLen(); i++)
+            {
+                const auto& curVIMapping = viMapping.Get(i);
+                if(!curVIMapping.IsObject())
+                {
+                    continue;
+                }
+                auto imageName = curVIMapping.Get("ImageName").Get<std::string>();
+                auto frameDirectory = curVIMapping.Get("FrameDirectory").Get<std::string>();
+                auto frameIndex = curVIMapping.Get("Frame").Get<int>();
+                VideoFrameDefinition entry;
+                entry.frameIndex = frameIndex;
+                entry.frameDirectory = frameDirectory;
+                videoImageMapping[imageName] = entry;
+            }
+        }
+    }
+    return videoImageMapping;
+}
+
+std::shared_ptr<TextureUInt8> loadImage(tinygltf::Model& file, tinygltf::Image& img, const VideoImageMapping& viMapping)
+{
+    const auto& viEntry = viMapping.find(img.name);
+    if(viEntry != viMapping.end())
+    {
+        std::ostringstream filename;
+        filename << viEntry->second.frameDirectory << "/" << viEntry->second.frameIndex << ".jpg";
+
+        std::vector<uint8_t> data;
+        unsigned int width, height;
+        read_jpeg_file(data, width, height, filename.str());
+        return std::make_shared<TextureUInt8>(data, width, height);
+    }
+
     if(img.component != 4) {
         throw std::runtime_error("Image data must be in RGBA format");
     }
@@ -198,69 +312,15 @@ std::shared_ptr<TextureUInt8> loadImage(tinygltf::Model& file, tinygltf::Image& 
     return std::make_shared<TextureUInt8>(img.image, img.width, img.height);
 }
 
-
-std::shared_ptr<TextureUInt8> loadTexture(tinygltf::Model& file, tinygltf::Texture& tex)
+std::shared_ptr<TextureUInt8> loadTexture(tinygltf::Model& file, tinygltf::Texture& tex, const VideoImageMapping& viMapping)
 {
-    return loadImage(file, file.images[tex.source]);
-}
-
-const tinygltf::Value* tryGetExtras(const tinygltf::Node* node)
-{
-    return node == nullptr ? nullptr : &node->extras;
-}
-
-bool getBoolOrDefault(const tinygltf::Value* extras, const std::string &paramName, bool defaultVal = false)
-{
-    if(extras != nullptr && extras->Has(paramName)){
-        const auto& val = extras->Get(paramName);
-        if(val.IsBool()){
-            return val.Get<bool>();
-        }else if(val.IsInt()){
-            return val.Get<int>() != 0;
-        }else if(val.IsNumber()){
-            return val.Get<double>() > 0;
-        }
-    }
-
-    return defaultVal;
-}
-
-double getDoubleOrDefault(const tinygltf::Value* extras, const std::string &paramName, double defaultVal = 0.0)
-{
-    if(extras != nullptr && extras->Has(paramName)){
-        const auto& val = extras->Get(paramName);
-        if(val.IsBool()){
-            return val.Get<bool>() ? 1.0 : 0.0;
-        }else if(val.IsInt()){
-            return static_cast<double>(val.Get<int>());
-        }else if(val.IsNumber()){
-            return val.Get<double>();
-        }
-    }
-
-    return defaultVal;
-}
-
-RGB getColorOrDefault(const tinygltf::Value* extras, const std::string &paramName, RGB defaultVal)
-{
-    if(extras != nullptr && extras->Has(paramName)){
-        const auto& val = extras->Get(paramName);
-        if(val.IsArray()){
-            auto arr = val.Get<tinygltf::Value::Array>();
-            if(arr.size() < 3 || !arr[0].IsNumber() || !arr[1].IsNumber() || !arr[2].IsNumber())
-            {
-                return defaultVal;
-            }
-
-            return RGB(arr[0].Get<double>(), arr[1].Get<double>(), arr[2].Get<double>());
-        }
-    }
-
-    return defaultVal;
+    return loadImage(file, file.images[tex.source], viMapping);
 }
 
 std::shared_ptr<IMaterial> loadMaterial(tinygltf::Model& file, tinygltf::Material& mat, tinygltf::Value& nodeProps)
 {
+    auto videoImageMapping = loadVideoImageMapping(mat);
+
     bool clearCoat = getBoolOrDefault(&nodeProps, "Material.ClearCoat", false);
 
     std::shared_ptr<IMaterial> resultMaterial;
@@ -294,7 +354,7 @@ std::shared_ptr<IMaterial> loadMaterial(tinygltf::Model& file, tinygltf::Materia
     auto baseColorTextureIt = mat.values.find("baseColorTexture");
     if(baseColorTextureIt != mat.values.end()){
         int index = static_cast<int>(baseColorTextureIt->second.json_double_value["index"]);
-        auto tex = loadTexture(file, file.textures[index]);
+        auto tex = loadTexture(file, file.textures[index], videoImageMapping);
         tex->setGammaFactor(2.2); //sRGB to raw radiance
         diffuse->albedoMap = tex;
         //baseColorTextureIt->second.json_double_value["texCoord"]
@@ -318,7 +378,7 @@ std::shared_ptr<IMaterial> loadMaterial(tinygltf::Model& file, tinygltf::Materia
     auto normalTextureIt = mat.additionalValues.find("normalTexture");
     if(normalTextureIt != mat.additionalValues.end()){
         int index = static_cast<int>(normalTextureIt->second.json_double_value["index"]);
-        auto tex = loadTexture(file, file.textures[index]);
+        auto tex = loadTexture(file, file.textures[index], videoImageMapping);
         //diffuse->normalMap = tex;
         //glossy->normalMap = tex;
         //normalTextureIt->second.json_double_value["texCoord"]
@@ -347,7 +407,7 @@ std::shared_ptr<IMaterial> loadMaterial(tinygltf::Model& file, tinygltf::Materia
         if(emissiveTextureIt != mat.additionalValues.end())
         {
             int index = static_cast<int>(emissiveTextureIt->second.json_double_value["index"]);
-            emissive->emissionMap = loadTexture(file, file.textures[index]);
+            emissive->emissionMap = loadTexture(file, file.textures[index], videoImageMapping);
         }
 
         if(emissiveFactorIt != mat.additionalValues.end())
