@@ -1,7 +1,6 @@
 #include "RGB.h"
 #include <exception>
 #include <algorithm>
-#include <cmath>
 
 const RGB RGB::BLACK(0,0,0);
 
@@ -17,51 +16,6 @@ RGB::RGB(component red, component green, component blue)
 bool RGB::isValidColorComponent(component value) const
 {
 	return !std::isinf(value) && !std::isnan(value) && value >= 0;
-}
-
-RGB RGB::add(RGB rgb) const
-{
-	return RGB(this->red + rgb.red, this->green + rgb.green, this->blue + rgb.blue);
-}
-
-RGB RGB::add(component r, component g, component b) const
-{
-	return this->add(RGB(r, g, b));
-}
-
-RGB RGB::subtract(RGB rgb) const
-{
-	return RGB(this->red - rgb.red, this->green - rgb.green, this->blue - rgb.blue);
-}
-
-RGB RGB::subtract(component r, component g, component b) const
-{
-	return this->subtract(RGB(r, g, b));
-}
-
-RGB RGB::scale(double scalar) const
-{
-	return RGB(this->red * scalar, this->green * scalar, this->blue * scalar);
-}
-
-RGB RGB::divide(double divisor) const
-{
-    return scale(1.0/divisor);
-}
-
-RGB RGB::divide(RGB divisor) const
-{
-    return RGB{red/divisor.red, green/divisor.green, blue/divisor.blue};
-}
-
-RGB RGB::multiply(RGB spectrum) const
-{
-	return RGB(this->red * spectrum.red, this->green * spectrum.green, this->blue * spectrum.blue);
-}
-
-RGB RGB::pow(double power) const
-{
-	return RGB(std::pow(this->red, power), std::pow(this->green, power), std::pow(this->blue, power));
 }
 
 RGB RGB::clamp(component low, component high) const

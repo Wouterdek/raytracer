@@ -1,6 +1,7 @@
 #pragma once
 
 #include <sstream>
+#include <cmath>
 
 class RGB
 {
@@ -19,15 +20,72 @@ public:
 
 	bool isValidColorComponent(component value) const;
 
-	RGB add(RGB rgb) const;
-	RGB add(component r, component g, component b) const;
-	RGB subtract(RGB rgb) const;
-	RGB subtract(component r, component g, component b) const;
-	RGB scale(double scalar) const;
-	RGB divide(double divisor) const;
-    RGB divide(RGB divisor) const;
-	RGB multiply(RGB spectrum) const;
-	RGB pow(double power) const;
+	RGB add(RGB rgb) const
+    {
+        return RGB(this->red + rgb.red, this->green + rgb.green, this->blue + rgb.blue);
+    }
+
+	RGB add(component r, component g, component b) const
+    {
+        return this->add(RGB(r, g, b));
+    }
+
+	RGB subtract(RGB rgb) const
+    {
+        return RGB(this->red - rgb.red, this->green - rgb.green, this->blue - rgb.blue);
+    }
+
+	RGB subtract(component r, component g, component b) const
+    {
+        return this->subtract(RGB(r, g, b));
+    }
+
+	RGB scale(double scalar) const
+    {
+        return RGB(this->red * scalar, this->green * scalar, this->blue * scalar);
+    }
+
+    RGB scale(float scalar) const
+    {
+        return RGB(this->red * scalar, this->green * scalar, this->blue * scalar);
+    }
+
+    RGB scale(int intScalar) const
+    {
+	    float scalar = static_cast<float>(intScalar);
+        return RGB(this->red * scalar, this->green * scalar, this->blue * scalar);
+    }
+
+	RGB divide(double divisor) const
+    {
+        return scale(1.0/divisor);
+    }
+
+    RGB divide(float divisor) const
+    {
+        return scale(1.0f/divisor);
+    }
+
+    RGB divide(int divisor) const
+    {
+        return scale(1.0f/(float)divisor);
+    }
+
+    RGB divide(RGB divisor) const
+    {
+        return RGB{red/divisor.red, green/divisor.green, blue/divisor.blue};
+    }
+
+	RGB multiply(RGB spectrum) const
+    {
+        return RGB(this->red * spectrum.red, this->green * spectrum.green, this->blue * spectrum.blue);
+    }
+
+	RGB pow(double power) const
+    {
+        return RGB(std::pow(this->red, power), std::pow(this->green, power), std::pow(this->blue, power));
+    }
+
 	RGB clamp(component low, component high) const;
 	bool isBlack() const;
 	int toRGB() const;
