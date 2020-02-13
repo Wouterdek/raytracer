@@ -18,12 +18,12 @@ OrthonormalBasis::OrthonormalBasis(const Vector3 & a)
 
 	if(abs(w.x()) > abs(w.y()))
 	{
-		auto inv_length = static_cast<float>(1.0 / sqrt(pow(w.x(), 2) + pow(w.z(), 2)));
+		auto inv_length = static_cast<float>(1.0f / std::sqrt((w.x() * w.x()) + (w.z() * w.z())));
 		this->u = Vector3(-w.z() * inv_length, 0.0f, w.x() * inv_length);
 	}
 	else
 	{
-		auto inv_length = static_cast<float>(1.0 / sqrt(pow(w.y(), 2) + pow(w.z(), 2)));
+		auto inv_length = static_cast<float>(1.0f / std::sqrt((w.y() * w.y()) + (w.z() * w.z())));
 		this->u = Vector3(0.0f, w.z() * inv_length, -w.y() * inv_length);
 	}
 	this->v = w.cross(u);

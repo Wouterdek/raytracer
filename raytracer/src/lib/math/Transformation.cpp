@@ -107,9 +107,9 @@ Transformation Transformation::rotateQuaternion(double i, double j, double k, do
 
 	Matrix transform{};
 	transform << 
-		1 - 2 * s * (pow(j, 2) + pow(k, 2)), 2 * s * (i * j - k * r),                       2 * s * (i * k + j * r), 0,
-		2 * s * (i * j + k * r),					 1.0 - 2 * s * (pow(i, 2) + pow(k, 2)), 2 * s * (j * k - i * r), 0,
-		2 * s * (i * k - j * r),					 2 * s * (j * k + i * r),                       1 - 2 * s * (pow(i, 2) + pow(j, 2)), 0,
+		1 - 2 * s * ((j * j) + (k * k)), 2 * s * (i * j - k * r),           2 * s * (i * k + j * r), 0,
+		2 * s * (i * j + k * r),         1.0 - 2 * s * ((i * i) + (k * k)), 2 * s * (j * k - i * r), 0,
+		2 * s * (i * k - j * r),         2 * s * (j * k + i * r),           1 - 2 * s * ((i * i) + (j * j)), 0,
 		0, 0, 0, 1;
 	Matrix inverse = transform.inverse();
 

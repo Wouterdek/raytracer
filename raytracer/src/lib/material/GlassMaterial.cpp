@@ -56,7 +56,7 @@ void GlassMaterial::sampleTransport(TransportBuildContext &ctx) const
         {
             curRelIor = 1.0 / curRelIor;
         }
-        double cosTransmissionSqr = 1.0 - ((1.0 - pow(incomingAngle, 2.0)) / pow(curRelIor, 2.0)); //incomingAngle could actually be -incomingAngle, but this doesn't matter as we square it anyway
+        double cosTransmissionSqr = 1.0 - ((1.0 - (incomingAngle * incomingAngle)) / (curRelIor * curRelIor)); //incomingAngle could actually be -incomingAngle, but this doesn't matter as we square it anyway
         bool tir = cosTransmissionSqr < 0; // total internal reflection
 
         if(tir)
@@ -203,7 +203,7 @@ Vector3 samplePhotonDirection(Vector3& normal, const Vector3& incomingDir, doubl
     {
         curRelIor = 1.0 / curRelIor;
     }
-    double cosTransmissionSqr = 1.0 - ((1.0 - pow(incomingAngle, 2.0)) / pow(curRelIor, 2.0)); //incomingAngle could actually be -incomingAngle, but this doesn't matter as we square it anyway
+    double cosTransmissionSqr = 1.0 - ((1.0 - (incomingAngle * incomingAngle)) / (curRelIor * curRelIor)); //incomingAngle could actually be -incomingAngle, but this doesn't matter as we square it anyway
     bool tir = cosTransmissionSqr < 0; // total internal reflection
 
     if(tir)
@@ -256,7 +256,7 @@ Vector3 sampleTransportDirection(Vector3& normal, const Vector3& incomingDir, do
     {
         curRelIor = 1.0 / curRelIor;
     }
-    double cosTransmissionSqr = 1.0 - ((1.0 - pow(incomingAngle, 2.0)) / pow(curRelIor, 2.0)); //incomingAngle could actually be -incomingAngle, but this doesn't matter as we square it anyway
+    double cosTransmissionSqr = 1.0 - ((1.0 - (incomingAngle * incomingAngle)) / (curRelIor * curRelIor)); //incomingAngle could actually be -incomingAngle, but this doesn't matter as we square it anyway
     bool tir = cosTransmissionSqr < 0; // total internal reflection
 
     if(tir)

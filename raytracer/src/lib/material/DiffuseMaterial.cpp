@@ -25,7 +25,7 @@ RGB neePointLight(const PointLight& light, const Scene& scene, const Point& hitp
     if (isVisible)
     {
         //auto angle = std::max(0.0f, normal.dot(objectToLamp));
-        auto geometricFactor = 1.0f / (4.0f * PI * pow(lampT, 2)); // unit: 1/m^2
+        auto geometricFactor = 1.0f / (4.0f * PI * (lampT * lampT)); // unit: 1/m^2
 
         return light.color * (light.intensity * geometricFactor);
     }
@@ -51,7 +51,7 @@ RGB neeAreaLight(const AreaLight& light, const Scene& scene, const Point& hitpoi
 
         //auto surfaceAngle = std::max(0.0f, normal.dot(objectToLamp));
         auto lampAngle = std::max(0.0f, light.getNormal().dot(-objectToLamp));
-        auto geometricFactor = lampAngle / std::pow(lampT, 2.0f);
+        auto geometricFactor = lampAngle / (lampT * lampT);
 
         auto irradianceFromLamp = lightRadiance * geometricFactor;
         return irradianceFromLamp * light.getSurfaceArea();

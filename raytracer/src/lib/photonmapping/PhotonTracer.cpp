@@ -111,7 +111,7 @@ public:
         // Trace photons from light source into scene
         const auto& light = lightRef.get();
         auto lightEnergy = light.color * light.intensity;
-        RGB energyPerPhoton = lightEnergy.divide(totalPhotonCount);
+        RGB energyPerPhoton = lightEnergy.divide((float)totalPhotonCount);
         OrthonormalBasis basis((light.b - light.a).cross(light.c - light.a));
 
         for (size_type photonI = startIdx; photonI < endIdx; ++photonI) {
