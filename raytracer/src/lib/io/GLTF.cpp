@@ -379,8 +379,8 @@ std::shared_ptr<IMaterial> loadMaterial(tinygltf::Model& file, tinygltf::Materia
     if(normalTextureIt != mat.additionalValues.end()){
         int index = static_cast<int>(normalTextureIt->second.json_double_value["index"]);
         auto tex = loadTexture(file, file.textures[index], videoImageMapping);
-        //diffuse->normalMap = tex;
-        //glossy->normalMap = tex;
+        diffuse->normalMap = tex;
+        glossy->normalMap = tex;
         //normalTextureIt->second.json_double_value["texCoord"]
     }
 

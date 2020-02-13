@@ -44,8 +44,7 @@ void GlossyMaterial::sampleTransport(TransportBuildContext &ctx) const
         auto normal = transport.hit.normal;
         if(this->normalMap != nullptr)
         {
-            auto mapNormal = sample_normal_map(transport.hit, *this->normalMap);
-            normal = transport.hit.getModelNode().getTransform().transformNormal(mapNormal);
+            normal = sample_normal_map(transport.hit, *this->normalMap);
         }
         meta->perfectReflectionDir = getPerfectReflectionDir(normal, incomingDir);
     }
@@ -105,8 +104,7 @@ std::tuple<Vector3, RGB, float> GlossyMaterial::interactPhoton(const SceneRayHit
     Vector3 normal = hit.normal;
     if(this->normalMap != nullptr)
     {
-        auto mapNormal = sample_normal_map(hit, *this->normalMap);
-        normal = hit.getModelNode().getTransform().transformNormal(mapNormal);
+        normal = sample_normal_map(hit, *this->normalMap);
     }
 
     Vector3 direction = sampleRoughReflectionDir(getPerfectReflectionDir(normal, hit.ray.getDirection()), this->roughness);

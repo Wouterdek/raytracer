@@ -147,8 +147,7 @@ void DiffuseMaterial::sampleTransport(TransportBuildContext& ctx) const
     auto normal = transport.hit.normal;
     if(this->normalMap != nullptr)
     {
-        auto mapNormal = sample_normal_map(transport.hit, *this->normalMap);
-        normal = transport.hit.getModelNode().getTransform().transformNormal(mapNormal);
+        normal = sample_normal_map(transport.hit, *this->normalMap);
     }
 
     bool readFromPhotonMap = false;
@@ -282,8 +281,7 @@ RGB DiffuseMaterial::bsdf(const Scene &scene, const std::vector<TransportNode> &
         auto normal = curNode.hit.normal;
         if(this->normalMap != nullptr)
         {
-            auto mapNormal = sample_normal_map(curNode.hit, *this->normalMap);
-            normal = curNode.hit.getModelNode().getTransform().transformNormal(mapNormal);
+            normal = sample_normal_map(curNode.hit, *this->normalMap);
         }
 
         //Applying MC to integration requires multiplying by 1/pdf().
@@ -331,8 +329,7 @@ std::tuple<Vector3, RGB, float> DiffuseMaterial::interactPhoton(const SceneRayHi
     auto normal = hit.normal;
     if(this->normalMap != nullptr)
     {
-        auto mapNormal = sample_normal_map(hit, *this->normalMap);
-        normal = hit.getModelNode().getTransform().transformNormal(mapNormal);
+        normal = sample_normal_map(hit, *this->normalMap);
     }
 
     Vector3 direction = sampleBounceDirection(normal);

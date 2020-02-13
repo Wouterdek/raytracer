@@ -53,6 +53,7 @@ std::optional<RayHitInfo> Sphere::intersect(const Ray& ray) const
 	Vector3 normal = hitpoint /* - origin */;
 
 	Vector2 texCoord; //TODO
+	Vector3 tangent; //TODO
 
-	return RayHitInfo(ray, t, normal, texCoord);
+	return RayHitInfo(ray, t, normal, texCoord, tangent);
 }

@@ -13,21 +13,21 @@ class IRayHitAnnex : public ICloneable<IRayHitAnnex>
 class RayHitInfo
 {
 public:
-	RayHitInfo(Ray ray, double t, Vector3 normal, Vector2 texCoord, uint32_t triangleIndex)
-		: ray(std::move(ray)), t(t), normal(std::move(normal)), texCoord(std::move(texCoord)), triangleIndex(triangleIndex)
+	RayHitInfo(Ray ray, double t, Vector3 normal, Vector2 texCoord, Vector3 tangent, uint32_t triangleIndex)
+		: ray(std::move(ray)), t(t), normal(std::move(normal)), texCoord(std::move(texCoord)), tangent(std::move(tangent)), triangleIndex(triangleIndex)
 	{
 		assert(!std::isnan(t));
 	}
 
-    RayHitInfo(Ray ray, double t, Vector3 normal, Vector2 texCoord)
-            : RayHitInfo(ray, t, normal, texCoord, UINT32_MAX)
+    RayHitInfo(Ray ray, double t, Vector3 normal, Vector2 texCoord, Vector3 tangent)
+            : RayHitInfo(ray, t, normal, texCoord, tangent, UINT32_MAX)
     {}
 
 	RayHitInfo(const RayHitInfo& b)
-	    : ray(b.ray), t(b.t), normal(b.normal), texCoord(b.texCoord), triangleIndex(b.triangleIndex)
+	    : ray(b.ray), t(b.t), normal(b.normal), texCoord(b.texCoord), tangent(b.tangent), triangleIndex(b.triangleIndex)
     {}
 	RayHitInfo(RayHitInfo&& b) noexcept
-	    : ray(std::move(b.ray)), t(b.t), normal(std::move(b.normal)), texCoord(std::move(b.texCoord)), triangleIndex(b.triangleIndex)
+	    : ray(std::move(b.ray)), t(b.t), normal(std::move(b.normal)), texCoord(std::move(b.texCoord)), tangent(std::move(b.tangent)), triangleIndex(b.triangleIndex)
     {}
 	RayHitInfo& operator=(const RayHitInfo& b)
     {
@@ -38,8 +38,9 @@ public:
     {
 	    this->ray = std::move(b.ray);
 	    this->t = b.t;
-	    this->normal = std::move(b.normal);
+	    this->normal = b.normal;
 	    this->texCoord = b.texCoord;
+	    this->tangent = b.tangent;
 	    this->triangleIndex = b.triangleIndex;
 	    return *this;
 	}
@@ -52,6 +53,7 @@ public:
 	Ray ray;
 	double t;
 	Vector3 normal;
+    Vector3 tangent;
 	Vector2 texCoord;
     uint32_t triangleIndex;
 };

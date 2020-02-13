@@ -33,12 +33,16 @@ public:
 	static Transformation rotateQuaternion(double i, double j, double k, double r);
 	static Transformation lookat(Vector3 direction, Vector3 up);
 
+    static Transformation tangentToObject(Vector3 tangent, Vector3 normal);
+
 	static const Transformation IDENTITY;
 
 private:
 	Matrix matrix;
 	Matrix inverse;
 };
+
+std::ostream& operator<<(std::ostream& in, const Transformation& ray);
 
 inline Transformation::Transformation(Matrix matrix, Matrix inverse)
         : matrix(std::move(matrix)), inverse(std::move(inverse))

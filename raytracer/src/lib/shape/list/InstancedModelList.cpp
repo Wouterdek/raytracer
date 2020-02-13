@@ -126,7 +126,8 @@ std::optional<SceneRayHitInfo> InstancedModelList::traceRay(const Ray & ray) con
 	{
 		auto normal = node->getTransform().transformNormal(closestHit->normal);
 		normal.normalize();
-		return SceneRayHitInfo(RayHitInfo(ray, closestHit->t, normal, closestHit->texCoord, closestHit->triangleIndex), *node);
+		auto tangent = node->getTransform().transform(closestHit->tangent);
+		return SceneRayHitInfo(RayHitInfo(ray, closestHit->t, normal, closestHit->texCoord, tangent, closestHit->triangleIndex), *node);
 	}
 	else
 	{
@@ -155,7 +156,8 @@ std::optional<SceneRayHitInfo> InstancedModelList::testVisibility(const Ray &ray
         {
             auto normal = modelNode.getTransform().transformNormal(hit->normal);
             normal.normalize();
-            return SceneRayHitInfo(RayHitInfo(ray, hit->t, normal, hit->texCoord, hit->triangleIndex), modelNode);
+            auto tangent = modelNode.getTransform().transform(hit->tangent);
+            return SceneRayHitInfo(RayHitInfo(ray, hit->t, normal, hit->texCoord, tangent, hit->triangleIndex), modelNode);
         }
     }
 

@@ -4,6 +4,12 @@
 
 const Transformation Transformation::IDENTITY = Transformation(Matrix::Identity(), Matrix::Identity());
 
+std::ostream & operator<<(std::ostream & in, const Transformation& t)
+{
+    in << "[" << t.getMatrix() << "]" << std::endl;
+    return in;
+}
+
 Transformation Transformation::translate(Vector3 vect)
 {
 	return translate(vect[0], vect[1], vect[2]);
@@ -121,5 +127,20 @@ Transformation Transformation::lookat(Vector3 direction, Vector3 up)
 	transMat(3, 3) = 1;
 
 	return Transformation(transMat, transMat.inverse());
+}
+
+Transformation Transformation::tangentToObject(Vector3 tangent, Vector3 normal)
+{
+    tangent.normalize();
+    normal.normalize();
+
+    Matrix transform = Matrix::Zero();
+    transform.block<3, 1>(0, 0) = tangent.cast<double>();
+    transform.block<3, 1>(0, 1) = normal.cross(tangent).cast<double>();
+    transform.block<3, 1>(0, 2) = normal.cast<double>();
+    transform(3, 3) = 1;
+    Matrix inverse = transform.transpose();
+
+    return Transformation(transform, inverse);
 }
 

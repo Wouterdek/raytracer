@@ -115,6 +115,7 @@ std::optional<RayHitInfo> TriangleMesh::intersect(const Ray& ray) const
 			Vector3 normal = (alfa * aNormal) + (intersection.beta * bNormal) + (intersection.gamma * cNormal);
 
 			Vector2 texcoord;
+			Vector3 tangent;
 			if(!data->texCoordIndices.empty() && !data->texCoords.empty())
 			{
 				const auto& texCoordIndices = data->texCoordIndices[triangleI];
@@ -122,11 +123,22 @@ std::optional<RayHitInfo> TriangleMesh::intersect(const Ray& ray) const
                 const auto& bTexCoord = data->texCoords[texCoordIndices[1]];
                 const auto& cTexCoord = data->texCoords[texCoordIndices[2]];
 				texcoord = (alfa * aTexCoord) + (intersection.beta * bTexCoord) + (intersection.gamma * cTexCoord);
+
+                Eigen::Matrix2f uvMat{};
+                uvMat.row(0) = bTexCoord - aTexCoord;
+                uvMat.row(1) = cTexCoord - aTexCoord;
+
+                Eigen::Matrix<float, 2, 3> deltaPosMat {};
+                deltaPosMat.row(0) = b - a;
+                deltaPosMat.row(1) = c - a;
+
+                tangent = (uvMat.inverse() * deltaPosMat).row(0);
 			}else{
 			    texcoord = Vector2(0, 0);
+			    tangent = b - a;
 			}
 
-			bestHit = RayHitInfo(ray, intersection.t, normal, texcoord);
+			bestHit = RayHitInfo(ray, intersection.t, normal, texcoord, tangent);
             bestHit->triangleIndex = triangleI;
 		}
 	}
@@ -147,27 +159,8 @@ std::optional<RayHitInfo> TriangleMesh::testVisibility(const Ray& ray, float max
         bool hasIntersection = Triangle::intersect(ray, a, b, c, intersection);
         if(hasIntersection && intersection.t <= maxT)
         {
-            float alfa = 1.0f - intersection.beta - intersection.gamma;
 
-            const auto& normalIndices = data->normalIndices[triangleI];
-            const auto& aNormal = data->normals[normalIndices[0]];
-            const auto& bNormal = data->normals[normalIndices[1]];
-            const auto& cNormal = data->normals[normalIndices[2]];
-            Vector3 normal = (alfa * aNormal) + (intersection.beta * bNormal) + (intersection.gamma * cNormal);
-
-            Vector2 texcoord;
-            if(!data->texCoordIndices.empty() && !data->texCoords.empty())
-            {
-                const auto& texCoordIndices = data->texCoordIndices[triangleI];
-                const auto& aTexCoord = data->texCoords[texCoordIndices[0]];
-                const auto& bTexCoord = data->texCoords[texCoordIndices[1]];
-                const auto& cTexCoord = data->texCoords[texCoordIndices[2]];
-                texcoord = (alfa * aTexCoord) + (intersection.beta * bTexCoord) + (intersection.gamma * cTexCoord);
-            }else{
-                texcoord = Vector2(0, 0);
-            }
-
-            RayHitInfo hit(ray, intersection.t, normal, texcoord);
+            RayHitInfo hit(ray, intersection.t, Vector3(0, 0, 0), Vector2(0, 0), Vector3(0, 0, 0));
             hit.triangleIndex = triangleI;
             return hit;
         }

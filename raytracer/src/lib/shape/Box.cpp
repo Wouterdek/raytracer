@@ -43,6 +43,7 @@ std::optional<RayHitInfo> Box::intersect(const Ray& ray) const
 	float t = this->getIntersection(ray);
 
 	Vector2 texCoord; //TODO
+	Vector3 tangent; //TODO
 
 	if (t < 0)
 	{
@@ -50,6 +51,6 @@ std::optional<RayHitInfo> Box::intersect(const Ray& ray) const
 	}
 	else
 	{
-		return RayHitInfo(ray, t, this->getNormal(ray, t), texCoord);
+		return RayHitInfo(ray, t, this->getNormal(ray, t), texCoord, tangent);
 	}
 }
