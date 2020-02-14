@@ -20,21 +20,6 @@ private:
     TriangleMeshData* cloneImpl() const override;
 };
 
-class TriangleMeshHitAnnex : public IRayHitAnnex
-{
-public:
-    explicit TriangleMeshHitAnnex(uint32_t triangleIndex)
-        : triangleIndex(triangleIndex)
-    {}
-
-    uint32_t triangleIndex;
-
-private:
-    IRayHitAnnex *cloneImpl() const override {
-        return new TriangleMeshHitAnnex(*this);
-    }
-};
-
 class TriangleMesh final: public IShape, public IShapeList<RayHitInfo>
 {
 public:
@@ -69,7 +54,7 @@ public:
     std::optional<RayHitInfo> testVisibility(const Ray &ray, float maxT) const override;
 
     void applyTransform(const Transformation& transform);
-    TriangleMesh appendMesh(const TriangleMesh& mesh);
+    std::vector<TriangleMesh> appendMeshes(const std::vector<TriangleMesh*>& meshes);
 
 private:
 	TriangleMesh* cloneImpl() const override;

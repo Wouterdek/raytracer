@@ -23,13 +23,12 @@ DynamicScene DynamicScene::soupifyScene(Statistics::Collector* stats) const
     }
     result.root = std::make_unique<DynamicSceneNode>();
 
-    auto mergedMesh = std::make_shared<TriangleMesh>(true);
-    auto mergedMaterial = std::make_shared<CompositeMaterial>();
-    size_t modelCount = 0;
-
-    std::vector<std::pair<TriangleMesh, Transformation>> transformTasks;
+    // Gather instantiations of meshes (+materials), copy over other nodes (lights, cameras, ...)
+    std::vector<Transformation> instTransforms;
+    std::vector<TriangleMesh*> instMeshes;
+    std::vector<std::shared_ptr<IMaterial>> instMaterials;
     using Accumulator = std::pair<DynamicSceneNode*, Transformation>;
-    this->walkDepthFirst<Accumulator>([&mergedMesh, &mergedMaterial, &modelCount, &transformTasks](const DynamicSceneNode& node, const Accumulator& acc){
+    this->walkDepthFirst<Accumulator>([&instTransforms, &instMeshes, &instMaterials](const DynamicSceneNode& node, const Accumulator& acc){
         auto& [parentResult, parentTransform] = acc;
 
         auto resultNode = std::make_unique<DynamicSceneNode>();
@@ -51,11 +50,9 @@ DynamicScene DynamicScene::soupifyScene(Statistics::Collector* stats) const
             }
             else
             {
-                mergedMaterial->addMaterial(mergedMesh->count(), curMesh->count(), node.model->getMaterialPtr());
-
-                auto submesh = mergedMesh->appendMesh(*curMesh);
-                transformTasks.emplace_back(submesh, transform);
-                modelCount++;
+                instTransforms.emplace_back(transform);
+                instMeshes.emplace_back(curMesh);
+                instMaterials.emplace_back(node.model->getMaterialPtr());
             }
         }
         parentResult->children.push_back(std::move(resultNode));
@@ -63,23 +60,35 @@ DynamicScene DynamicScene::soupifyScene(Statistics::Collector* stats) const
         return std::make_pair(std::make_pair(resultNodePtr, transform), true);
     }, Accumulator(&(*result.root), Transformation::IDENTITY));
 
-#ifdef NO_TBB
-    for(auto& task : transformTasks)
+    // Merge meshes, materials
+    auto instanceCount = instTransforms.size();
+    auto mergedMesh = std::make_shared<TriangleMesh>(true);
+    auto subMeshes = mergedMesh->appendMeshes(instMeshes);
+
+    auto mergedMaterial = std::make_shared<CompositeMaterial>();
+    for(ulong i = 0; i < instanceCount; ++i)
     {
-        TriangleMesh& mesh = std::get<0>(task);
-        Transformation& transform = std::get<1>(task);
+        mergedMaterial->addMaterial(subMeshes[i].getBeginIndex(), subMeshes[i].count(), instMaterials[i]);
+    }
+
+    // Apply transformations
+#ifdef NO_TBB
+    for(ulong i = 0; i < instanceCount; ++i)
+    {
+        TriangleMesh& mesh = subMeshes[i];
+        Transformation& transform = instTransforms[i];
         mesh.applyTransform(transform);
     }
 #else
-    tbb::parallel_for_each(transformTasks.begin(), transformTasks.end(), [](auto& task){
-        TriangleMesh& mesh = std::get<0>(task);
-        Transformation& transform = std::get<1>(task);
+    tbb::parallel_for(0ul, instanceCount, [&instTransforms, &subMeshes](auto i){
+        TriangleMesh& mesh = subMeshes[i];
+        Transformation& transform = instTransforms[i];
         mesh.applyTransform(transform);
     });
 #endif
 
     LOGSTAT(stats, "TriangleCount", mergedMesh->count());
-    LOGSTAT(stats, "ModelsMerged", modelCount);
+    LOGSTAT(stats, "ModelsMerged", instanceCount);
 
     auto meshNode = std::make_unique<DynamicSceneNode>();
     meshNode->model = std::make_unique<Model>(mergedMesh, mergedMaterial);

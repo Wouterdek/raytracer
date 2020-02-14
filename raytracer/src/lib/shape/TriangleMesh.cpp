@@ -3,6 +3,10 @@
 #include <numeric>
 #include "utility/soa_sort.h"
 
+#ifndef NO_TBB
+#include <tbb/tbb.h>
+#endif
+
 #ifdef ENABLE_SIMD
 #pragma GCC optimize("O3","unroll-loops","omit-frame-pointer","inline") //Optimization flags
 #pragma GCC option("arch=native","tune=native","no-zero-upper") //Enable AVX
@@ -11,7 +15,6 @@
 #endif
 
 #include "math/Triangle.h"
-//#include "utility/soa_sort_no_perm.h"
 
 TriangleMesh::TriangleMesh(
 	std::vector<Point> vertices, std::vector<std::array<uint32_t, 3>> vertexIndices, 
@@ -309,68 +312,123 @@ void TriangleMesh::applyTransform(const Transformation& transform) {
     }
 }
 
-TriangleMesh TriangleMesh::appendMesh(const TriangleMesh &mesh)
+std::vector<TriangleMesh> TriangleMesh::appendMeshes(const std::vector<TriangleMesh*>& meshes)
 {
     if(this->count() != this->data->vertexIndices.size())
     {
         throw std::runtime_error("Cannot append mesh to partial mesh");
     }
 
-    this->data->vertices.reserve(this->data->vertices.size() + mesh.data->vertices.size());
-    this->data->normals.reserve(this->data->normals.size() + mesh.data->normals.size());
-    this->data->texCoords.reserve(this->data->texCoords.size() + mesh.data->texCoords.size());
-    this->data->vertexIndices.reserve(this->data->vertexIndices.size() + mesh.count());
-    this->data->normalIndices.reserve(this->data->normalIndices.size() + mesh.count());
-    this->data->texCoordIndices.reserve(this->data->texCoordIndices.size() + mesh.count());
+    std::vector<TriangleMesh> resultingSubMeshes(meshes.size());
 
-    auto verticesOffset = this->data->vertices.size();
-    this->data->vertices.insert(this->data->vertices.end(), mesh.data->vertices.cbegin(), mesh.data->vertices.cend());
-    std::transform(mesh.data->vertexIndices.cbegin()+mesh.beginIdx, mesh.data->vertexIndices.cbegin()+mesh.endIdx,
-                   std::back_inserter(this->data->vertexIndices), [verticesOffset](const auto& idx){
-        return std::array<uint32_t, 3>{static_cast<uint32_t>(idx[0] + verticesOffset),
-                                       static_cast<uint32_t>(idx[1] + verticesOffset),
-                                       static_cast<uint32_t>(idx[2] + verticesOffset)};
-    });
-
-    this->data->normals.insert(this->data->normals.end(), mesh.data->normals.cbegin(), mesh.data->normals.cend());
-    std::transform(mesh.data->normalIndices.cbegin()+mesh.beginIdx, mesh.data->normalIndices.cbegin()+mesh.endIdx,
-                   std::back_inserter(this->data->normalIndices), [verticesOffset](const auto& idx){
-        return std::array<uint32_t, 3>{static_cast<uint32_t>(idx[0] + verticesOffset),
-                                       static_cast<uint32_t>(idx[1] + verticesOffset),
-                                       static_cast<uint32_t>(idx[2] + verticesOffset)};
-    });
-
-    auto texCoordsOffset = this->data->texCoords.size();
-    if(mesh.data->texCoords.empty())
+    // Add entries to permutation vector, if present
+    size_t nbAddedTriangles = 0;
+    for(const auto* mesh : meshes)
     {
-        this->data->texCoords.emplace_back(0, 0);
-        auto dummyTexCoordIdx = static_cast<uint32_t>(this->data->texCoords.size()-1);
-        auto idxStart = this->data->texCoordIndices.end();
-        this->data->texCoordIndices.resize(this->data->texCoordIndices.size() + mesh.count());
-        std::fill(idxStart, this->data->texCoordIndices.end(), std::array<uint32_t, 3>{dummyTexCoordIdx, dummyTexCoordIdx, dummyTexCoordIdx});
+        nbAddedTriangles += mesh->count();
     }
-    else
-    {
-        this->data->texCoords.insert(this->data->texCoords.end(), mesh.data->texCoords.cbegin(), mesh.data->texCoords.cend());
-        std::transform(mesh.data->texCoordIndices.cbegin()+mesh.beginIdx, mesh.data->texCoordIndices.cbegin()+mesh.endIdx,
-                       std::back_inserter(this->data->texCoordIndices), [texCoordsOffset](const auto& idx){
-            return std::array<uint32_t, 3>{static_cast<uint32_t>(idx[0] + texCoordsOffset),
-                                           static_cast<uint32_t>(idx[1] + texCoordsOffset),
-                                           static_cast<uint32_t>(idx[2] + texCoordsOffset)};
-        });
-    }
-
-    assert(data->vertexIndices.size() == data->normalIndices.size() && data->vertexIndices.size() == data->texCoordIndices.size());
-
     if(data->permutation.has_value())
     {
-        auto oldTriangleCount = this->data->permutation->size();
-        data->permutation->resize(this->data->permutation->size() + mesh.count());
+        size_t oldTriangleCount = data->permutation->size();
+        data->permutation->resize(this->data->permutation->size() + nbAddedTriangles);
         std::iota(data->permutation->begin() + oldTriangleCount, data->permutation->end(), oldTriangleCount);
     }
 
+    // Calculate offsets of entries in mesh data for each new submesh
+    std::vector<size_t> triangleOffsets(meshes.size());
+    triangleOffsets[0] = this->endIdx;
+    std::vector<size_t> vertexOffsets(meshes.size());
+    vertexOffsets[0] = this->data->vertices.size();
+    std::vector<size_t> texCoordOffsets(meshes.size());
+    texCoordOffsets[0] = this->data->texCoords.size();
+    std::vector<size_t> indicesOffsets(meshes.size());
+    indicesOffsets[0] = this->data->vertexIndices.size();
+    for(auto i = 1ul; i < meshes.size(); ++i)
+    {
+        triangleOffsets[i] = triangleOffsets[i-1] + meshes[i-1]->count();
+        vertexOffsets[i] = vertexOffsets[i-1] + meshes[i-1]->data->vertices.size();
+        texCoordOffsets[i] = texCoordOffsets[i-1] + std::max(1ul, meshes[i-1]->data->texCoords.size());
+        indicesOffsets[i] = indicesOffsets[i-1] + meshes[i-1]->data->vertexIndices.size();
+    }
+
+    // Reserve space for merged mesh data
+    auto newVerticesCount = this->data->vertices.size();
+    auto newNormalsCount = this->data->normals.size();
+    auto newTexCoordsCount = this->data->texCoords.size();
+    auto newIndicesCount = this->data->vertexIndices.size();
+    for(const auto* mesh : meshes)
+    {
+        newVerticesCount += mesh->data->vertices.size();
+        newNormalsCount += mesh->data->normals.size();
+        newTexCoordsCount += mesh->data->texCoords.size();
+        newIndicesCount += mesh->data->vertexIndices.size();
+    }
+    this->data->vertices.resize(newVerticesCount);
+    this->data->normals.resize(newNormalsCount);
+    this->data->texCoords.resize(newTexCoordsCount);
+    this->data->vertexIndices.resize(newIndicesCount);
+    this->data->normalIndices.resize(newIndicesCount);
+    this->data->texCoordIndices.resize(newIndicesCount);
+
+    // Do appending
+#ifdef NO_TBB
+    for(auto i = 0ul; i < meshes.size(); ++i) {
+#else
+    tbb::parallel_for(0ul, meshes.size(), [this, &meshes, &triangleOffsets, &vertexOffsets, &texCoordOffsets, &indicesOffsets, &resultingSubMeshes](auto i) {
+#endif
+        const TriangleMesh& mesh = *meshes[i];
+
+        auto triangleOffset = triangleOffsets[i];
+        auto verticesOffset = vertexOffsets[i];
+        uint32_t texCoordsOffset = texCoordOffsets[i];
+        auto indicesOffset = indicesOffsets[i];
+
+        std::copy(mesh.data->vertices.cbegin(), mesh.data->vertices.cend(), this->data->vertices.begin()+verticesOffset);
+        std::transform(mesh.data->vertexIndices.cbegin()+mesh.beginIdx, mesh.data->vertexIndices.cbegin()+mesh.endIdx,
+                       this->data->vertexIndices.begin() + indicesOffset, [verticesOffset](const auto& idx){
+            return std::array<uint32_t, 3>{static_cast<uint32_t>(idx[0] + verticesOffset),
+                                           static_cast<uint32_t>(idx[1] + verticesOffset),
+                                           static_cast<uint32_t>(idx[2] + verticesOffset)};
+        });
+
+        std::copy(mesh.data->normals.cbegin(), mesh.data->normals.cend(), this->data->normals.begin()+verticesOffset);
+        std::transform(mesh.data->normalIndices.cbegin()+mesh.beginIdx, mesh.data->normalIndices.cbegin()+mesh.endIdx,
+                       this->data->normalIndices.begin() + indicesOffset, [verticesOffset](const auto& idx){
+            return std::array<uint32_t, 3>{static_cast<uint32_t>(idx[0] + verticesOffset),
+                                           static_cast<uint32_t>(idx[1] + verticesOffset),
+                                           static_cast<uint32_t>(idx[2] + verticesOffset)};
+        });
+
+
+        if(mesh.data->texCoords.empty())
+        {
+            this->data->texCoords[texCoordsOffset] = Vector2(0, 0);
+            std::fill(this->data->texCoordIndices.begin()+indicesOffset, this->data->texCoordIndices.begin() + indicesOffset + mesh.count(),
+                    std::array<uint32_t, 3>{texCoordsOffset, texCoordsOffset, texCoordsOffset});
+        }
+        else
+        {
+            std::copy(mesh.data->texCoords.cbegin(), mesh.data->texCoords.cend(), this->data->texCoords.begin()+texCoordsOffset);
+            std::transform(mesh.data->texCoordIndices.cbegin()+mesh.beginIdx, mesh.data->texCoordIndices.cbegin()+mesh.endIdx,
+                           this->data->texCoordIndices.begin()+indicesOffset, [texCoordsOffset](const auto& idx){
+                return std::array<uint32_t, 3>{static_cast<uint32_t>(idx[0] + texCoordsOffset),
+                                               static_cast<uint32_t>(idx[1] + texCoordsOffset),
+                                               static_cast<uint32_t>(idx[2] + texCoordsOffset)};
+            });
+        }
+
+        resultingSubMeshes[i] = TriangleMesh(data, triangleOffset, triangleOffset + mesh.count());
+
+#ifdef NO_TBB
+    }
+#else
+    });
+#endif
+
+    // Update object state
     this->aabb = std::nullopt;
     this->centroid = std::nullopt;
-    this->endIdx += mesh.count();
-    return TriangleMesh(data, this->endIdx - mesh.count(), this->endIdx);
+    this->endIdx += nbAddedTriangles;
+
+    return resultingSubMeshes;
 }
