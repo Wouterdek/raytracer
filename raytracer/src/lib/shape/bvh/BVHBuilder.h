@@ -53,6 +53,13 @@ private:
 	std::pair<NodePtr, size_t> buildTreeThreaded(IShapeList<TRayHitInfo>& shapes, Axis presortedAxis);
 #endif
 
+	struct LeafNodeSizeStats {
+        unsigned long totalLeafNodeSize;
+        unsigned long totalLeafNodeCount;
+        unsigned int smallestLeafNode;
+        unsigned int largestLeafNode;
+	};
+    static LeafNodeSizeStats gatherLeafNodeSizeStats(const BVHBuilder::Node &bvh);
 	static void logLeafNodeSizes(const Node& bvh, Statistics::Collector* stats);
 
 	inline static std::mutex exec_mutex;
@@ -297,16 +304,33 @@ std::pair<std::unique_ptr<typename BVHBuilder<TRayHitInfo>::Node>, size_t> BVHBu
 #endif
 
 template<typename TRayHitInfo>
+typename BVHBuilder<TRayHitInfo>::LeafNodeSizeStats BVHBuilder<TRayHitInfo>::gatherLeafNodeSizeStats(const BVHBuilder::Node &bvh)
+{
+    BVHBuilder<TRayHitInfo>::LeafNodeSizeStats result;
+    if(bvh.isLeafNode())
+    {
+        result.totalLeafNodeSize = result.smallestLeafNode = result.largestLeafNode = bvh.leafData().count();
+        result.totalLeafNodeCount = 1;
+    }
+    else
+    {
+        auto info1 = gatherLeafNodeSizeStats(bvh.getChild(0));
+        auto info2 = gatherLeafNodeSizeStats(bvh.getChild(1));
+        result.totalLeafNodeSize = info1.totalLeafNodeSize + info2.totalLeafNodeSize;
+        result.largestLeafNode = std::max(info1.largestLeafNode, info2.largestLeafNode);
+        result.smallestLeafNode = std::min(info1.smallestLeafNode, info2.smallestLeafNode);
+    }
+    return result;
+}
+
+template<typename TRayHitInfo>
 void BVHBuilder<TRayHitInfo>::logLeafNodeSizes(const BVHBuilder::Node &bvh, Statistics::Collector *stats)
 {
-    if(!bvh.isLeafNode())
-    {
-        logLeafNodeSizes(bvh.getChild(0), stats);
-        logLeafNodeSizes(bvh.getChild(1), stats);
-        return;
-    }
-
-    stats->log("logLeafNodeSizes", "BVHLeafNodeSize", bvh.leafData().count());
+    auto info = gatherLeafNodeSizeStats(bvh);
+    stats->log("logLeafNodeSizeInfo", "BVHAvgLeafNodeSize", info.totalLeafNodeSize / info.totalLeafNodeCount);
+    stats->log("logLeafNodeSizeInfo", "BVHLargestLeafNodeSize", static_cast<unsigned long>(info.largestLeafNode));
+    stats->log("logLeafNodeSizeInfo", "BVHSmallestLeafNodeSize", static_cast<unsigned long>(info.smallestLeafNode));
+    stats->log("logLeafNodeSizeInfo", "BVHLeafNodeCount", info.totalLeafNodeCount);
 }
 
 
