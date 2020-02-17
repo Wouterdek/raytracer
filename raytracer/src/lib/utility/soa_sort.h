@@ -2,9 +2,7 @@
 #define SOASORT_H
 #include <algorithm>
 #include <functional>
-#include <iostream>
 #include <numeric>
-#include <thread>
 #include <vector>
 #include <tuple>
 
@@ -13,6 +11,12 @@
     #include <tbb/parallel_sort.h>
     #define PAR_FOR(start, end, func) tbb::parallel_for(start, end, func);
     #define PAR_SORT(begin, end, comparator) tbb::parallel_sort(begin, end, comparator);
+#elif defined(SOASORT_USE_STD_PARALLEL)
+    #include <thread>
+    #include <execution>
+    // Can't do parallel index-based for loop in std cpp17
+    #define PAR_FOR(start, end, func) for(auto i = start; i < end; ++i) { func(i); }
+    #define PAR_SORT(begin, end, comparator) std::sort(std::execution::par_unseq, begin, end, comparator);
 #else
     // Fallback to sequential algorithms
     #define PAR_FOR(start, end, func) for(auto i = start; i < end; ++i) { func(i); }
