@@ -386,12 +386,14 @@ std::shared_ptr<IMaterial> loadMaterial(tinygltf::Model& file, tinygltf::Materia
 
     auto ior = getDoubleOrDefault(&nodeProps, "Material.IOR", 1.0);
     auto transmission = getDoubleOrDefault(&nodeProps, "Material.Transmission", 0.0);
+    auto attenuationStrength = getDoubleOrDefault(&nodeProps, "Material.AttenuationStrength", 5.0);
     if(transmission > 0)
     {
         auto parentMixMat = std::make_shared<ConstMixMaterial>();
         auto glass = std::make_shared<GlassMaterial>();
         glass->ior = ior;
         glass->color = baseColor;
+        glass->attenuationStrength = attenuationStrength;
         parentMixMat->first = resultMaterial;
         parentMixMat->second = glass;
         parentMixMat->mixFactor = transmission;

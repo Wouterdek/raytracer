@@ -42,6 +42,7 @@ class SetupExtraProps(bpy.types.Operator) :
             if obj.type == "MESH":
                 self.new_prop(obj, "Material.Transmission", 0.0)
                 self.new_prop(obj, "Material.IOR", 1.45, max = 10.0, soft_max = 10.0)
+                self.new_prop(obj, "Material.AttenuationStrength", 5.00, max = 1000.0, soft_max = 100.0)
                 self.new_prop(obj, "Material.ClearCoat", 0.0)
                 self.new_prop(obj, "Material.ClearCoatIOR", 1.45, max = 10.0, soft_max = 10.0)
                 self.new_prop(obj, "Material.Alpha", 1.0, max = 1.0, soft_max = 1.0)
@@ -94,6 +95,7 @@ class ExtraPropsPanel(bpy.types.Panel):
                 row.label(text="Material", icon='MATERIAL')
                 self.new_prop(box, obj, "Material.Transmission", "Transmission")
                 self.new_prop(box, obj, "Material.IOR", "IOR")
+                self.new_prop(box, obj, "Material.AttenuationStrength", "IOR")
                 self.new_prop(box, obj, "Material.ClearCoat", "ClearCoat")
                 self.new_prop(box, obj, "Material.ClearCoatIOR", "ClearCoat IOR")
                 self.new_prop(box, obj, "Material.Alpha", "Alpha")
