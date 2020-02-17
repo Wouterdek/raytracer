@@ -28,7 +28,7 @@ public:
 		return std::make_pair(std::unique_ptr<IShapeList<TRayHitInfo>>(leftPtr), std::unique_ptr<IShapeList<TRayHitInfo>>(rightPtr));
 	}
 
-	virtual void sortByCentroid(Axis axis) = 0;
+	virtual void sortByCentroid(Axis axis, bool allowParallelization) = 0;
 	
 	virtual std::optional<TRayHitInfo> traceRay(const Ray& ray) const = 0;
     virtual std::optional<TRayHitInfo> testVisibility(const Ray& ray, float maxT) const

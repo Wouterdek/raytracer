@@ -33,7 +33,7 @@ public:
 	Point getCentroid(size_type index) const override;
 	size_type count() const override;
 	
-	void sortByCentroid(Axis axis) override;
+	void sortByCentroid(Axis axis, bool allowParallelization) override;
 
 	void buildShapeBVHCache(Statistics::Collector* stats = nullptr) const;
 

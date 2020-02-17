@@ -45,7 +45,7 @@ public:
     }
 	
 	Point getCentroid(size_type index) const override;
-	void sortByCentroid(Axis axis) override;
+	void sortByCentroid(Axis axis, bool allowParallelization) override;
 
 	const TriangleMeshData& getData() const;
 
@@ -59,6 +59,8 @@ public:
 private:
 	TriangleMesh* cloneImpl() const override;
 	std::pair<IShapeList<RayHitInfo>*, IShapeList<RayHitInfo>*> splitImpl(size_type leftSideElemCount) const override;
+	template<bool AllowParallelization>
+    void sortByCentroidImpl(Axis axis);
 
 	std::shared_ptr<TriangleMeshData> data;
 	mutable std::optional<AABB> aabb;

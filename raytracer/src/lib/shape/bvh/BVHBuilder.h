@@ -46,7 +46,7 @@ private:
 
 	double calculateSAH(size_type s1Count, double s1AABBArea, size_type s2Count, double s2AABBArea, double totalAABBArea) const;
 
-	std::variant<NodePtr, IncompleteNode> buildNode(IShapeList<TRayHitInfo>& shapes, Axis presortedAxis);
+	std::variant<NodePtr, IncompleteNode> buildNode(IShapeList<TRayHitInfo>& shapes, Axis presortedAxis, bool allowParallelization);
 
     std::pair<NodePtr, size_t> buildTree(IShapeList<TRayHitInfo>& shapes, Axis presortedAxis);
 #ifndef NO_TBB
@@ -78,11 +78,12 @@ public:
 	std::reference_wrapper<BVHBuilder<TRayHitInfo>> builder;
 	std::reference_wrapper<IShapeList<TRayHitInfo>> shapes;
 	Axis presortedAxis;
+	unsigned int depth;
 	NodePtr* outputTreePtr;
 	size_t* treeSizePtr;
 
-	NodeBuildingTask(BVHBuilder<TRayHitInfo>& builder, IShapeList<TRayHitInfo>& shapes, Axis presortedAxis, /* OUTPUT */ NodePtr* outputTree, /* OUTPUT */ size_t* treeSize)
-		: builder(std::ref(builder)), shapes(std::ref(shapes)), presortedAxis(presortedAxis), outputTreePtr(outputTree), treeSizePtr(treeSize)
+	NodeBuildingTask(BVHBuilder<TRayHitInfo>& builder, IShapeList<TRayHitInfo>& shapes, Axis presortedAxis, unsigned int depth, /* OUTPUT */ NodePtr* outputTree, /* OUTPUT */ size_t* treeSize)
+		: builder(std::ref(builder)), shapes(std::ref(shapes)), presortedAxis(presortedAxis), depth(depth), outputTreePtr(outputTree), treeSizePtr(treeSize)
 	{ }
 
 	task* execute() override
@@ -90,7 +91,8 @@ public:
 		auto& tree = *outputTreePtr;
 		auto& treeSize = *treeSizePtr;
 
-		auto result = builder.get().buildNode(shapes.get(), presortedAxis);
+        bool allowParallelization = depth < 2;
+		auto result = builder.get().buildNode(shapes.get(), presortedAxis, allowParallelization);
 		if (std::holds_alternative<NodePtr>(result))
 		{
 			tree = std::move(std::get<NodePtr>(result));
@@ -104,8 +106,8 @@ public:
 			size_t subNodeSizeA;
 			NodePtr subNodeB;
 			size_t subNodeSizeB;
-			NodeBuildingTask& a = *new(allocate_child()) NodeBuildingTask(builder, *incompleteNode.leftSubList, incompleteNode.presortedAxis, &subNodeA, &subNodeSizeA);
-			NodeBuildingTask& b = *new(allocate_child()) NodeBuildingTask(builder, *incompleteNode.rightSubList, incompleteNode.presortedAxis, &subNodeB, &subNodeSizeB);
+			NodeBuildingTask& a = *new(allocate_child()) NodeBuildingTask(builder, *incompleteNode.leftSubList, incompleteNode.presortedAxis, depth+1, &subNodeA, &subNodeSizeA);
+			NodeBuildingTask& b = *new(allocate_child()) NodeBuildingTask(builder, *incompleteNode.rightSubList, incompleteNode.presortedAxis, depth+1, &subNodeB, &subNodeSizeB);
 
 			set_ref_count(3);
 			spawn(b);
@@ -140,7 +142,7 @@ inline thread_local std::vector<float> leftArea; // TODO: is this cleaned up?
 
 template <typename TRayHitInfo>
 std::variant<typename BVHBuilder<TRayHitInfo>::NodePtr, typename BVHBuilder<TRayHitInfo>::IncompleteNode> BVHBuilder<
-	TRayHitInfo>::buildNode(IShapeList<TRayHitInfo> & shapes, Axis presortedAxis)
+	TRayHitInfo>::buildNode(IShapeList<TRayHitInfo>& shapes, Axis presortedAxis, bool allowParallelization)
 {
 	assert(shapes.count() > 0);
 
@@ -172,7 +174,7 @@ std::variant<typename BVHBuilder<TRayHitInfo>::NodePtr, typename BVHBuilder<TRay
 	{
 		if (currentSorting != axis)
 		{
-			shapes.sortByCentroid(axis);
+			shapes.sortByCentroid(axis, allowParallelization);
 			currentSorting = axis;
 		}
 
@@ -209,7 +211,7 @@ std::variant<typename BVHBuilder<TRayHitInfo>::NodePtr, typename BVHBuilder<TRay
 
 #ifdef OMS
 	currentSorting = static_cast<Axis>( (static_cast<int>(presortedAxis) + 1) % 3 );
-	shapes.sortByCentroid(currentSorting);
+	shapes.sortByCentroid(currentSorting, allowParallelization);
 	leavesAreCheapest = shapeCount <= 10;
 	bestSplit = shapeCount / 2;
 	bestAxis = currentSorting;
@@ -239,7 +241,7 @@ std::variant<typename BVHBuilder<TRayHitInfo>::NodePtr, typename BVHBuilder<TRay
 	currentSorting = static_cast<Axis>(currentSortingI);
 	auto center = totalAABB.getStart() + ((totalAABB.getEnd() - totalAABB.getStart())/2);
 	auto middle = center[currentSortingI];
-	shapes.sortByCentroid(currentSorting);
+	shapes.sortByCentroid(currentSorting, allowParallelization);
 
 	bestSplit = 1;
 	while(bestSplit < shapeCount-1 && shapes.getCentroid(bestSplit)[currentSortingI] < middle)
@@ -262,7 +264,7 @@ std::variant<typename BVHBuilder<TRayHitInfo>::NodePtr, typename BVHBuilder<TRay
 	{
 		if (currentSorting != bestAxis)
 		{
-			shapes.sortByCentroid(bestAxis);
+			shapes.sortByCentroid(bestAxis, allowParallelization);
 		}
 
 		// Split objects in [0 .. bestSplit) and [bestSplit .. shapeCount)
@@ -274,7 +276,7 @@ std::variant<typename BVHBuilder<TRayHitInfo>::NodePtr, typename BVHBuilder<TRay
 template <typename TRayHitInfo>
 std::pair<std::unique_ptr<typename BVHBuilder<TRayHitInfo>::Node>, size_t> BVHBuilder<TRayHitInfo>::buildTree(IShapeList<TRayHitInfo> & shapes, Axis presortedAxis)
 {
-	auto result = buildNode(shapes, presortedAxis);
+	auto result = buildNode(shapes, presortedAxis, false);
 	if (std::holds_alternative<NodePtr>(result))
 	{
 		return std::make_pair(std::move(std::get<NodePtr>(result)), 1);
@@ -297,7 +299,7 @@ std::pair<std::unique_ptr<typename BVHBuilder<TRayHitInfo>::Node>, size_t> BVHBu
 {
 	NodePtr node;
 	size_t size;
-	auto& task = *new(tbb::task::allocate_root()) NodeBuildingTask<TRayHitInfo>(*this, shapes, presortedAxis, &node, &size);
+	auto& task = *new(tbb::task::allocate_root()) NodeBuildingTask<TRayHitInfo>(*this, shapes, presortedAxis, 0, &node, &size);
 	tbb::task::spawn_root_and_wait(task);
 	return std::make_pair(std::move(node), size);
 }
@@ -337,7 +339,7 @@ void BVHBuilder<TRayHitInfo>::logLeafNodeSizes(const BVHBuilder::Node &bvh, Stat
 template <typename TRayHitInfo>
 BVH<IShapeList<TRayHitInfo>, TRayHitInfo, 2> BVHBuilder<TRayHitInfo>::buildBVH(IShapeList<TRayHitInfo> & shapes, Statistics::Collector* stats)
 {
-	shapes.sortByCentroid(Axis::x);
+	shapes.sortByCentroid(Axis::x, true);
 
 	std::lock_guard lock(exec_mutex);
 

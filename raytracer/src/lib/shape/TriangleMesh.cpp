@@ -1,6 +1,8 @@
 #include "TriangleMesh.h"
 #include <Eigen/Dense>
 #include <numeric>
+
+#define SOASORT_USE_TBB_PARALLEL
 #include "utility/soa_sort.h"
 
 #ifndef NO_TBB
@@ -209,17 +211,18 @@ Point TriangleMesh::getCentroid(size_type index) const
 	return (p1 + p2 + p3)/3;
 }
 
-void TriangleMesh::sortByCentroid(Axis axis)
+template<bool AllowParallelization>
+void TriangleMesh::sortByCentroidImpl(Axis axis)
 {
-	//soa_sort_no_perm::sort_cmp(data->vertexIndices.begin() + this->beginIdx, data->vertexIndices.begin() + this->endIdx, [axis = axis, this](const auto a, const auto b)
-	auto comparator = [axis = axis, this](const auto& a, const auto& b)
+    //soa_sort_no_perm::sort_cmp(data->vertexIndices.begin() + this->beginIdx, data->vertexIndices.begin() + this->endIdx, [axis = axis, this](const auto a, const auto b)
+    auto comparator = [axis = axis, this](const auto& a, const auto& b)
     {
         Point c1;
         {
             const auto& p1 = data->vertices[a[0]];
             const auto& p2 = data->vertices[a[1]];
             const auto& p3 = data->vertices[a[2]];
-            c1 = (p1 + p2 + p3) / 3;
+            c1 = (p1 + p2 + p3)/* / 3 */;
         }
 
         Point c2;
@@ -227,23 +230,24 @@ void TriangleMesh::sortByCentroid(Axis axis)
             const auto& p1 = data->vertices[b[0]];
             const auto& p2 = data->vertices[b[1]];
             const auto& p3 = data->vertices[b[2]];
-            c2 = (p1 + p2 + p3) / 3;
+            c2 = (p1 + p2 + p3)/* / 3*/;
         }
 
         return c1[static_cast<int>(axis)] < c2[static_cast<int>(axis)];
     };
 
-	auto vertBegin = data->vertexIndices.begin() + this->beginIdx;
-	auto vertEnd = data->vertexIndices.begin() + this->endIdx;
-	auto normBegin = data->normalIndices.begin() + this->beginIdx;
-	if(data->permutation.has_value()){
+    auto vertBegin = data->vertexIndices.begin() + this->beginIdx;
+    auto vertEnd = data->vertexIndices.begin() + this->endIdx;
+    auto normBegin = data->normalIndices.begin() + this->beginIdx;
+
+    if(data->permutation.has_value()){
         if (data->texCoordIndices.empty()) {
-            soa_sort::sort_cmp(
+            soa_sort::sort_cmp<AllowParallelization>(
                     vertBegin, vertEnd,
                     comparator,
                     normBegin, data->permutation->begin() + this->beginIdx);
         } else {
-            soa_sort::sort_cmp(
+            soa_sort::sort_cmp<AllowParallelization>(
                     vertBegin, vertEnd,
                     comparator,
                     normBegin, data->texCoordIndices.begin() + this->beginIdx,
@@ -251,18 +255,26 @@ void TriangleMesh::sortByCentroid(Axis axis)
         }
     }else{
         if (data->texCoordIndices.empty()) {
-            soa_sort::sort_cmp(
+            soa_sort::sort_cmp<AllowParallelization>(
                     vertBegin, vertEnd,
                     comparator,
                     normBegin);
         } else {
-            soa_sort::sort_cmp(
+            soa_sort::sort_cmp<AllowParallelization>(
                     vertBegin, vertEnd,
                     comparator,
                     normBegin, data->texCoordIndices.begin() + this->beginIdx);
         }
     }
+}
 
+void TriangleMesh::sortByCentroid(Axis axis, bool allowParallelization)
+{
+	if(allowParallelization) {
+	    this->sortByCentroidImpl<true>(axis);
+    } else {
+        this->sortByCentroidImpl<false>(axis);
+	}
 }
 
 const TriangleMeshData& TriangleMesh::getData() const

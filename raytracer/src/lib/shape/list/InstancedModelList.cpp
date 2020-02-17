@@ -45,7 +45,7 @@ std::pair<IShapeList<SceneRayHitInfo>*, IShapeList<SceneRayHitInfo>*> InstancedM
 	return std::make_pair(l1, l2);
 }
 
-void InstancedModelList::sortByCentroid(Axis axis)
+void InstancedModelList::sortByCentroid(Axis axis, bool allowParallelization)
 {
 	std::sort(this->begin, this->end, [axis](const auto& a, const auto& b)
 	{
