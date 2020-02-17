@@ -3,6 +3,7 @@
 #include <boost/program_options.hpp>
 #include <filesystem>
 #include <exception>
+#include <material/environment/ImageMapEnvironment.h>
 
 #include "material/PositionMaterial.h"
 #include "material/CompositeMaterial.h"
@@ -16,6 +17,7 @@
 #include "io/OBJLoader.h"
 #include "io/TileFile.h"
 #include "io/PPMFile.h"
+#include "io/HDR.h"
 #include "renderer/PPMRenderer.h"
 #include "renderer/Renderer.h"
 #include "film/FrameBuffer.h"
@@ -31,17 +33,26 @@
 #include "preview/PreviewWindow.h"
 #include "photonmapping/PhotonMapBuilder.h"
 
-Scene buildScene(const std::string& sceneFile, float imageAspectRatio)
+Scene buildScene(const std::string& sceneFile, bool soupify, float imageAspectRatio)
 {
     std::cout << "Loading scene data." << std::endl;
 
     auto gltfScene = loadGLTFScene(sceneFile, imageAspectRatio);
 
+    /*std::vector<float> data;
+    int width, height;
+    read_hdr_file(data, width, height, "/home/wouter/Downloads/palermo_square_1k.hdr");
+    auto envTexture = std::make_shared<Texture<float>>(data, static_cast<unsigned int>(width), static_cast<unsigned int>(height), 1.0f);
+    gltfScene.environmentMaterial = std::make_unique<ImageMapEnvironment>(envTexture);*/
+
     Statistics::Collector collector;
-    std::cout << "Soupifying scene." << std::endl;
-    gltfScene = gltfScene.soupifyScene(&collector);
-    std::cout << collector.getString();
-    collector.clear();
+    if(soupify)
+    {
+        std::cout << "Soupifying scene." << std::endl;
+        gltfScene = gltfScene.soupifyScene(&collector);
+        std::cout << collector.getString();
+        collector.clear();
+    }
 
 	//////
 
@@ -86,6 +97,11 @@ int main(int argc, char** argv)
         ("pmmode", po::value<std::string>()->default_value("none"), "Set the photonmapping algorithm to be used. ('none', 'caustics' or 'full')")
         ("pmdepth", po::value<int>()->default_value(0), "Set the path depth at which the photon map is used")
         ("pmfile", po::value<std::string>()->default_value(""), "The path of the photonmap file. (used for savepm and loadpm)")
+        ("pmrayspointlamp", po::value<unsigned long>()->default_value(1E7), "Amount of rays to trace from each point light during photonmapping (influences, but does not equal photon count)")
+        ("pmraysarealamp", po::value<unsigned long>()->default_value(1E7), "Amount of rays to trace from each area light during photonmapping (influences, but does not equal photon count)")
+        ("soupify", "Use single layer BVH instead of two-layer. Results in higher memory usage and longer scene build, but might produce faster render")
+        ("aageometry", po::value<int>()->default_value(4), "Geometry AA modifier: Higher means more rays from the camera")
+        ("aamaterial", po::value<int>()->default_value(4), "Material AA modifier: Higher means more rays from the first hitpoint with a non-zero variance material")
         ("preview", po::bool_switch(&previewEnabled), "If enabled, a preview window will open that displays the image as its being rendered")
 		;
 
@@ -193,6 +209,22 @@ int main(int argc, char** argv)
         return -1;
     }
 
+    int aageometry = vm["aageometry"].as<int>();
+    int aamaterial = vm["aamaterial"].as<int>();
+    if(aageometry <= 0 || aamaterial <= 0)
+    {
+        std::cerr << "Invalid AA settings!" << std::endl;
+        return -1;
+    }
+
+    unsigned long pmrayspointlamp = vm["pmrayspointlamp"].as<unsigned long>();
+    unsigned long pmraysarealamp = vm["pmraysarealamp"].as<unsigned long>();
+    if(pmrayspointlamp <= 0 || pmraysarealamp <= 0)
+    {
+        std::cerr << "Invalid PM raycount settings!" << std::endl;
+        return -1;
+    }
+
 	// Create picture
 
 	auto buffer = std::make_shared<FrameBuffer>(width, height);
@@ -225,7 +257,7 @@ int main(int argc, char** argv)
 		// Build scene
         std::cout << "Loading scene." << std::endl;
         auto memUsageBefore = getMemoryUsage();
-		auto scene = buildScene(sceneFile, static_cast<float>(width)/height);
+		auto scene = buildScene(sceneFile, vm.count("soupify"), static_cast<float>(width)/height);
         auto memUsageDelta = getMemoryUsage() - memUsageBefore;
         std::cout << "Scene loaded, total memory delta = " << memUsageDelta << " bytes" << std::endl;
 
@@ -252,8 +284,8 @@ int main(int argc, char** argv)
             {
                 std::cout << "Building photon map..." << std::endl;
 
-                size_t photonsPerPointLight = 1E6;
-                size_t photonsPerAreaLight = 1E5;
+                size_t photonsPerPointLight = pmrayspointlamp;
+                size_t photonsPerAreaLight = pmraysarealamp;
                 photonMap = PhotonMapBuilder::buildPhotonMap(scene, photonMappingMode, photonsPerAreaLight, photonsPerPointLight, progressPrinter);
             }
 
@@ -274,8 +306,8 @@ int main(int argc, char** argv)
 		std::cout << "Rendering..." << std::endl;
 
 		RenderSettings settings;
-		settings.geometryAAModifier = 8;
-        settings.materialAAModifier = 2;
+		settings.geometryAAModifier = aageometry;
+        settings.materialAAModifier = aamaterial;
         std::cout << "Geometry AA level = " << settings.geometryAAModifier << std::endl;
         std::cout << "Material AA level = " << settings.materialAAModifier << std::endl;
 		//PPMRenderer renderer;
