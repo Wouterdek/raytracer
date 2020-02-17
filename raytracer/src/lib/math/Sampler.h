@@ -30,7 +30,7 @@ inline Vector3 sampleUniformSphere(float radius)
     float x = Rand::sampleStdNormalDist();
     float y = Rand::sampleStdNormalDist();
     float z = Rand::sampleStdNormalDist();
-    float len = x*x + y*y + z*z;
+    float len = std::sqrt(x*x + y*y + z*z);
     return Vector3(radius*x/len, radius*y/len, radius*z/len);
 }
 

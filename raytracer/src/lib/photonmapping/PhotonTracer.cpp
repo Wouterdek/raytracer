@@ -21,6 +21,7 @@ void tracePhoton(const Scene& scene, Ray& photonRay, RGB photonEnergy, PhotonMap
 
         // Calculate bounce/transmission/..
         auto [newPhotonRayDir, newPhotonEnergy, diffuseness] = hit->getModelNode().getData().getMaterial().interactPhoton(*hit, photonEnergy);
+        newPhotonRayDir.normalize();
 
         bool isDiffuseTransport = diffuseness >= 0.2;
         bool isCaustic = isDiffuseTransport && hasPassedSpecular /*&& !hasPassedDiffuse*/;
@@ -117,7 +118,8 @@ public:
         for (size_type photonI = startIdx; photonI < endIdx; ++photonI) {
             auto photonPos = light.generateStratifiedJitteredRandomPoint(endIdx-startIdx, photonI-startIdx);
             auto localDir = mapSampleToCosineWeightedHemisphere(Rand::unit(), Rand::unit(), 1.0);
-            auto photonDir = (basis.getU() * localDir.x()) + (basis.getV() * localDir.y()) + (basis.getW() * localDir.z());
+            Vector3 photonDir = (basis.getU() * localDir.x()) + (basis.getV() * localDir.y()) + (basis.getW() * localDir.z());
+            photonDir.normalize();
 
             Ray photonRay(photonPos + photonDir*0.0001f, photonDir);
             tracePhoton(scene, photonRay, energyPerPhoton, mode, photons);
