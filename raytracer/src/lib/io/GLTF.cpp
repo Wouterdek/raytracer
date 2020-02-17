@@ -403,23 +403,29 @@ std::shared_ptr<IMaterial> loadMaterial(tinygltf::Model& file, tinygltf::Materia
     if(emissiveFactorIt != mat.additionalValues.end() || emissiveTextureIt != mat.additionalValues.end())
     {
         auto emissive = std::make_shared<EmissiveMaterial>();
+        bool emissiveIsActive = false;
 
         if(emissiveTextureIt != mat.additionalValues.end())
         {
             int index = static_cast<int>(emissiveTextureIt->second.json_double_value["index"]);
             emissive->emissionMap = loadTexture(file, file.textures[index], videoImageMapping);
+            emissiveIsActive = true;
         }
 
         if(emissiveFactorIt != mat.additionalValues.end())
         {
             auto arr = emissiveFactorIt->second.number_array;
             emissive->color = RGB(arr[0], arr[1], arr[2]);
+            emissiveIsActive = !emissive->color.isBlack();
         }
 
-        auto addMat = std::make_shared<AddMaterial>();
-        addMat->first = emissive;
-        addMat->second = resultMaterial;
-        resultMaterial = addMat;
+        if(emissiveIsActive)
+        {
+            auto addMat = std::make_shared<AddMaterial>();
+            addMat->first = emissive;
+            addMat->second = resultMaterial;
+            resultMaterial = addMat;
+        }
     }
 
     auto alpha = getDoubleOrDefault(&nodeProps, "Material.Alpha", 1.0);

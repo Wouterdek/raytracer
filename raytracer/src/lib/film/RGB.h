@@ -88,7 +88,6 @@ public:
 
 	RGB clamp(component low, component high) const;
 	bool isBlack() const;
-	int toRGB() const;
 
 	RGB& operator+=(const RGB& rhs)
 	{

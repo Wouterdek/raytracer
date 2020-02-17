@@ -32,16 +32,6 @@ bool RGB::isBlack() const
 	return this->red == 0 && this->green == 0 && this->blue == 0;
 }
 
-int RGB::toRGB() const
-{
-	int a = 255;
-	int r = std::min(255, static_cast<int>(round(red)));
-	int g = std::min(255, static_cast<int>(round(green)));
-	int b = std::min(255, static_cast<int>(round(blue)));
-
-	return (a << 24) + (r << 16) + (g << 8) + b;
-}
-
 std::ostream & operator<<(std::ostream & in, const RGB & rgb)
 {
 	in << "(" << rgb.getRed() << ", " << rgb.getGreen() << ", " << rgb.getBlue() << ")";
