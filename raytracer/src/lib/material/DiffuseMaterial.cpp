@@ -258,8 +258,10 @@ RGB DiffuseMaterial::bsdf(const Scene &scene, const std::vector<TransportNode> &
     auto diffuseColor = this->diffuseColor;
     if(this->albedoMap != nullptr)
     {
-        float x = abs(fmod(curNode.hit.texCoord.x(), 1.0f));
-        float y = abs(fmod(curNode.hit.texCoord.y(), 1.0f));
+        float x = fmodf(curNode.hit.texCoord.x(), 1.0f);
+        float y = fmodf(curNode.hit.texCoord.y(), 1.0f);
+        if(x < 0){ x = 1.0f + x;}
+        if(y < 0){ y = 1.0f + y;}
         diffuseColor = this->albedoMap->get(x * this->albedoMap->getWidth(), y * this->albedoMap->getHeight());
     }
 
