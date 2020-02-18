@@ -71,10 +71,16 @@ inline Vector3 sampleUniformSteradianSphere(const Vector3& center, float angle)
 
 inline Vector2 sampleUniformCircle(float radius)
 {
+    //https://stackoverflow.com/a/5838055/915418
+
     float angle = Rand::floatInRange(2.0f*PI);
-    float dist = Rand::floatInRange(radius);
-    float xOffset = std::cos(angle)*dist;
-    float yOffset = std::sin(angle)*dist;
+    float dist = Rand::floatInRange(radius) + Rand::floatInRange(radius);
+    if(dist > radius)
+    {
+        dist = (2.0f * radius) - dist;
+    }
+    float xOffset = std::cos(angle) * dist;
+    float yOffset = std::sin(angle) * dist;
     return Vector2(xOffset, yOffset);
 }
 

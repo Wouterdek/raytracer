@@ -588,16 +588,23 @@ std::unique_ptr<DynamicSceneNode> loadNode(tinygltf::Model& file, int nodeI, flo
                 result->camera->focalDistance = getDoubleOrDefault(tryGetExtras(parent), "FocalDistance", 0.0);
             }
 
-            if(node.extras.Has("FStop") && result->camera->focalDistance > 0){
-                auto fstop = getDoubleOrDefault(tryGetExtras(&node), "FStop", 0.0);
-                result->camera->aperture = 0.5 * result->camera->focalDistance / fstop;
-            }else if(parent->extras.Has("FStop") && result->camera->focalDistance > 0){
-                auto fstop = getDoubleOrDefault(tryGetExtras(parent), "FStop", 0.0);
-                result->camera->aperture = 0.5 * result->camera->focalDistance / fstop;
-            }else if(node.extras.Has("Aperture")){
+            if(node.extras.Has("Aperture")){
                 result->camera->aperture = getDoubleOrDefault(tryGetExtras(&node), "Aperture", 0.0);
-            }else{
+            }else if(parent->extras.Has("Aperture")){
                 result->camera->aperture = getDoubleOrDefault(tryGetExtras(parent), "Aperture", 0.0);
+            }else if(result->camera->focalDistance > 0)
+            {
+                auto sensorSize = getDoubleOrDefault(tryGetExtras(&node), "SensorSize", 0.036);
+                auto distToSensor = (0.5 * sensorSize) / std::tan(0.5 * xFOVRad);
+                auto focalLength = 1.0/(1.0/result->camera->focalDistance + 1.0/distToSensor);
+
+                if(node.extras.Has("FStop")){
+                    auto fstop = getDoubleOrDefault(tryGetExtras(&node), "FStop", 0.0);
+                    result->camera->aperture = 0.5 * focalLength / fstop;
+                }else if(parent->extras.Has("FStop")){
+                    auto fstop = getDoubleOrDefault(tryGetExtras(parent), "FStop", 0.0);
+                    result->camera->aperture = 0.5 * focalLength / fstop;
+                }
             }
 		}
 	}
