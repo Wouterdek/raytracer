@@ -95,7 +95,7 @@ class ExtraPropsPanel(bpy.types.Panel):
                 row.label(text="Material", icon='MATERIAL')
                 self.new_prop(box, obj, "Material.Transmission", "Transmission")
                 self.new_prop(box, obj, "Material.IOR", "IOR")
-                self.new_prop(box, obj, "Material.AttenuationStrength", "IOR")
+                self.new_prop(box, obj, "Material.AttenuationStrength", "AttenuationStrength")
                 self.new_prop(box, obj, "Material.ClearCoat", "ClearCoat")
                 self.new_prop(box, obj, "Material.ClearCoatIOR", "ClearCoat IOR")
                 self.new_prop(box, obj, "Material.Alpha", "Alpha")

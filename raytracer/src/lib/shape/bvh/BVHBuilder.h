@@ -321,6 +321,7 @@ typename BVHBuilder<TRayHitInfo>::LeafNodeSizeStats BVHBuilder<TRayHitInfo>::gat
         result.totalLeafNodeSize = info1.totalLeafNodeSize + info2.totalLeafNodeSize;
         result.largestLeafNode = std::max(info1.largestLeafNode, info2.largestLeafNode);
         result.smallestLeafNode = std::min(info1.smallestLeafNode, info2.smallestLeafNode);
+        result.totalLeafNodeCount = info1.totalLeafNodeCount + info2.totalLeafNodeCount;
     }
     return result;
 }
