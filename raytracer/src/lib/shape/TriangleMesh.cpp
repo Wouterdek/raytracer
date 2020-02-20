@@ -372,7 +372,7 @@ std::vector<TriangleMesh> TriangleMesh::appendMeshes(const std::vector<TriangleM
     {
         newVerticesCount += mesh->data->vertices.size();
         newNormalsCount += mesh->data->normals.size();
-        newTexCoordsCount += mesh->data->texCoords.size();
+        newTexCoordsCount += std::max(1ul, mesh->data->texCoords.size());
         newIndicesCount += mesh->data->vertexIndices.size();
     }
     this->data->vertices.resize(newVerticesCount);
