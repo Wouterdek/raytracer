@@ -30,6 +30,11 @@ public:
         return std::uniform_real_distribution<float>(0, 1)(randDevSrc.randDev);
     }
 
+    static double unitDouble()
+    {
+        return std::uniform_real_distribution<double>(0, 1)(randDevSrc.randDev);
+    }
+
     static float floatInRange(float a, float b)
     {
         return std::uniform_real_distribution<float>(a, b)(randDevSrc.randDev);
