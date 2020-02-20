@@ -20,10 +20,12 @@
 #include <material/AddMaterial.h>
 #include <material/environment/ColorEnvironment.h>
 #include <material/TransparentMaterial.h>
+#include <material/environment/ImageMapEnvironment.h>
 #include "material/GlossyMaterial.h"
 #include "material/NormalMaterial.h"
 #include "material/PositionMaterial.h"
 #include "material/Texture.h"
+#include "HDR.h"
 
 namespace {
 
@@ -622,7 +624,18 @@ void loadEnvironmentInfo(const tinygltf::Scene& gltfScene, DynamicScene& outputS
     double envIntensity = getDoubleOrDefault(&gltfScene.extras, "EnvironmentIntensity", 0.0);
     if(envIntensity > 0)
     {
-        if(gltfScene.extras.Has("EnvironmentColor"))
+        if(gltfScene.extras.Has("EnvironmentHDRIFilePath"))
+        {
+            std::vector<float> data;
+            int width, height;
+            read_hdr_file(data, width, height, gltfScene.extras.Get("EnvironmentHDRIFilePath").Get<std::string>());
+            auto envTexture = std::make_shared<Texture<float>>(data, static_cast<unsigned int>(width), static_cast<unsigned int>(height), 1.0f);
+            
+            auto env = std::make_unique<ImageMapEnvironment>(envTexture);
+            env->intensity = envIntensity;
+            outputScene.environmentMaterial = std::move(env);
+        }
+        else if(gltfScene.extras.Has("EnvironmentColor"))
         {
             RGB color = getColorOrDefault(&gltfScene.extras, "EnvironmentColor", RGB::BLACK);
             auto env = std::make_unique<ColorEnvironment>();
