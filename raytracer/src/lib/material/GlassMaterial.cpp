@@ -117,25 +117,6 @@ void GlassMaterial::sampleTransport(TransportBuildContext &ctx) const
         }
     }
 
-    /*for(const auto& light : ctx.scene.getPointLights())
-    {
-        const auto MAX_ANGLE = M_PI / 128.0f;
-
-        Vector3 hitpointToLight = light->pos - hitpoint;
-        auto htlNorm = hitpointToLight.norm();
-        auto cosAngleLightToRay = hitpointToLight.dot(ray.getDirection()) / htlNorm; //Assuming ray dir is normalized
-        auto angleLightToRay = std::acos(cosAngleLightToRay);
-        if(angleLightToRay < MAX_ANGLE)
-        {
-            auto lightT = cosAngleLightToRay * htlNorm;
-            if(bestT > lightT)
-            {
-                meta->lightHit = &*light;
-                bestT = lightT;
-            }
-        }
-    }*/
-
     meta->t = bestT;
 
     if(std::holds_alternative<NoLight>(meta->lightHit))
@@ -170,7 +151,16 @@ RGB GlassMaterial::bsdf(const Scene &scene, const std::vector<TransportNode> &pa
     if(std::holds_alternative<AreaLight*>(meta->lightHit))
     {
         const auto& areaLight = *std::get<AreaLight*>(meta->lightHit);
-        val = areaLight.color * areaLight.intensity;
+        auto lightEnergy = areaLight.color * areaLight.intensity;
+        auto lightIrradiance = lightEnergy.divide(areaLight.getSurfaceArea());
+        auto lightRadiance = lightIrradiance.divide(PI);
+        auto lampPoint = curNode.transportDirection * meta->t;
+
+        auto objectToLamp = (lampPoint - curNode.hit.getHitpoint()).normalized();
+        //auto lampAngle = std::max(0.0f, areaLight.getNormal().dot(objectToLamp));
+        auto angle = std::max(0.0f, normal.dot(objectToLamp));
+
+        val = lightRadiance * angle;
     }
     else if(std::holds_alternative<PointLight*>(meta->lightHit))
     {
@@ -238,58 +228,6 @@ Vector3 samplePhotonDirection(Vector3& normal, const Vector3& incomingDir, doubl
     }
     else
     {
-        return transmittedRayDir;
-    }
-}
-
-Vector3 sampleTransportDirection(Vector3& normal, const Vector3& incomingDir, double ior, bool& isReflectionDirection)
-{
-    auto objToIncoming = -incomingDir;
-    Vector3 reflectionRayDir = -objToIncoming + ((2.0 * normal.dot(objToIncoming)) * normal);
-
-    // Check for total internal reflection
-    double nDotWo = normal.dot(objToIncoming);
-    auto incomingAngle = nDotWo; //assuming wo and n are normalized //Careful: this is cos of angle between normal and Wo, which could be >90 (if internal ray)
-    bool isInternalRay = nDotWo < 0;
-    auto curRelIor = ior / 1.0; //Assuming 1.0 for air
-    if(isInternalRay)
-    {
-        curRelIor = 1.0 / curRelIor;
-    }
-    double cosTransmissionSqr = 1.0 - ((1.0 - (incomingAngle * incomingAngle)) / (curRelIor * curRelIor)); //incomingAngle could actually be -incomingAngle, but this doesn't matter as we square it anyway
-    bool tir = cosTransmissionSqr < 0; // total internal reflection
-
-    if(tir)
-    {
-        isReflectionDirection = true;
-        return reflectionRayDir;
-    }
-
-    if(isInternalRay)
-    {
-        nDotWo = -nDotWo;
-        incomingAngle = -incomingAngle;
-        normal = -normal;
-    }
-    double cosRefractAngle = sqrt(cosTransmissionSqr);
-
-    Vector3 transmittedRayDir = (incomingDir / curRelIor) - (cosRefractAngle - (incomingAngle / curRelIor)) * normal;
-
-    auto rs = ((curRelIor * nDotWo) - cosRefractAngle) / ((curRelIor * nDotWo) + cosRefractAngle);
-    auto rp = (nDotWo - (curRelIor * cosRefractAngle)) / (nDotWo + (curRelIor * cosRefractAngle));
-    auto kr = ((rs * rs) + (rp * rp)) / 2.0;
-    auto reflectionWeight = kr;
-    auto transmissionWeight = 1.0 - kr;
-    auto totalWeight = reflectionWeight + transmissionWeight;
-
-    if(Rand::unit() * totalWeight < reflectionWeight)
-    {
-        isReflectionDirection = true;
-        return reflectionRayDir;
-    }
-    else
-    {
-        isReflectionDirection = false;
         return transmittedRayDir;
     }
 }
