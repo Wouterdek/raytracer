@@ -124,6 +124,7 @@ class SceneSetupExtraProps(bpy.types.Operator) :
     def invoke(self, context, event):
         scene = context.scene
         self.new_prop(scene, "EnvironmentIntensity", 000.0, max = 1000.0, soft_max = 1000.0)
+        self.new_prop(scene, "EnvironmentHDRIFilePath", "")
         self.new_color_prop(scene, "EnvironmentColor", [1.0, 1.0, 1.0])
                 
         return {"FINISHED"}
@@ -152,6 +153,7 @@ class SceneExtraPropsPanel(bpy.types.Panel):
         row = box.row()
         row.label(text="Scene", icon='SCENE')
         self.new_prop(box, scene, "EnvironmentColor", "EnvironmentColor")
+        self.new_prop(box, scene, "EnvironmentHDRIFilePath", "EnvironmentHDRIFilePath")
         self.new_prop(box, scene, "EnvironmentIntensity", "EnvironmentIntensity")
 
 # MATERIAL
