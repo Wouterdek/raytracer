@@ -1,4 +1,5 @@
 #include "OrthonormalBasis.h"
+#include "math/Matrix.h"
 #include <exception>
 #include <iostream>
 
@@ -47,6 +48,24 @@ OrthonormalBasis::OrthonormalBasis(const Vector3 & a, const Vector3 & b)
 	w = a.normalized();
 	u = cross / length;
 	v = w.cross(u);
+}
+
+Vector3 OrthonormalBasis::applyBasisTo(const Vector3 &vect) const
+{
+    Eigen::Matrix3f matrix {};
+    matrix.row(0) = u;
+    matrix.row(1) = v;
+    matrix.row(2) = w;
+    return matrix * vect;
+}
+
+Vector3 OrthonormalBasis::invertApplyBasisTo(const Vector3 &vect) const
+{
+    Eigen::Matrix3f matrix {};
+    matrix.col(0) = u;
+    matrix.col(1) = v;
+    matrix.col(2) = w;
+    return matrix * vect;
 }
 
 std::ostream & operator<<(std::ostream & in, const OrthonormalBasis & b)

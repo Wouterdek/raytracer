@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Vector3.h"
+#include "Transformation.h"
 
 class OrthonormalBasis
 {
@@ -23,6 +24,9 @@ public:
     {
         return this->w;
     }
+
+    Vector3 applyBasisTo(const Vector3 &vect) const;
+    Vector3 invertApplyBasisTo(const Vector3 &vect) const;
 
 private:
 	Vector3 u;
