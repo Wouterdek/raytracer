@@ -6,13 +6,14 @@
 #include "math/Triangle.h"
 #include "NormalMapSampler.h"
 #include "math/Sampler.h"
+#include "VNDFGGXSampler.h"
 
 GlossyMaterial::GlossyMaterial() = default;
 
 struct TransportMetaData
 {
     AreaLight* lightHit = nullptr;
-    Vector3 perfectReflectionDir;
+    Vector3 normal;
 };
 
 Vector3 getPerfectReflectionDir(const Vector3& normal, const Vector3& incomingDir)
@@ -20,40 +21,38 @@ Vector3 getPerfectReflectionDir(const Vector3& normal, const Vector3& incomingDi
     return incomingDir + ((2.0*normal.dot(-incomingDir))*normal);
 }
 
-Vector3 sampleRoughReflectionDir(const Vector3& perfectReflectionDir, float roughness)
-{
-    Vector3 sampleDir = perfectReflectionDir;
-
-    auto offset = sampleUniformCircle(roughness); //TODO: is this correct? Seems like this is not actually uniform
-    OrthonormalBasis sampleSpace(sampleDir);
-    sampleDir += sampleSpace.getU() * offset.x(); // TODO: is this correct? Seems like the vector would not be unit anymore
-    sampleDir += sampleSpace.getV() * offset.y();
-
-    return sampleDir;
-}
-
 void GlossyMaterial::sampleTransport(TransportBuildContext &ctx) const
 {
     auto& transport = ctx.getCurNode();
+    transport.specularity = 1.0f - this->roughness;
+    transport.type = TransportType::bounce;
+
     auto* meta = transport.metadata.tryRead<TransportMetaData>();
     if(meta == nullptr)
     {
         meta = transport.metadata.alloc<TransportMetaData>();
 
         const auto& incomingDir = transport.hit.ray.getDirection();
-        auto normal = transport.hit.normal;
+        meta->normal = transport.hit.normal;
         if(this->normalMap != nullptr)
         {
-            normal = sample_normal_map(transport.hit, *this->normalMap);
+            meta->normal = sample_normal_map(transport.hit, *this->normalMap);
         }
-        meta->perfectReflectionDir = getPerfectReflectionDir(normal, incomingDir);
     }
 
-    Vector3 sampleDir = sampleRoughReflectionDir(meta->perfectReflectionDir, roughness);
+    Vector3 microfacetNormal = VNDFGGXSampler::sample(meta->normal, -transport.hit.ray.getDirection(), roughness);
+    microfacetNormal.normalize();
+    Vector3 sampleDir = getPerfectReflectionDir(microfacetNormal, transport.hit.ray.getDirection());
 
     transport.transportDirection = sampleDir;
-    transport.specularity = 1.0f - this->roughness;
-    transport.type = TransportType::bounce;
+
+    if(sampleDir.dot(transport.hit.normal) < 0)
+    {
+        // sampleDir points to wrong side of geometry. Assume self-collide with zero-contribution
+        transport.isEmissive = true;
+        transport.pathTerminationChance = 1.0;
+        return;
+    }
 
     // Check if there are any lights in this direction
     Point hitpoint = transport.hit.getHitpoint();
@@ -71,8 +70,6 @@ void GlossyMaterial::sampleTransport(TransportBuildContext &ctx) const
             bestT = intersection.t;
         }
     }
-
-    //TODO: check for point lights?
 
     if(meta->lightHit == nullptr)
     {
@@ -93,9 +90,8 @@ RGB GlossyMaterial::bsdf(const Scene &scene, const std::vector<TransportNode> &p
     RGB radiance = incomingEnergy;
     if(meta->lightHit != nullptr)
     {
-        radiance = meta->lightHit->color * meta->lightHit->intensity; //TODO: This seems incorrect
+        radiance = meta->lightHit->color * meta->lightHit->intensity; //TODO: check this
     }
-
     return radiance.multiply(color);
 }
 
@@ -107,10 +103,13 @@ std::tuple<Vector3, RGB, float> GlossyMaterial::interactPhoton(const SceneRayHit
         normal = sample_normal_map(hit, *this->normalMap);
     }
 
-    Vector3 direction = sampleRoughReflectionDir(getPerfectReflectionDir(normal, hit.ray.getDirection()), this->roughness);
+    Vector3 microfacetNormal = VNDFGGXSampler::sample(normal, -hit.ray.getDirection(), roughness);
+    microfacetNormal.normalize();
+    Vector3 sampleDir = getPerfectReflectionDir(microfacetNormal, hit.ray.getDirection());
+
     //TODO: is this energy weight correct?
     //TODO: is using roughness for diffuse parameter correct?
-    return std::make_tuple(direction, incomingEnergy, this->roughness);
+    return std::make_tuple(sampleDir, incomingEnergy, this->roughness);
 }
 
 bool GlossyMaterial::hasVariance(const std::vector<TransportNode> &path, int curI, const Scene &scene) const
