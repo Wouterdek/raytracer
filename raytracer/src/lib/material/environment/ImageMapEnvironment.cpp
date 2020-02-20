@@ -18,5 +18,5 @@ RGB ImageMapEnvironment::getRadiance(const Scene &scene, const Vector3 &directio
 
     auto x = texture->getWidth() * longtitude/(2.0f*M_PI);
     auto y = texture->getHeight() * (1.0f - (((M_PI/2.0f) + latitude)/M_PI));
-    return this->texture->get(static_cast<int>(x), static_cast<int>(y));
+    return this->texture->get(static_cast<int>(x), static_cast<int>(y)) * intensity;
 }
