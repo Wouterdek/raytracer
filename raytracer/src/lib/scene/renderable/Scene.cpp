@@ -20,3 +20,8 @@ std::optional<SceneRayHitInfo> Scene::testVisibility(const Ray &ray, float maxT)
 {
     return this->sceneBVH.testVisibility(ray, maxT);
 }
+
+HitBundle<SceneRayHitInfo> Scene::traceRays(RayBundle& rays) const
+{
+    return this->sceneBVH.traceRays(rays);
+}

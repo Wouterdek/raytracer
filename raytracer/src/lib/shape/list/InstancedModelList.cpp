@@ -100,8 +100,10 @@ std::optional<SceneRayHitInfo> InstancedModelList::traceRay(const Ray & ray) con
 {
 	std::optional<RayHitInfo> closestHit;
 	SceneNode<Model>* node;
-	for(auto& modelNode : this->data->shapes)
+	for(ModelVector::iterator it = begin; it < end; ++it)
 	{
+	    auto& modelNode = *it;
+
 		const auto transformedRay = modelNode.getTransform().transformInverse(ray);
 		
 		auto bvh = this->data->findShapeBVH(modelNode.getData().getShape());
@@ -135,10 +137,76 @@ std::optional<SceneRayHitInfo> InstancedModelList::traceRay(const Ray & ray) con
 	}
 }
 
+void InstancedModelList::traceRays(RBSize_t startIdx, RBSize_t endIdx, RayBundle &rays, RayBundlePermutation &perm, HitBundle<SceneRayHitInfo> &result, std::array<bool, RayBundleSize>& foundBetterHit) const
+{
+    HitBundle<RayHitInfo> closestHits {};
+    std::array<SceneNode<Model>*, RayBundleSize> nodes {};
+
+    for(ModelVector::iterator it = begin; it < end; ++it)
+    {
+        auto& modelNode = *it;
+
+        RayBundle transformedRays;
+        for(RBSize_t i = startIdx; i < endIdx; ++i)
+        {
+            transformedRays[i] = modelNode.getTransform().transformInverse(rays[i]);
+        }
+
+        RayBundlePermutation subPerm {};
+        std::iota(subPerm.begin(), subPerm.end(), 0);
+
+        auto bvh = this->data->findShapeBVH(modelNode.getData().getShape());
+
+        if(bvh.has_value())
+        {
+            std::array<bool, RayBundleSize> subFoundBetterHit {};
+            bvh->get().traceRays(startIdx, endIdx, transformedRays, subPerm, closestHits, subFoundBetterHit);
+            for(RBSize_t i = startIdx; i < endIdx; ++i)
+            {
+                if(subFoundBetterHit[i])
+                {
+                    nodes[i] = &modelNode;
+                }
+            }
+        }
+        else
+        {
+            for(RBSize_t i = startIdx; i < endIdx; ++i)
+            {
+                auto& closestHit = closestHits[subPerm[i]];
+                std::optional<RayHitInfo> hit = modelNode.getData().getShape().intersect(transformedRays[i]);
+                if(hit.has_value() && (!closestHit.has_value() || closestHit->t > hit->t))
+                {
+                    closestHit = hit;
+                    nodes[i] = &modelNode;
+                }
+            }
+        }
+    }
+
+    for(RBSize_t i = startIdx; i < endIdx; ++i)
+    {
+        auto& curClosestHit = closestHits[i];
+        auto& resultClosestHit = result[perm[i]];
+        auto& ray = rays[i];
+        auto* node = nodes[i];
+        if(curClosestHit.has_value() && (!resultClosestHit.has_value() || resultClosestHit->t > curClosestHit->t))
+        {
+            auto normal = node->getTransform().transformNormal(curClosestHit->normal);
+            normal.normalize();
+            auto tangent = node->getTransform().transform(curClosestHit->tangent);
+            resultClosestHit = SceneRayHitInfo(RayHitInfo(ray, curClosestHit->t, normal, curClosestHit->texCoord, tangent, curClosestHit->triangleIndex), *node);
+            foundBetterHit[perm[i]] = true;
+        }
+    }
+}
+
+
 std::optional<SceneRayHitInfo> InstancedModelList::testVisibility(const Ray &ray, float maxT) const
 {
-    for(auto& modelNode : this->data->shapes)
+    for(ModelVector::iterator it = begin; it < end; ++it)
     {
+        auto& modelNode = *it;
         const auto transformedRay = modelNode.getTransform().transformInverse(ray);
 
         auto bvh = this->data->findShapeBVH(modelNode.getData().getShape());

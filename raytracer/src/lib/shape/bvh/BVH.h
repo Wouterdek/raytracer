@@ -29,6 +29,28 @@ public:
 		}
 	}
 
+    HitBundle<TRayHitInfo> traceRays(RayBundle& rays) const
+    {
+        if(std::holds_alternative<std::unique_ptr<LinkedNode>>(nodes))
+        {
+            return std::get<std::unique_ptr<LinkedNode>>(nodes)->traceRays(rays);
+        }else
+        {
+            return std::get<std::vector<PackedNode>>(nodes)[0].traceRays(rays);
+        }
+    }
+
+    void traceRays(RBSize_t startIdx, RBSize_t endIdx, RayBundle& rays, RayBundlePermutation& perm, HitBundle<TRayHitInfo>& result, std::array<bool, RayBundleSize>& foundBetterHit) const
+    {
+        if(std::holds_alternative<std::unique_ptr<LinkedNode>>(nodes))
+        {
+            return std::get<std::unique_ptr<LinkedNode>>(nodes)->traceRays(startIdx, endIdx, rays, perm, result, foundBetterHit);
+        }else
+        {
+            return std::get<std::vector<PackedNode>>(nodes)[0].traceRays(startIdx, endIdx, rays, perm, result, foundBetterHit);
+        }
+    }
+
     std::optional<TRayHitInfo> testVisibility(const Ray &ray, float maxT) const
     {
         if(std::holds_alternative<std::unique_ptr<LinkedNode>>(nodes))

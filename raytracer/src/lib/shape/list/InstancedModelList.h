@@ -38,6 +38,7 @@ public:
 	void buildShapeBVHCache(Statistics::Collector* stats = nullptr) const;
 
 	std::optional<SceneRayHitInfo> traceRay(const Ray& ray) const override;
+    void traceRays(RBSize_t startIdx, RBSize_t endIdx, RayBundle& rays, RayBundlePermutation& perm, HitBundle<SceneRayHitInfo>& result, std::array<bool, RayBundleSize>& foundBetterHit) const override;
     std::optional<SceneRayHitInfo> testVisibility(const Ray &ray, float maxT) const override;
 
 private:

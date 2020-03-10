@@ -94,6 +94,7 @@ public:
 
     // Get first hit
 	std::optional<SceneRayHitInfo> traceRay(const Ray& ray) const;
+    HitBundle<SceneRayHitInfo> traceRays(RayBundle& ray) const;
 
 	// Get any hit between origin and maxT
     std::optional<SceneRayHitInfo> testVisibility(const Ray& ray, float maxT) const;

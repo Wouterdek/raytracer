@@ -31,6 +31,24 @@ public:
 	virtual void sortByCentroid(Axis axis, bool allowParallelization) = 0;
 	
 	virtual std::optional<TRayHitInfo> traceRay(const Ray& ray) const = 0;
+    virtual void traceRays(RBSize_t startIdx, RBSize_t endIdx, RayBundle& rays, RayBundlePermutation& perm, HitBundle<TRayHitInfo>& result, std::array<bool, RayBundleSize>& foundBetterHit) const
+    {
+        for(RBSize_t rayI = startIdx; rayI < endIdx; ++rayI)
+        {
+            const auto &ray = rays[rayI];
+            auto hit = traceRay(ray);
+            if(hit.has_value())
+            {
+                auto& entry = result[perm[rayI]];
+                if(!entry.has_value() || entry->t > hit->t)
+                {
+                    entry = hit;
+                    foundBetterHit[perm[rayI]] = true;
+                }
+            }
+        }
+    }
+
     virtual std::optional<TRayHitInfo> testVisibility(const Ray& ray, float maxT) const
     {
         auto hit = traceRay(ray);
