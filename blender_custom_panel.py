@@ -43,8 +43,10 @@ class SetupExtraProps(bpy.types.Operator) :
                 self.new_prop(obj, "Material.Transmission", 0.0)
                 self.new_prop(obj, "Material.IOR", 1.45, max = 10.0, soft_max = 10.0)
                 self.new_prop(obj, "Material.AttenuationStrength", 5.00, max = 1000.0, soft_max = 100.0)
+                self.new_prop(obj, "Material.EmissionStrength", 1.00, max = 1000.0, soft_max = 100.0)
                 self.new_prop(obj, "Material.ClearCoat", 0.0)
                 self.new_prop(obj, "Material.ClearCoatIOR", 1.45, max = 10.0, soft_max = 10.0)
+                self.new_prop(obj, "Material.ClearCoatRoughness", 0.0, max = 1.0, soft_max = 1.0)
                 self.new_prop(obj, "Material.Alpha", 1.0, max = 1.0, soft_max = 1.0)
                 
         return {"FINISHED"}
@@ -96,8 +98,10 @@ class ExtraPropsPanel(bpy.types.Panel):
                 self.new_prop(box, obj, "Material.Transmission", "Transmission")
                 self.new_prop(box, obj, "Material.IOR", "IOR")
                 self.new_prop(box, obj, "Material.AttenuationStrength", "AttenuationStrength")
+                self.new_prop(box, obj, "Material.EmissionStrength", "EmissionStrength")
                 self.new_prop(box, obj, "Material.ClearCoat", "ClearCoat")
                 self.new_prop(box, obj, "Material.ClearCoatIOR", "ClearCoat IOR")
+                self.new_prop(box, obj, "Material.ClearCoatRoughness", "ClearCoat Roughness")
                 self.new_prop(box, obj, "Material.Alpha", "Alpha")
 
 # SCENE
