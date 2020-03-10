@@ -139,6 +139,30 @@ public:
                     Vector2 sample = Vector2(x, y) + sampleUniformStratifiedSquare(renderSettings.geometryAAModifier, i);
                     Ray ray = camera.generateRay(sample, buffer.getHorizontalResolution(), buffer.getVerticalResolution());
                     auto hit = scene.traceRay(ray);
+
+                    // Check if there is an area light that gives a closer hit
+                    {
+                        float bestT = hit.has_value() ? hit->t : INFINITY;
+                        Triangle::TriangleIntersection lightHit;
+                        AreaLight* light = nullptr;
+                        for(const auto& areaLight : scene.getAreaLights())
+                        {
+                            if(Triangle::intersect(ray, areaLight->a, areaLight->b, areaLight->c, lightHit)
+                               && (bestT > lightHit.t))
+                            {
+                                light = &*areaLight;
+                                bestT = lightHit.t;
+                            }
+                        }
+                        if(light != nullptr)
+                        {
+                            auto lightEnergy = light->color * light->intensity;
+                            auto lightIrradiance = lightEnergy.divide(light->getSurfaceArea());
+                            pixelValue = pixelValue.add(lightIrradiance.divide(2));
+                            continue;
+                        }
+                    }
+
                     bool pathWasTerminated;
                     if (hit.has_value())
                     {
