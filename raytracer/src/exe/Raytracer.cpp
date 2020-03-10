@@ -118,6 +118,16 @@ int main(int argc, char** argv)
 	int xend = vm.count("xend") > 0 ? vm["xend"].as<int>() : (width - xstart);
 	int yend = vm.count("yend") > 0 ? vm["yend"].as<int>() : (height - ystart);
 	Tile tile(xstart, ystart, xend, yend);
+	if(tile.getXStart() >= tile.getXEnd() || tile.getXStart() >= width || tile.getXEnd() > width || tile.getXStart() < 0  || tile.getXEnd() < 0)
+    {
+        std::cerr << "Invalid xstart or xend." << std::endl;
+        return -1;
+    }
+    if(tile.getYStart() >= tile.getYEnd() || tile.getYStart() >= height || tile.getYEnd() > height || tile.getYStart() < 0  || tile.getYEnd() <= 0)
+    {
+        std::cerr << "Invalid ystart or yend." << std::endl;
+        return -1;
+    }
 
 	double exposure = vm["exposure"].as<double>();
 	double gamma = vm["gamma"].as<double>();
@@ -129,7 +139,7 @@ int main(int argc, char** argv)
 	}
 
 	auto outputfileStr = vm["output"].as<std::string>();
-	std::filesystem::path outputfile(outputfileStr);
+	std::filesystem::path outputfile = PathResolver::get().resolve(outputfileStr);
 	if(outputfile.is_relative())
 	{
 		outputfile = workDirPath / outputfile;
