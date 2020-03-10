@@ -3,32 +3,17 @@
 #include <boost/program_options.hpp>
 #include <filesystem>
 #include <exception>
-#include <material/environment/ImageMapEnvironment.h>
 
-#include "material/PositionMaterial.h"
-#include "material/CompositeMaterial.h"
-#include "material/DiffuseMaterial.h"
-#include "material/GlossyMaterial.h"
-#include "material/NormalMaterial.h"
-#include "material/TexCoordMaterial.h"
+#include "io/PathResolver.h"
 #include "io/PNG.h"
 #include "io/EXRWriter.h"
 #include "io/GLTF.h"
-#include "io/OBJLoader.h"
 #include "io/TileFile.h"
 #include "io/PPMFile.h"
 #include "io/HDR.h"
-#include "renderer/PPMRenderer.h"
 #include "renderer/Renderer.h"
 #include "film/FrameBuffer.h"
-#include "math/Transformation.h"
-#include "camera/PerspectiveCamera.h"
 #include "scene/dynamic/DynamicScene.h"
-#include "scene/dynamic/DynamicSceneNode.h"
-#include "shape/TriangleMesh.h"
-#include "shape/Sphere.h"
-#include "shape/Plane.h"
-#include "shape/Box.h"
 #include "utility/MemoryUsage.h"
 #include "preview/PreviewWindow.h"
 #include "photonmapping/PhotonMapBuilder.h"
@@ -38,12 +23,6 @@ Scene buildScene(const std::string& sceneFile, bool soupify, float imageAspectRa
     std::cout << "Loading scene data." << std::endl;
 
     auto gltfScene = loadGLTFScene(sceneFile, imageAspectRatio);
-
-    /*std::vector<float> data;
-    int width, height;
-    read_hdr_file(data, width, height, "/home/wouter/Downloads/palermo_square_1k.hdr");
-    auto envTexture = std::make_shared<Texture<float>>(data, static_cast<unsigned int>(width), static_cast<unsigned int>(height), 1.0f);
-    gltfScene.environmentMaterial = std::make_unique<ImageMapEnvironment>(envTexture);*/
 
     Statistics::Collector collector;
     if(soupify)
@@ -129,6 +108,8 @@ int main(int argc, char** argv)
 		return -1;
 	}
 
+	PathResolver::get().setWorkDir(workDir);
+
 	int width = vm["width"].as<int>();
 	int height = vm["height"].as<int>();
 
@@ -167,10 +148,14 @@ int main(int argc, char** argv)
         tileFilesToMerge = vm["mergetiles"].as<std::vector<std::string>>();
 	}
 
-    auto sceneFile = workDir + vm["scene"].as<std::string>();
+    std::filesystem::path sceneFile = PathResolver::get().resolve(vm["scene"].as<std::string>());
+    if(sceneFile.is_relative())
+    {
+        sceneFile = workDirPath / sceneFile;
+    }
     if(tileFilesToMerge.size() == 0 && !std::filesystem::is_regular_file(sceneFile))
     {
-        std::cerr << "The specified scene file does not exist or is not a file." << std::endl;
+        std::cerr << "The specified scene file does not exist or is not a file. (" << sceneFile << ")" << std::endl;
         return -1;
     }
 
@@ -180,7 +165,7 @@ int main(int argc, char** argv)
     if(loadPhotonMapFromFile || savePhotonMapToFile)
     {
         auto photonMapFile = vm["pmfile"].as<std::string>();
-        photonMapFilePath = std::filesystem::path(photonMapFile);
+        photonMapFilePath = PathResolver::get().resolve(photonMapFile);
 
         if(loadPhotonMapFromFile && !std::filesystem::is_regular_file(photonMapFilePath))
         {
@@ -241,10 +226,11 @@ int main(int argc, char** argv)
 
 		for (const auto& file : tileFilesToMerge)
 		{
-			std::cout << file << std::endl;
+            auto filePath = PathResolver::get().resolve(file);
+			std::cout << filePath << std::endl;
 			try
 			{
-				load_from_tile_file(*buffer, file);
+				load_from_tile_file(*buffer, filePath);
 			}catch(const std::runtime_error& err)
 			{
 				std::cerr << err.what() << std::endl;
@@ -321,6 +307,7 @@ int main(int argc, char** argv)
 	}
 	
 	// Write output
+	std::filesystem::create_directories(outputfile.parent_path());
 	std::cout << "Writing output to " << outputfile.string() << std::endl;
 	if(outputtype == "exr")
 	{

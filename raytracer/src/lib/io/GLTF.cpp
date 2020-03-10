@@ -6,11 +6,11 @@
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 // #define TINYGLTF_NOEXCEPTION // optional. disable exception handling.
 #include "io/lib/tiny_gltf.h"
+#include "io/PathResolver.h"
 #include "io/JPEG.h"
 #include "shape/TriangleMesh.h"
 #include "material/DiffuseMaterial.h"
 #include "camera/PerspectiveCamera.h"
-#include <Eigen/Dense>
 #include <material/MixMaterial.h>
 #include <material/FresnelMixMaterial.h>
 #include <math/Constants.h>
@@ -278,6 +278,7 @@ VideoImageMapping loadVideoImageMapping(tinygltf::Material& mat)
                 }
                 auto imageName = curVIMapping.Get("ImageName").Get<std::string>();
                 auto frameDirectory = curVIMapping.Get("FrameDirectory").Get<std::string>();
+                frameDirectory = PathResolver::get().resolve(frameDirectory);
                 auto frameIndex = curVIMapping.Get("Frame").Get<int>();
                 VideoFrameDefinition entry;
                 entry.frameIndex = frameIndex;
@@ -323,35 +324,40 @@ std::shared_ptr<IMaterial> loadMaterial(tinygltf::Model& file, tinygltf::Materia
 {
     auto videoImageMapping = loadVideoImageMapping(mat);
 
-    bool clearCoat = getBoolOrDefault(&nodeProps, "Material.ClearCoat", false);
-
     std::shared_ptr<IMaterial> resultMaterial;
 
-    std::shared_ptr<MixMaterial> mixMat;
+    auto diffuse = std::make_shared<DiffuseMaterial>();
+    auto glossy = std::make_shared<GlossyMaterial>();
+    auto clearCoatGlossy = std::make_shared<GlossyMaterial>();
+    resultMaterial = diffuse;
+
+    std::shared_ptr<ConstMixMaterial> mixMat = std::make_shared<ConstMixMaterial>();
+    auto metallicFactorIt = mat.values.find("metallicFactor");
+    if(metallicFactorIt != mat.values.end()){
+        auto metallicFactor = metallicFactorIt->second.number_value;
+        if(metallicFactor > 0)
+        {
+            mixMat->mixFactor = metallicFactor;
+
+            mixMat->first = diffuse;
+            mixMat->second = glossy;
+            resultMaterial = mixMat;
+        }
+    }
+
+
+    bool clearCoat = getBoolOrDefault(&nodeProps, "Material.ClearCoat", false);
     if(clearCoat)
     {
         auto clearCoatMixMat = std::make_shared<FresnelMixMaterial>();
         auto clearCoatIor = getDoubleOrDefault(&nodeProps, "Material.ClearCoatIOR", 1.45f);
+        auto clearCoatRoughness = getDoubleOrDefault(&nodeProps, "Material.ClearCoatRoughness", 0);
         clearCoatMixMat->IOR = clearCoatIor;
-        mixMat = clearCoatMixMat;
+        clearCoatGlossy->roughness = clearCoatRoughness;
+        clearCoatMixMat->first = resultMaterial;
+        clearCoatMixMat->second = clearCoatGlossy;
+        resultMaterial = clearCoatMixMat;
     }
-    else
-    {
-        auto constMixMat = std::make_shared<ConstMixMaterial>();
-
-        auto metallicFactorIt = mat.values.find("metallicFactor");
-        if(metallicFactorIt != mat.values.end()){
-            auto metallicFactor = metallicFactorIt->second.number_value;
-            constMixMat->mixFactor = metallicFactor;
-        }
-
-        mixMat = constMixMat;
-    }
-    resultMaterial = mixMat;
-    auto diffuse = std::make_shared<DiffuseMaterial>();
-    auto glossy = std::make_shared<GlossyMaterial>();
-    mixMat->first = diffuse;
-    mixMat->second = glossy;
 
     auto baseColorTextureIt = mat.values.find("baseColorTexture");
     if(baseColorTextureIt != mat.values.end()){
@@ -383,6 +389,7 @@ std::shared_ptr<IMaterial> loadMaterial(tinygltf::Model& file, tinygltf::Materia
         auto tex = loadTexture(file, file.textures[index], videoImageMapping);
         diffuse->normalMap = tex;
         glossy->normalMap = tex;
+        clearCoatGlossy->normalMap = tex;
         //normalTextureIt->second.json_double_value["texCoord"]
     }
 
@@ -422,6 +429,8 @@ std::shared_ptr<IMaterial> loadMaterial(tinygltf::Model& file, tinygltf::Materia
             emissive->color = RGB(arr[0], arr[1], arr[2]);
             emissiveIsActive = !emissive->color.isBlack();
         }
+
+        emissive->intensity = getDoubleOrDefault(&nodeProps, "Material.EmissionStrength", 1.0);
 
         if(emissiveIsActive)
         {
@@ -545,6 +554,10 @@ std::unique_ptr<DynamicSceneNode> loadNode(tinygltf::Model& file, int nodeI, flo
         result->pointLight = std::make_unique<PointLight>();
         result->pointLight->intensity = getDoubleOrDefault(tryGetExtras(&node), "LightIntensity", 500);
         result->pointLight->color = getColorOrDefault(tryGetExtras(&node), "LightColor", RGB(1.0, 1.0, 1.0));
+        if(result->pointLight->intensity < 1E-6)
+        {
+            result->pointLight = nullptr;
+        }
     }
     else if(getBoolOrDefault(tryGetExtras(&node), "IsDirectionalLight", false))
     {
@@ -553,6 +566,10 @@ std::unique_ptr<DynamicSceneNode> loadNode(tinygltf::Model& file, int nodeI, flo
         result->directionalLight->angle = 0.5 * getDoubleOrDefault(tryGetExtras(&node), "DirectionalLight.Angle", 0.009180);
         result->directionalLight->direction = Vector3(0, -1, 0);
         result->directionalLight->color = getColorOrDefault(tryGetExtras(&node), "LightColor", RGB(1.0, 1.0, 1.0));
+        if(result->directionalLight->intensity < 1E-6)
+        {
+            result->directionalLight = nullptr;
+        }
     }
 	else if (node.mesh != -1)
 	{
@@ -628,7 +645,9 @@ void loadEnvironmentInfo(const tinygltf::Scene& gltfScene, DynamicScene& outputS
         {
             std::vector<float> data;
             int width, height;
-            read_hdr_file(data, width, height, gltfScene.extras.Get("EnvironmentHDRIFilePath").Get<std::string>());
+            std::string hdrPath = gltfScene.extras.Get("EnvironmentHDRIFilePath").Get<std::string>();
+            auto hdrFile = PathResolver::get().resolve(hdrPath);
+            read_hdr_file(data, width, height, hdrFile);
             auto envTexture = std::make_shared<Texture<float>>(data, static_cast<unsigned int>(width), static_cast<unsigned int>(height), 1.0f);
             
             auto env = std::make_unique<ImageMapEnvironment>(envTexture);

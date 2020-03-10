@@ -90,7 +90,9 @@ RGB GlossyMaterial::bsdf(const Scene &scene, const std::vector<TransportNode> &p
     RGB radiance = incomingEnergy;
     if(meta->lightHit != nullptr)
     {
-        radiance = meta->lightHit->color * meta->lightHit->intensity; //TODO: check this
+        auto lightEnergy = meta->lightHit->color * meta->lightHit->intensity;
+        auto lightIrradiance = lightEnergy.divide(meta->lightHit->getSurfaceArea());
+        radiance = lightIrradiance.divide(2); //TODO: check this
     }
     return radiance.multiply(color);
 }
