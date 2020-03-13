@@ -1,5 +1,6 @@
 #include "Renderer.h"
 #include <thread>
+#include <math/Triangle.h>
 #include "math/Ray.h"
 #include "camera/ICamera.h"
 #include "utility/ProgressMonitor.h"
@@ -128,17 +129,53 @@ public:
         const int maxPathLength = 10;
         path.reserve(maxPathLength);
 
+        std::vector<std::optional<SceneRayHitInfo>> hits(renderSettings.geometryAAModifier);
+
         for (int y = tile.getYStart(); y < tile.getYEnd(); ++y) {
             for (int x = tile.getXStart(); x < tile.getXEnd(); ++x) {
                 RGB pixelValue{};
 
+                // Trace eye rays
+                /*for(int i = 0; i < renderSettings.geometryAAModifier; i++) {
+                    Ray ray = camera.generateRay(
+                            Vector2(x, y), buffer.getHorizontalResolution(), buffer.getVerticalResolution(),
+                            renderSettings.geometryAAModifier, i
+                    );
+                    hits[i] = scene.traceRay(ray);
+                }*/
+                {
+                    auto rayBundles = renderSettings.geometryAAModifier / RayBundleSize;
+                    auto nonbundledRays = renderSettings.geometryAAModifier % RayBundleSize;
+                    for(int i = 0; i < rayBundles; i++) {
+                        RayBundle rays;
+                        for(RBSize_t rayI = 0; rayI < RayBundleSize; ++rayI)
+                        {
+                            rays[rayI] = camera.generateRay(
+                                    Vector2(x, y), buffer.getHorizontalResolution(), buffer.getVerticalResolution(),
+                                    renderSettings.geometryAAModifier, (i * RayBundleSize) + rayI
+                            );
+                        }
+                        auto bundleHits = scene.traceRays(rays);
+                        std::copy(bundleHits.begin(), bundleHits.end(), hits.begin() + (i * RayBundleSize));
+                    }
+                    for(int i = 0; i < nonbundledRays; i++) {
+                        auto totalRayI = (rayBundles * RayBundleSize) + i;
+                        Ray ray = camera.generateRay(
+                                Vector2(x, y), buffer.getHorizontalResolution(), buffer.getVerticalResolution(),
+                                renderSettings.geometryAAModifier, totalRayI
+                        );
+                        hits[totalRayI] = scene.traceRay(ray);
+                    }
+                }
+
+                // Path tracing
                 for(int i = 0; i < renderSettings.geometryAAModifier; i++)
                 {
                     // Build new path
                     path.clear();
-                    Vector2 sample = Vector2(x, y) + sampleUniformStratifiedSquare(renderSettings.geometryAAModifier, i);
-                    Ray ray = camera.generateRay(sample, buffer.getHorizontalResolution(), buffer.getVerticalResolution());
-                    auto hit = scene.traceRay(ray);
+
+                    auto& hit = hits[i];
+                    auto& ray = hits[i]->ray;
 
                     // Check if there is an area light that gives a closer hit
                     {

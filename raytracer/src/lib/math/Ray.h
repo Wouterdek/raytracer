@@ -33,7 +33,7 @@ std::ostream& operator<<(std::ostream& in, const Ray& ray);
 
 
 using RBSize_t = unsigned char;
-constexpr RBSize_t RayBundleSize = 8;
+constexpr RBSize_t RayBundleSize = 32;
 using RayBundle = std::array<Ray, RayBundleSize>;
 using RayBundlePermutation = std::array<RBSize_t, RayBundleSize>;
 template<typename TRayHitInfo>
