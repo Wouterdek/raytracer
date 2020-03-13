@@ -22,12 +22,23 @@ struct PhotonListSlice
         : begin(begin), end(end)
     {}
 
-    void sortByAxis(Axis axis)
+    void sortByAxis(Axis axis, bool allowParallel)
     {
         auto axisIdx = static_cast<int>(axis);
-        std::sort(begin, end, [axisIdx](const Photon& p1, const Photon& p2){
+        auto comparator = [axisIdx](const Photon& p1, const Photon& p2){
             return p1.getPosition()[axisIdx] < p2.getPosition()[axisIdx];
-        });
+        };
+
+#ifndef NO_TBB
+        if(allowParallel)
+        {
+            tbb::parallel_sort(begin, end, comparator);
+        }
+        else
+#endif
+        {
+            std::sort(begin, end, comparator);
+        }
     }
 
     //returns two sublists, [0;idx[ and ]idx;end[
@@ -66,7 +77,7 @@ private:
 
     KDTreeBuilder();
 
-    std::variant<NodePtr, IncompleteNode> buildNode(PhotonListSlice& photons, Axis presortedAxis);
+    std::variant<NodePtr, IncompleteNode> buildNode(PhotonListSlice& photons, Axis presortedAxis, bool allowParallel);
 
     NodePtr buildTree(PhotonListSlice& photons, Axis presortedAxis);
 
@@ -86,11 +97,12 @@ public:
 
     std::reference_wrapper<KDTreeBuilder> builder;
     std::reference_wrapper<PhotonListSlice> photons;
+    unsigned int curTreeDepth;
     Axis presortedAxis;
     NodePtr* outputTreePtr;
 
-    KDTreeNodeBuildingTask(KDTreeBuilder& builder, PhotonListSlice& photons, Axis presortedAxis, /* OUTPUT */ NodePtr* outputTree)
-            : builder(std::ref(builder)), photons(std::ref(photons)), presortedAxis(presortedAxis), outputTreePtr(outputTree)
+    KDTreeNodeBuildingTask(KDTreeBuilder& builder, PhotonListSlice& photons, Axis presortedAxis, unsigned int curTreeDepth, /* OUTPUT */ NodePtr* outputTree)
+            : builder(std::ref(builder)), photons(std::ref(photons)), presortedAxis(presortedAxis), curTreeDepth(curTreeDepth), outputTreePtr(outputTree)
     { }
 
     task* execute() override
@@ -103,7 +115,7 @@ public:
         }
         else
         {
-            auto result = builder.get().buildNode(photons.get(), presortedAxis);
+            auto result = builder.get().buildNode(photons.get(), presortedAxis, curTreeDepth < 2);
             if (std::holds_alternative<NodePtr>(result))
             {
                 tree = std::move(std::get<NodePtr>(result));
@@ -118,8 +130,8 @@ public:
                 bool useSubTasksForSubLists = incompleteNode.leftSubList.count() > 1000 || incompleteNode.rightSubList.count() > 1000;
                 if(useSubTasksForSubLists)
                 {
-                    KDTreeNodeBuildingTask& a = *new(allocate_child()) KDTreeNodeBuildingTask(builder, incompleteNode.leftSubList, incompleteNode.presortedAxis, &subNodeA);
-                    KDTreeNodeBuildingTask& b = *new(allocate_child()) KDTreeNodeBuildingTask(builder, incompleteNode.rightSubList, incompleteNode.presortedAxis, &subNodeB);
+                    KDTreeNodeBuildingTask& a = *new(allocate_child()) KDTreeNodeBuildingTask(builder, incompleteNode.leftSubList, incompleteNode.presortedAxis, curTreeDepth + 1, &subNodeA);
+                    KDTreeNodeBuildingTask& b = *new(allocate_child()) KDTreeNodeBuildingTask(builder, incompleteNode.rightSubList, incompleteNode.presortedAxis, curTreeDepth + 1, &subNodeB);
 
                     set_ref_count(3);
 
@@ -150,7 +162,7 @@ public:
 KDTreeBuilder::KDTreeBuilder() = default;
 
 std::variant<typename KDTreeBuilder::NodePtr, typename KDTreeBuilder::IncompleteNode>
-        KDTreeBuilder::buildNode(PhotonListSlice& photons, Axis presortedAxis)
+        KDTreeBuilder::buildNode(PhotonListSlice& photons, Axis presortedAxis, bool allowParallel)
 {
     auto photonCount = photons.count();
     assert(photonCount > 0);
@@ -167,7 +179,7 @@ std::variant<typename KDTreeBuilder::NodePtr, typename KDTreeBuilder::Incomplete
     }
 
     Axis currentSorting = static_cast<Axis>( (static_cast<int>(presortedAxis) + 1) % 3 );
-	photons.sortByAxis(currentSorting);
+	photons.sortByAxis(currentSorting, allowParallel);
 	auto curElemIdx = photonCount / 2;
 
     // Split objects in [0 .. bestSplit) and [bestSplit .. shapeCount)
@@ -187,7 +199,7 @@ std::unique_ptr<typename KDTreeBuilder::Node> KDTreeBuilder::buildTree(PhotonLis
     {
         auto& cur = todo.front();
 
-        auto result = buildNode(cur.photons, cur.presortedAxis);
+        auto result = buildNode(cur.photons, cur.presortedAxis, false);
         if (std::holds_alternative<NodePtr>(result))
         {
             cur.targetStorage = NodePtr(std::move(std::get<NodePtr>(result)));
@@ -239,7 +251,7 @@ std::unique_ptr<typename KDTreeBuilder::Node> KDTreeBuilder::buildTreeThreaded(P
 {
     NodePtr node;
 
-    auto& task = *new(tbb::task::allocate_root()) KDTreeNodeBuildingTask(*this, photons, presortedAxis, &node/*, &size*/);
+    auto& task = *new(tbb::task::allocate_root()) KDTreeNodeBuildingTask(*this, photons, presortedAxis, 0, &node/*, &size*/);
     tbb::task::spawn_root_and_wait(task);
     return std::move(node);
 }
@@ -249,7 +261,7 @@ KDTree<Photon, &Photon::getPosition> KDTreeBuilder::build(PhotonList& photons)
 {
     auto size = photons.size();
     PhotonListSlice list(photons.begin(), photons.end());
-    list.sortByAxis(Axis::x);
+    list.sortByAxis(Axis::x, true);
 
     std::lock_guard lock(exec_mutex);
 
