@@ -4,10 +4,8 @@
 #include "math/Vector2.h"
 #include "math/FastRandom.h"
 
-Vector2 sampleP22(const double theta_i)
+Vector2 sampleP22(const double theta_i, double U1, double U2)
 {
-    double U1 = Rand::unitDouble();
-    double U2 = Rand::unitDouble();
     // special case (normal incidence)
     if(theta_i < 0.0001)
     {
@@ -47,6 +45,12 @@ Vector2 sampleP22(const double theta_i)
 
 Vector3 VNDFGGXSampler::sample(const Vector3& smoothNormal, const Vector3& worldIncoming, float roughness)
 {
+    double U1 = Rand::unitDouble();
+    double U2 = Rand::unitDouble();
+    return sample(smoothNormal, worldIncoming, roughness, Rand::unitDouble(), Rand::unitDouble());
+}
+
+Vector3 VNDFGGXSampler::sample(const Vector3 &smoothNormal, const Vector3& worldIncoming, float roughness, double rand1, double rand2) {
     // Transform incoming vector to smooth normal space
     OrthonormalBasis basis(smoothNormal);
     Vector3 incoming = basis.applyBasisTo(worldIncoming);
@@ -65,13 +69,13 @@ Vector3 VNDFGGXSampler::sample(const Vector3& smoothNormal, const Vector3& world
     }
 
     // Sample P22
-    Vector2 slope = sampleP22(theta);
+    Vector2 slope = sampleP22(theta, rand1, rand2);
 
     // Rotate
     Vector2 rotatedSlope(
             std::cos(phi) * slope.x() - std::sin(phi) * slope.y(),
             std::sin(phi) * slope.x() + std::cos(phi) * slope.y()
-        );
+    );
 
     // Unstretch
     rotatedSlope *= roughness;

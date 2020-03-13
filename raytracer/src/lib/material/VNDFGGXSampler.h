@@ -9,4 +9,5 @@ class VNDFGGXSampler
 {
 public:
     static Vector3 sample(const Vector3& smoothNormal, const Vector3& incoming, float roughness);
+    static Vector3 sample(const Vector3& smoothNormal, const Vector3& incoming, float roughness, double rand1, double rand2);
 };

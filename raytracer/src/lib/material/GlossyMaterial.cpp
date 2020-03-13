@@ -40,7 +40,8 @@ void GlossyMaterial::sampleTransport(TransportBuildContext &ctx) const
         }
     }
 
-    Vector3 microfacetNormal = VNDFGGXSampler::sample(meta->normal, -transport.hit.ray.getDirection(), roughness);
+    auto randSquare = sampleUniformStratifiedSquare(ctx.sampleCount, ctx.sampleI);
+    Vector3 microfacetNormal = VNDFGGXSampler::sample(meta->normal, -transport.hit.ray.getDirection(), roughness, randSquare.x(), randSquare.y());
     microfacetNormal.normalize();
     Vector3 sampleDir = getPerfectReflectionDir(microfacetNormal, transport.hit.ray.getDirection());
 
