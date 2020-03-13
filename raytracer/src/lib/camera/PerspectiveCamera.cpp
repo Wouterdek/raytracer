@@ -23,8 +23,10 @@ void PerspectiveCamera::pointAt(Point worldSpaceTarget, Vector3 up)
 	this->basis = OrthonormalBasis(-(worldSpaceTarget - origin), up);
 }
 
-Ray PerspectiveCamera::generateRay(const Vector2& sample, int xResolution, int yResolution) const
+Ray PerspectiveCamera::generateRay(const Vector2& pixel, int xResolution, int yResolution, int aaLevel, int sampleI) const
 {
+    float apertureSamplesPerSensorSample = this->aperture > 0 ? std::min(8, aaLevel/2) : 1.0f; //Fairly arbitrary
+    auto sample = pixel + sampleUniformStratifiedSquare(aaLevel/apertureSamplesPerSensorSample, sampleI/apertureSamplesPerSensorSample);
 	auto height = yResolution * width / xResolution;
 	auto u = this->width * (sample.x() / xResolution - 0.5);
 	auto v = -height * (sample.y() / yResolution - 0.5);
@@ -41,7 +43,8 @@ Ray PerspectiveCamera::generateRay(const Vector2& sample, int xResolution, int y
     Point focalPlanePoint = perfectRay.getOrigin() + (perfectRay.getDirection() * this->focalDistance);
 
     Point lensPoint = origin;
-    auto offset = sampleUniformCircle(this->aperture);
+    auto offset = sampleUniformStratifiedCircle(this->aperture, apertureSamplesPerSensorSample, fmod(sampleI, apertureSamplesPerSensorSample));
+    //auto offset = sampleUniformCircle(this->aperture);
     lensPoint += this->basis.getU() * offset.x();
     lensPoint += this->basis.getV() * offset.y();
 
