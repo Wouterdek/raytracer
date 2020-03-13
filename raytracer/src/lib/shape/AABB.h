@@ -54,6 +54,11 @@ public:
         return projection;
     }
 
+    bool contains(const Point& p) const
+    {
+	    return (start.array() <= p.array()).all() && (p.array() <= end.array()).all();
+    }
+
 protected:
 	Point start;
 	Point end;
