@@ -10,19 +10,29 @@
 #include "Vector3.h"
 
 // sample square between (0, 0) and (1, 1)
-inline Vector2 sampleUniformStratifiedSquare(int level, int sampleI)
+inline Vector2 sampleUniformStratifiedSquare(float level, float sampleI)
 {
-    if(level == 1)
-    {
-        return Vector2(0.5f, 0.5f);
-    }
-    else
-    {
-        auto lvl = static_cast<float>(level);
-        const auto x = (static_cast<float>(sampleI % level) / lvl) + (Rand::unit() / lvl);
-        const auto y = (static_cast<float>(std::floor(sampleI / level)) / lvl) + (Rand::unit() / lvl);
-        return Vector2(x, y);
-    }
+    float binsPerAxis = std::sqrt(level);
+    float binX = std::fmod(sampleI, binsPerAxis);
+    float binY = std::floor(std::fmod(sampleI, level) / binsPerAxis);
+    return Vector2(
+            (binX/binsPerAxis) + (Rand::unit() / binsPerAxis),
+            (binY/binsPerAxis) + (Rand::unit() / binsPerAxis)
+    );
+}
+
+inline Vector3 sampleUniformStratifiedCube(float level, float sampleI)
+{
+    float binsPerAxis = std::pow(level, 1.0f/3.0f);
+    float oneOverBinsPerAxis = 1.0f / binsPerAxis;
+    float binX = std::fmod(sampleI, binsPerAxis);
+    float binY = std::floor(std::fmod(sampleI, binsPerAxis*binsPerAxis) * oneOverBinsPerAxis);
+    float binZ = std::floor(std::fmod(sampleI, level) * (oneOverBinsPerAxis * oneOverBinsPerAxis));
+    return Vector3(
+        (binX * oneOverBinsPerAxis) + (Rand::unit() * oneOverBinsPerAxis),
+        (binY * oneOverBinsPerAxis) + (Rand::unit() * oneOverBinsPerAxis),
+        (binZ * oneOverBinsPerAxis) + (Rand::unit() * oneOverBinsPerAxis)
+    );
 }
 
 inline Vector3 sampleUniformSphere(float radius)
@@ -69,12 +79,12 @@ inline Vector3 sampleUniformSteradianSphere(const Vector3& center, float angle)
     return transform * transformedResult;
 }
 
-inline Vector2 sampleUniformCircle(float radius)
+inline Vector2 sampleUniformCircle(float radius, float rand1, float rand2, float rand3)
 {
     //https://stackoverflow.com/a/5838055/915418
 
-    float angle = Rand::floatInRange(2.0f*PI);
-    float dist = Rand::floatInRange(radius) + Rand::floatInRange(radius);
+    float angle = rand1*2.0f*M_PI;
+    float dist = (rand2*radius) + (rand3*radius);
     if(dist > radius)
     {
         dist = (2.0f * radius) - dist;
@@ -82,6 +92,17 @@ inline Vector2 sampleUniformCircle(float radius)
     float xOffset = std::cos(angle) * dist;
     float yOffset = std::sin(angle) * dist;
     return Vector2(xOffset, yOffset);
+}
+
+inline Vector2 sampleUniformCircle(float radius)
+{
+    return sampleUniformCircle(radius, Rand::unit(), Rand::unit(), Rand::unit());
+}
+
+inline Vector2 sampleUniformStratifiedCircle(float radius, int level, int sampleI)
+{
+    Vector3 cube = sampleUniformStratifiedCube(level, sampleI);
+    return sampleUniformCircle(radius, cube.x(), cube.y(), cube.z());
 }
 
 inline Vector3 sampleUniformTriangle(const Vector3& a, const Vector3& b, const Vector3& c)
