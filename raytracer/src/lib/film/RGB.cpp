@@ -13,7 +13,7 @@ RGB::RGB(component red, component green, component blue)
 	}
 }
 
-bool RGB::isValidColorComponent(component value) const
+bool RGB::isValidColorComponent(component value)
 {
 	return !std::isinf(value) && !std::isnan(value) && value >= 0;
 }

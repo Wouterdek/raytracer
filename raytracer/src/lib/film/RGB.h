@@ -2,6 +2,7 @@
 
 #include <sstream>
 #include <cmath>
+#include <assert.h>
 
 class RGB
 {
@@ -18,7 +19,7 @@ public:
 
 	RGB(component red, component green, component blue);
 
-	bool isValidColorComponent(component value) const;
+	static bool isValidColorComponent(component value);
 
 	RGB add(RGB rgb) const
     {
@@ -105,6 +106,10 @@ public:
 
 	RGB& operator-=(const RGB& rhs)
 	{
+        assert(isValidColorComponent(red - rhs.red));
+        assert(isValidColorComponent(green - rhs.green));
+        assert(isValidColorComponent(blue - rhs.blue));
+
 		this->red -= rhs.red;
 		this->green -= rhs.green;
 		this->blue -= rhs.blue;
@@ -119,6 +124,10 @@ public:
 
 	friend RGB operator*(RGB lhs, double rhs)
 	{
+        assert(isValidColorComponent(lhs.red * rhs));
+        assert(isValidColorComponent(lhs.green * rhs));
+        assert(isValidColorComponent(lhs.blue * rhs));
+
 		lhs.red *= rhs;
 		lhs.green *= rhs;
 		lhs.blue *= rhs;
