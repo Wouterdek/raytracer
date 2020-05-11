@@ -14,6 +14,8 @@
 #include "math/Axis.h"
 #include "utility/raw_pointer.h"
 #include "utility/unique_ptr_template.h"
+#include <atomic>
+#include <iostream>
 
 namespace KDTreeDiag
 {
@@ -233,8 +235,11 @@ private:
             auto dist2 = c2 == nullptr ? 1E99 : ((c2->*posAccessor)() - target).squaredNorm();
             return dist1 < dist2;
         });
-        resultsList.insert(it, elem);
-        resultsList.pop_back();
+        if(*it != elem)
+        {
+            resultsList.insert(it, elem);
+            resultsList.pop_back();
+        }
         auto lastElemPtr = resultsList.back();
         if(lastElemPtr == nullptr)
         {
@@ -374,14 +379,27 @@ public:
     template<typename Filter>
     std::tuple<unsigned int, float> getElementsNearestTo(const Point& target, unsigned int count, float maxRadius, Filter filter, std::vector<const TContent*>& resultsList) const
     {
+#ifdef KDTREE_CACHE
+        static thread_local std::vector<const TContent*> cache {};
+
+        for(const auto* entry : cache)
+        {
+            maxRadius = LinkedNode::insert(entry, resultsList, count, target); //TODO
+        }
+#endif
+        std::tuple<unsigned int, float> result;
         if(std::holds_alternative<std::unique_ptr<LinkedNode>>(nodes))
         {
-            return std::get<std::unique_ptr<LinkedNode>>(nodes)->template getElementsNearestTo<true, Filter>(target, count, filter, resultsList, maxRadius, AABB::MAX_RANGE);
+            result = std::get<std::unique_ptr<LinkedNode>>(nodes)->template getElementsNearestTo<true, Filter>(target, count, filter, resultsList, maxRadius, AABB::MAX_RANGE);
         }
         else
         {
-            return std::get<std::vector<PackedNode>>(nodes)[0].template getElementsNearestTo<true, Filter>(target, count, filter, resultsList, maxRadius, AABB::MAX_RANGE);
+            result = std::get<std::vector<PackedNode>>(nodes)[0].template getElementsNearestTo<true, Filter>(target, count, filter, resultsList, maxRadius, AABB::MAX_RANGE);
         }
+#ifdef KDTREE_CACHE
+        cache = resultsList;
+#endif
+        return result;
     }
 
     std::tuple<unsigned int, float> getElementsNearestTo(const Point& target, unsigned int count, std::vector<const TContent*>& resultsList) const
