@@ -58,6 +58,55 @@ public:
     }
 };
 
+class PhotonRayDriver
+{
+public:
+    using ParticleList = PhotonRayList;
+    static void trace(const Scene& scene, Ray& photonRay, RGB photonEnergy, PhotonMapMode mode, PhotonRayList& resultAcc)
+    {
+        bool hasPassedDiffuse = false;
+        bool hasPassedSpecular = false;
+
+        RGB prevEnergy;
+
+        int maxDepth = 12;
+        for(int i = 0; i < maxDepth; ++i){
+            auto hit = scene.traceRay(photonRay);
+
+            if(!hit.has_value())
+            {
+                break;
+            }
+            auto hitpoint = hit->getHitpoint();
+
+            // Calculate bounce/transmission/..
+            auto [newPhotonRayDir, newPhotonEnergy, diffuseness] = hit->getModelNode().getData().getMaterial().interactPhoton(*hit, photonEnergy);
+            newPhotonRayDir.normalize();
+
+            bool isDiffuseTransport = diffuseness >= 0.2;
+            bool isCaustic = isDiffuseTransport && hasPassedSpecular /*&& !hasPassedDiffuse*/;
+
+            // Store photon
+            //if((mode == PhotonMapMode::caustics && isCaustic) ||
+            //   (mode == PhotonMapMode::full && isDiffuseTransport))
+            if(isCaustic)
+            {
+                Vector3 moment = photonRay.getOrigin().cross(photonRay.getDirection());
+                resultAcc.emplace_back(photonRay.getDirection(), moment, prevEnergy);
+                break;
+            }
+
+            // Update transport variables
+            hasPassedDiffuse = hasPassedDiffuse || isDiffuseTransport;
+            hasPassedSpecular = hasPassedSpecular || !isDiffuseTransport;
+            prevEnergy = photonEnergy;
+
+            photonRay = Ray(hitpoint + newPhotonRayDir * 0.00005, newPhotonRayDir);
+
+            photonEnergy = newPhotonEnergy;
+        }
+    }
+};
 
 template<typename Driver>
 class PointLightPhotonTracingTask : public Task
@@ -168,5 +217,37 @@ void PhotonTracer::tracePhotons(const Scene &scene, PhotonList& photons, Progres
     }
 
     progress.startNewJob("Tracing photons", taskCount);
+    Task::runTasks(tasks);
+}
+
+
+void PhotonTracer::tracePhotonRays(const Scene &scene, PhotonRayList& photons, ProgressMonitor progressMon)
+{
+    ProgressTracker progress(progressMon);
+
+    std::vector<std::unique_ptr<Task>> tasks{};
+    size_type taskCount = 0;
+
+    taskCount = 0;
+
+    // Emit photons from all point light sources
+    for(const auto& light : scene.getPointLights())
+    {
+        taskCount += createBatches(tasks, photonsPerPointLight, batchSize,
+           [](size_type startIdx, size_type endIdx, const Scene& scene, const PointLight& light, PhotonRayList& photons, PhotonMapMode mode, size_type totalPhotonCount, ProgressTracker& progress){
+               return std::make_unique<PointLightPhotonTracingTask<PhotonRayDriver>>(scene, light, photons, mode, startIdx, endIdx, totalPhotonCount, progress);
+           }, scene, *light, photons, mode, photonsPerPointLight, progress);
+    }
+
+    // Emit photons from all area light sources
+    for(const auto& light : scene.getAreaLights())
+    {
+        taskCount += createBatches(tasks, photonsPerPointLight, batchSize,
+           [](size_type startIdx, size_type endIdx, const Scene& scene, const AreaLight& light, PhotonRayList& photons, PhotonMapMode mode, size_type totalPhotonCount, ProgressTracker& progress){
+               return std::make_unique<AreaLightPhotonTracingTask<PhotonRayDriver>>(scene, light, photons, mode, startIdx, endIdx, totalPhotonCount, progress);
+           },scene, *light, photons, mode, photonsPerAreaLight, progress);
+    }
+
+    progress.startNewJob("Tracing photon rays", taskCount);
     Task::runTasks(tasks);
 }

@@ -39,3 +39,21 @@ PhotonMap PhotonMapBuilder::buildPhotonMap(const Scene& scene, PhotonMapMode mod
 
     return tree;
 }
+
+PhotonRayMap PhotonMapBuilder::buildPhotonRayMap(const Scene& scene, PhotonMapMode mode, size_t photonsPerAreaLight, size_t photonsPerPointLight, ProgressMonitor progressMon)
+{
+    ProgressTracker progress(progressMon);
+    PhotonRayList photons{};
+
+    if(mode != PhotonMapMode::none)
+    {
+        PhotonTracer tracer{};
+        tracer.batchSize = 10000;
+        tracer.photonsPerAreaLight = photonsPerAreaLight;
+        tracer.photonsPerPointLight = photonsPerPointLight;
+        tracer.mode = mode;
+        tracer.tracePhotonRays(scene, photons, progressMon);
+    }
+
+    return photons;
+}

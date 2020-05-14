@@ -72,6 +72,16 @@ public:
 	    photonMap = std::move(map);
     }
 
+    const std::optional<PhotonRayMap>& getPhotonRayMap() const
+    {
+        return photonRayMap;
+    }
+
+    void setPhotonRayMap(PhotonRayMap map)
+    {
+        photonRayMap = std::move(map);
+    }
+
     PhotonMapMode getPhotonMapMode() const
     {
         return photonMappingMode;
@@ -106,6 +116,7 @@ private:
 	std::vector<SceneNode<ICamera>> cameras;
 	std::unique_ptr<IEnvironmentMaterial> environmentMaterial = nullptr;
 	std::optional<PhotonMap> photonMap;
+    std::optional<PhotonRayMap> photonRayMap;
     PhotonMapMode photonMappingMode = PhotonMapMode::none;
     int photonMapDepth = 0;
 	SceneBVH sceneBVH;

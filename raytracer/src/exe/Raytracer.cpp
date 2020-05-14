@@ -73,7 +73,7 @@ int main(int argc, char** argv)
 		("mergetiles", po::value<std::vector<std::string>>()->multitoken(), "Load the specified tile files, merge them and output the result")
         ("savepm", "Write the photonmap (if any is used) to disk.")
         ("loadpm", "Load the photonmap from disk.")
-        ("pmmode", po::value<std::string>()->default_value("none"), "Set the photonmapping algorithm to be used. ('none', 'caustics' or 'full')")
+        ("pmmode", po::value<std::string>()->default_value("none"), "Set the photonmapping algorithm to be used. ('none', 'caustics', 'full' or 'rays')")
         ("pmdepth", po::value<int>()->default_value(0), "Set the path depth at which the photon map is used")
         ("pmfile", po::value<std::string>()->default_value(""), "The path of the photonmap file. (used for savepm and loadpm)")
         ("pmrayspointlamp", po::value<unsigned long>()->default_value(1E7), "Amount of rays to trace from each point light during photonmapping (influences, but does not equal photon count)")
@@ -217,6 +217,10 @@ int main(int argc, char** argv)
     {
         photonMappingMode = PhotonMapMode::full;
     }
+    else if(pmmodeString == "rays")
+    {
+        photonMappingMode = PhotonMapMode::rays;
+    }
     else if(pmmodeString == "none")
     {}
     else
@@ -293,7 +297,17 @@ int main(int argc, char** argv)
             }
             std::cout.flush();
         };
-        if(photonMappingMode != PhotonMapMode::none)
+
+        scene.setPhotonMapMode(photonMappingMode);
+        scene.setPhotonMapDepth(pmdepth);
+        if(photonMappingMode == PhotonMapMode::rays)
+        {
+            PhotonRayMap map;
+            map = PhotonMapBuilder::buildPhotonRayMap(scene, photonMappingMode, pmraysarealamp, pmrayspointlamp, progressPrinter);
+            scene.setPhotonRayMap(std::move(map));
+            scene.setPhotonMapMode(photonMappingMode);
+        }
+        else if(photonMappingMode != PhotonMapMode::none)
         {
             PhotonMap photonMap;
             if(loadPhotonMapFromFile)
@@ -318,9 +332,7 @@ int main(int argc, char** argv)
             }
 
             scene.setPhotonMap(std::move(photonMap));
-            scene.setPhotonMapMode(photonMappingMode);
         }
-        scene.setPhotonMapDepth(pmdepth);
 
 		auto start = std::chrono::high_resolution_clock::now();
 

@@ -16,4 +16,5 @@ public:
     PhotonMapMode mode;
 
     void tracePhotons(const Scene& scene, PhotonList& photons, ProgressMonitor progress);
+    void tracePhotonRays(const Scene& scene, PhotonRayList& photons, ProgressMonitor progress);
 };

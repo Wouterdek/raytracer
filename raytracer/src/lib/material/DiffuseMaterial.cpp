@@ -21,6 +21,38 @@ struct TransportMetaData
     bool isNEERay = false;
 };
 
+static float photonrays_lookup_insert(const PhotonRay* elem, std::vector<const PhotonRay*>& resultsList, unsigned int count, const Point& target, const Vector3& n)
+{
+    auto distF = [](const PhotonRay* r, const Point& p, const Vector3& n)
+    {
+        // Find intersection of line with local plane
+        auto l0 = (r->direction.cross(r->moment));
+        Vector3 intersection = l0 + (r->direction * (p - l0).dot(n)/(r->direction.dot(n)));
+        Vector3 vect = intersection - p;
+
+        // Find closest point on line
+        //Vector3 vect = (p.cross(r->direction) - r->moment);
+        return vect;
+    };
+    auto begin = resultsList.begin() + (resultsList.size() - count);
+    auto it = std::lower_bound(begin, resultsList.end(), elem, [&target, &n, distF=distF](const PhotonRay* c1, const PhotonRay* c2){
+        auto dist1 = c1 == nullptr ? 1E99 : distF(c1, target, n).squaredNorm();
+        auto dist2 = c2 == nullptr ? 1E99 : distF(c2, target, n).squaredNorm();
+        return dist1 < dist2;
+    });
+    if(*it != elem)
+    {
+        resultsList.insert(it, elem);
+        resultsList.pop_back();
+    }
+    auto lastElemPtr = resultsList.back();
+    if(lastElemPtr == nullptr)
+    {
+        return std::numeric_limits<float>::max();
+    }
+    return distF(lastElemPtr, target, n).norm();
+}
+
 void DiffuseMaterial::sampleTransport(TransportBuildContext& ctx) const
 {
     auto& transport = ctx.getCurNode();
@@ -53,7 +85,32 @@ void DiffuseMaterial::sampleTransport(TransportBuildContext& ctx) const
         }
     }
 
-    if(readFromPhotonMap)
+    if(ctx.scene.getPhotonMapMode() == PhotonMapMode::rays)
+    {
+        //TODO: non-caustics aren't enabled/supported/working
+
+        transport.pathTerminationChance = 1.0f;
+        transport.isEmissive = true;
+        meta->isPhotonMapRay = true;
+
+        auto maxPhotons = std::min(20lu, ctx.scene.getPhotonRayMap()->size());
+        std::vector<const PhotonRay*> closestRays(maxPhotons);
+        float maxDist = INFINITY;
+        for(const auto& ray : ctx.scene.getPhotonRayMap().value())
+        {
+            maxDist = photonrays_lookup_insert(&ray, closestRays, closestRays.size(), transport.hit.getHitpoint(), normal);
+        }
+
+        RGB value {};
+        for(unsigned int i = 0; i < closestRays.size(); ++i)
+        {
+            value += closestRays[i]->energy;
+        }
+        meta->photonLighting = value.scale(this->diffuseIntensity).divide(PI*maxDist*maxDist).divide(PI);
+
+        meta->photonLightingIsSet = true;
+    }
+    else if(readFromPhotonMap)
     {
         transport.pathTerminationChance = 1.0f;
         transport.isEmissive = true;
