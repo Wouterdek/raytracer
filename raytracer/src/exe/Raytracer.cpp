@@ -302,8 +302,7 @@ int main(int argc, char** argv)
         scene.setPhotonMapDepth(pmdepth);
         if(photonMappingMode == PhotonMapMode::rays)
         {
-            PhotonRayMap map;
-            map = PhotonMapBuilder::buildPhotonRayMap(scene, photonMappingMode, pmraysarealamp, pmrayspointlamp, progressPrinter);
+            PhotonRayMap map = PhotonMapBuilder::buildPhotonRayMap(scene, photonMappingMode, pmraysarealamp, pmrayspointlamp, progressPrinter);
             scene.setPhotonRayMap(std::move(map));
             scene.setPhotonMapMode(photonMappingMode);
         }

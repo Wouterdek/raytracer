@@ -37,3 +37,7 @@ if(EMSCRIPTEN)
 elseif(UNIX)
     target_link_libraries(raytracer_lib PRIVATE -lpthread -lm stdc++fs)
 endif()
+
+#PluckerTree
+target_include_directories(raytracer_lib PRIVATE ${PLUCKERTREE_SOURCE_DIR}/include)
+target_link_libraries (raytracer_lib PRIVATE pluckertree)

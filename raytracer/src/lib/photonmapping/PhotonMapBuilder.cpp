@@ -8,6 +8,7 @@
 #include "KDTreeBuilder.h"
 #include <vector>
 #include "PhotonTracer.h"
+#include <Pluckertree.h>
 
 using size_type = std::vector<Photon>::size_type;
 
@@ -37,6 +38,7 @@ PhotonMap PhotonMapBuilder::buildPhotonMap(const Scene& scene, PhotonMapMode mod
     tree.pack();
     progress.signalTaskFinished();*/
 
+
     return tree;
 }
 
@@ -55,5 +57,11 @@ PhotonRayMap PhotonMapBuilder::buildPhotonRayMap(const Scene& scene, PhotonMapMo
         tracer.tracePhotonRays(scene, photons, progressMon);
     }
 
-    return photons;
+    std::stringstream msg;
+    msg << "Building photonray pluckertree (" << photons.size() << " photonrays)";
+    progress.startNewJob(msg.str(), 1);
+    auto tree = pluckertree::TreeBuilder<PhotonRay, &PhotonRay::line>::Build(photons.begin(), photons.end());
+    progress.signalTaskFinished();
+
+    return tree;
 }

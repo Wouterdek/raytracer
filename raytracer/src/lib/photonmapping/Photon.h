@@ -3,6 +3,7 @@
 #include <film/RGB.h>
 #include <math/Vector3.h>
 #include <vector>
+#include <Pluckertree.h>
 
 struct Photon
 {
@@ -26,15 +27,14 @@ struct Photon
 
 struct PhotonRay
 {
-    Vector3 direction;
-    Vector3 moment;
+    pluckertree::Line line;
     RGB energy;
 
     PhotonRay(Vector3 direction, Vector3 moment, RGB energy)
-            : direction(std::move(direction)), moment(std::move(moment)), energy(std::move(energy))
+            : line(std::move(direction), std::move(moment)), energy(std::move(energy))
     {}
 
-    PhotonRay() : direction(), moment(), energy()
+    PhotonRay() : line(Vector3(), Vector3()), energy()
     {}
 };
 

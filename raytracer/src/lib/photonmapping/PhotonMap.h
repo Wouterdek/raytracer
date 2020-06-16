@@ -3,7 +3,7 @@
 #include "KDTree.h"
 
 using PhotonMap = KDTree<Photon, &Photon::getPosition>;
-using PhotonRayMap = PhotonRayList;
+using PhotonRayMap = pluckertree::Tree<PhotonRay, &PhotonRay::line>;
 
 enum class PhotonMapMode
 {

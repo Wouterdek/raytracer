@@ -26,8 +26,8 @@ static float photonrays_lookup_insert(const PhotonRay* elem, std::vector<const P
     auto distF = [](const PhotonRay* r, const Point& p, const Vector3& n)
     {
         // Find intersection of line with local plane
-        auto l0 = (r->direction.cross(r->moment));
-        Vector3 intersection = l0 + (r->direction * (p - l0).dot(n)/(r->direction.dot(n)));
+        Vector3 l0 = (r->line.d.cross(r->line.m));
+        Vector3 intersection = l0 + (r->line.d * (p - l0).dot(n)/(r->line.d.dot(n)));
         Vector3 vect = intersection - p;
 
         // Find closest point on line
@@ -95,11 +95,15 @@ void DiffuseMaterial::sampleTransport(TransportBuildContext& ctx) const
 
         auto maxPhotons = std::min(20lu, ctx.scene.getPhotonRayMap()->size());
         std::vector<const PhotonRay*> closestRays(maxPhotons);
+
         float maxDist = INFINITY;
+        //ctx.scene.getPhotonRayMap()->FindNeighbours(transport.hit.getHitpoint(), closestRays.begin(), closestRays.end(), maxDist);
+        ctx.scene.getPhotonRayMap()->FindNearestHits(transport.hit.getHitpoint(), normal, closestRays.begin(), closestRays.end(), maxDist);
+        /*
         for(const auto& ray : ctx.scene.getPhotonRayMap().value())
         {
             maxDist = photonrays_lookup_insert(&ray, closestRays, closestRays.size(), transport.hit.getHitpoint(), normal);
-        }
+        }*/
 
         RGB value {};
         for(unsigned int i = 0; i < closestRays.size(); ++i)

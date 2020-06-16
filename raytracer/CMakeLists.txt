@@ -34,6 +34,8 @@ if(EMSCRIPTEN)
   set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3 -s ALLOW_MEMORY_GROWTH=1 -s USE_WEBGL2=1 -s USE_PTHREADS=1 -s WASM_MEM_MAX=2GB -s OFFSCREEN_FRAMEBUFFER=1")
 endif()
 
+add_subdirectory("${PROJECT_SOURCE_DIR}/../extern/PluckerTree" "extern/PluckerTree")
+
 add_subdirectory (src)
 
 if(DEFINED ENV{ENABLE_TESTS})
