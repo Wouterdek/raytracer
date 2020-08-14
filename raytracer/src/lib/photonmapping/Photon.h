@@ -28,13 +28,14 @@ struct Photon
 struct PhotonRay
 {
     pluckertree::Line line;
+    float originT;
     RGB energy;
 
-    PhotonRay(Vector3 direction, Vector3 moment, RGB energy)
-            : line(std::move(direction), std::move(moment)), energy(std::move(energy))
+    PhotonRay(Vector3 direction, Vector3 moment, float originT, RGB energy)
+            : line(std::move(direction), std::move(moment)), originT(originT), energy(std::move(energy))
     {}
 
-    PhotonRay() : line(Vector3(), Vector3()), energy()
+    PhotonRay() : line(Vector3(), Vector3()), originT(), energy()
     {}
 };
 

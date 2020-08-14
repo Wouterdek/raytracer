@@ -91,8 +91,10 @@ public:
             //   (mode == PhotonMapMode::full && isDiffuseTransport))
             if(isCaustic)
             {
-                Vector3 moment = photonRay.getOrigin().cross(photonRay.getDirection());
-                resultAcc.emplace_back(photonRay.getDirection(), moment, prevEnergy);
+                auto line = pluckertree::Line::FromPointAndDirection(photonRay.getOrigin(), photonRay.getDirection());
+                auto p = line.d.cross(line.m);
+                float originT = (photonRay.getOrigin() - p).dot(line.d);
+                resultAcc.emplace_back(line.d, line.m, originT, prevEnergy);
                 break;
             }
 

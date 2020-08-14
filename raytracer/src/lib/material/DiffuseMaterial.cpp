@@ -106,10 +106,42 @@ void DiffuseMaterial::sampleTransport(TransportBuildContext& ctx) const
         }*/
 
         RGB value {};
+
+#define PR_FULL_VISIBILITY
+#if defined(PR_MONTE_CARLO_VISIBILITY) || defined(PR_FULL_VISIBILITY)
+    maxDist = 1E-8; //Not 0, so if no photons are found, we get 0/1E-16.
+    #ifdef PR_MONTE_CARLO_VISIBILITY
+        const int nbSamples = 10;
+        std::vector<uint8_t> indices(maxPhotons);
+        std::iota(indices.begin(), indices.end(), 0);
+        std::shuffle(indices.begin(), indices.end(), std::default_random_engine(Rand::unsignedInteger()));
+        for(unsigned int j = 0; j < nbSamples; ++j) {
+            auto i = indices[j];
+    #else
+        for(unsigned int i = 0; i < closestRays.size(); ++i) {
+    #endif
+            auto d = closestRays[i]->line.d;
+            Vector3 p = d.cross(closestRays[i]->line.m);
+            auto hitT = (transport.hit.getHitpoint() - p).dot(normal) / d.dot(normal);
+            auto photonPos = p + hitT * d;
+            auto photonRayStart = (p + d * closestRays[i]->originT);
+            bool isVisible = !ctx.scene.testVisibility(Ray(photonRayStart, d), hitT-closestRays[i]->originT-0.0001f).has_value();
+            if(isVisible)
+            {
+                value += closestRays[i]->energy;
+                maxDist = std::max(maxDist, (transport.hit.getHitpoint() - photonPos).norm());
+            }
+        }
+    #ifdef PR_MONTE_CARLO_VISIBILITY
+        value = value * ((float)maxPhotons / nbSamples);
+        maxDist = maxDist * ((float)(nbSamples+1))/nbSamples;
+    #endif
+#else
         for(unsigned int i = 0; i < closestRays.size(); ++i)
         {
             value += closestRays[i]->energy;
         }
+#endif
         meta->photonLighting = value.scale(this->diffuseIntensity).divide(PI*maxDist*maxDist).divide(PI);
 
         meta->photonLightingIsSet = true;
