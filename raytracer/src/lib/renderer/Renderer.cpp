@@ -7,6 +7,7 @@
 #include "math/Sampler.h"
 #include "math/FastRandom.h"
 #include "utility/Task.h"
+#include "Pluckertree.h"
 
 #undef min
 
@@ -210,6 +211,8 @@ public:
                         pathWasTerminated = samplePath(path, 0, maxPathLength, scene, renderSettings.materialAAModifier, 0);
 
                         {//PERF
+                            visited += pluckertree::Diag::visited;
+                            pluckertree::Diag::visited = 0;
                             perfPixelValue = perfPixelValue.add(RGB(0, 0, KDTreeDiag::Levels));
                             KDTreeDiag::Levels = 0;
                         }
@@ -246,6 +249,8 @@ public:
                             pathWasTerminated = samplePath(path, firstNodeWithVariance, maxPathLength, scene, renderSettings.materialAAModifier, j);
 
                             {//PERF
+                                visited += pluckertree::Diag::visited;
+                                pluckertree::Diag::visited = 0;
                                 perfPixelValue = perfPixelValue.add(RGB(0, 0, KDTreeDiag::Levels));
                                 KDTreeDiag::Levels = 0;
                             }
