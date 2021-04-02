@@ -10,9 +10,13 @@
 #include "Vector3.h"
 
 // sample square between (0, 0) and (1, 1)
-inline Vector2 sampleUniformStratifiedSquare(float level, float sampleI)
+inline Vector2 sampleUniformStratifiedSquare(int level, float sampleI)
 {
-    float binsPerAxis = std::sqrt(level);
+    if(level < 4)
+    {
+        return Vector2(Rand::unit(), Rand::unit());
+    }
+    int binsPerAxis = std::sqrt(level);
     float binX = std::fmod(sampleI, binsPerAxis);
     float binY = std::floor(std::fmod(sampleI, level) / binsPerAxis);
     return Vector2(
@@ -57,7 +61,11 @@ inline Vector3 mapSampleToCosineWeightedHemisphere(float r1, float r2, float rad
 inline Vector3 sampleStratifiedCosineWeightedHemisphere(int level, int sampleI, float radius, float exponent = 1.0f)
 {
     auto sample = sampleUniformStratifiedSquare(level, sampleI);
-    return mapSampleToCosineWeightedHemisphere(sample.x(), sample.y(), radius, exponent);
+    assert(sample.x() >= 0 && sample.x() <= 1);
+    assert(sample.y() >= 0 && sample.y() <= 1);
+    auto val = mapSampleToCosineWeightedHemisphere(sample.x(), sample.y(), radius, exponent);
+    assert(!val.hasNaN());
+    return val;
 }
 
 inline Vector3 sampleUniformHemisphere(float radius)

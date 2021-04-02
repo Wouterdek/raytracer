@@ -116,11 +116,12 @@ private:
     const ICamera& camera;
     const Scene& scene;
     FrameBuffer& buffer;
+    std::shared_ptr<FrameBuffer>& perfBuffer;
     ProgressTracker& progress;
 
 public:
-    RenderTileTask(const Tile &tile, const RenderSettings &renderSettings, const ICamera &camera, const Scene &scene, FrameBuffer &buffer, ProgressTracker &progress)
-                   : tile(tile), renderSettings(renderSettings), camera(camera), scene(scene), buffer(buffer), progress(progress)
+    RenderTileTask(const Tile &tile, const RenderSettings &renderSettings, const ICamera &camera, const Scene &scene, FrameBuffer &buffer, std::shared_ptr<FrameBuffer>& perfBuffer, ProgressTracker &progress)
+                   : tile(tile), renderSettings(renderSettings), camera(camera), scene(scene), buffer(buffer), perfBuffer(perfBuffer), progress(progress)
                    {}
 
     void execute() override
@@ -134,6 +135,8 @@ public:
         for (int y = tile.getYStart(); y < tile.getYEnd(); ++y) {
             for (int x = tile.getXStart(); x < tile.getXEnd(); ++x) {
                 RGB pixelValue{};
+                RGB perfPixelValue{};
+                unsigned int visited = 0;
 
                 // Trace eye rays
                 /*for(int i = 0; i < renderSettings.geometryAAModifier; i++) {
@@ -205,6 +208,11 @@ public:
                     {
                         auto& pathNode = path.emplace_back(*hit);
                         pathWasTerminated = samplePath(path, 0, maxPathLength, scene, renderSettings.materialAAModifier, 0);
+
+                        {//PERF
+                            perfPixelValue = perfPixelValue.add(RGB(0, 0, KDTreeDiag::Levels));
+                            KDTreeDiag::Levels = 0;
+                        }
                     }
                     else
                     {
@@ -236,6 +244,12 @@ public:
                         {
                             // From the first geometry hit on, resample the transport path if the bsdf at the hitpoint has variance.
                             pathWasTerminated = samplePath(path, firstNodeWithVariance, maxPathLength, scene, renderSettings.materialAAModifier, j);
+
+                            {//PERF
+                                perfPixelValue = perfPixelValue.add(RGB(0, 0, KDTreeDiag::Levels));
+                                KDTreeDiag::Levels = 0;
+                            }
+
                             if(!pathWasTerminated)
                             {
                                 matSample = matSample.add(calculatePathEnergy(path, scene));
@@ -247,13 +261,16 @@ public:
                 }
 
                 buffer.setPixel(x, y, pixelValue.divide(renderSettings.geometryAAModifier));
+                float log_visited = visited == 0 ? 0 : (float)std::log((long double)visited);
+                perfPixelValue = perfPixelValue.add(RGB(visited, log_visited, 0));
+                perfBuffer->setPixel(x, y, perfPixelValue);
             }
         }
         progress.signalTaskFinished();
     }
 };
 
-void Renderer::render(const Scene &scene, FrameBuffer &buffer, const Tile &tile, const RenderSettings &renderSettings, ProgressMonitor progressMon, bool multithreaded)
+void Renderer::render(const Scene &scene, FrameBuffer &buffer, std::shared_ptr<FrameBuffer>& perfBuffer, const Tile &tile, const RenderSettings &renderSettings, ProgressMonitor progressMon, bool multithreaded)
 {
     std::vector<Tile> tiles;
 
@@ -275,15 +292,15 @@ void Renderer::render(const Scene &scene, FrameBuffer &buffer, const Tile &tile,
     for(const auto& curTile : tiles)
     {
         tasks.push_back(std::make_unique<RenderTileTask>(
-            curTile, renderSettings, camera, scene, buffer, progress
+            curTile, renderSettings, camera, scene, buffer, perfBuffer, progress
         ));
     }
     Task::runTasks(tasks);
 }
 
-void Renderer::render(const Scene &scene, FrameBuffer &buffer, const RenderSettings &renderSettings, ProgressMonitor progressMon)
+void Renderer::render(const Scene &scene, FrameBuffer &buffer, std::shared_ptr<FrameBuffer>& perfBuffer, const RenderSettings &renderSettings, ProgressMonitor progressMon)
 {
-    render(scene, buffer, Tile(0, 0, buffer.getHorizontalResolution(), buffer.getVerticalResolution()), renderSettings, std::move(progressMon), true);
+    render(scene, buffer, perfBuffer, Tile(0, 0, buffer.getHorizontalResolution(), buffer.getVerticalResolution()), renderSettings, std::move(progressMon), true);
 }
 
 const ICamera& Renderer::findCamera(const Scene& scene)

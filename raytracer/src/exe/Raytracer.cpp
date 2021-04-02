@@ -82,6 +82,7 @@ int main(int argc, char** argv)
         ("aageometry", po::value<int>()->default_value(4), "Geometry AA modifier: Higher means more rays from the camera")
         ("aamaterial", po::value<int>()->default_value(4), "Material AA modifier: Higher means more rays from the first hitpoint with a non-zero variance material")
         ("preview", po::bool_switch(&previewEnabled), "If enabled, a preview window will open that displays the image as its being rendered")
+        ("perffci", po::value<std::string>()->default_value(""), "If set, renders an exr with performance data for each pixel at the specified path")
 		;
 
 	po::variables_map vm;
@@ -152,6 +153,26 @@ int main(int argc, char** argv)
 	{
 		outputfile.replace_extension(outputtype);
 	}
+
+    auto perfFCIStr = vm["perffci"].as<std::string>();
+	bool renderPerfFCI = !perfFCIStr.empty();
+    std::filesystem::path perfFCIFile;
+	if(renderPerfFCI)
+    {
+        perfFCIFile = PathResolver::get().resolve(perfFCIStr);
+        if(perfFCIFile.is_relative())
+        {
+            perfFCIFile = workDirPath / perfFCIFile;
+        }
+        if (!perfFCIFile.has_filename())
+        {
+            perfFCIFile.replace_filename("perffci");
+        }
+        if(!perfFCIFile.has_extension())
+        {
+            perfFCIFile.replace_extension("exr");
+        }
+    }
 
     std::vector<std::string> tileFilesToMerge;
 	if(vm.count("mergetiles") > 0){
@@ -224,6 +245,12 @@ int main(int argc, char** argv)
 
 	auto buffer = std::make_shared<FrameBuffer>(width, height);
 
+    std::shared_ptr<FrameBuffer> perfFCI = nullptr;
+    if(renderPerfFCI)
+    {
+        perfFCI = std::make_shared<FrameBuffer>(width, height);
+    }
+
     PreviewWindow previewWindow(buffer);
     if(previewEnabled)
     {
@@ -280,9 +307,7 @@ int main(int argc, char** argv)
             {
                 std::cout << "Building photon map..." << std::endl;
 
-                size_t photonsPerPointLight = pmrayspointlamp;
-                size_t photonsPerAreaLight = pmraysarealamp;
-                photonMap = PhotonMapBuilder::buildPhotonMap(scene, photonMappingMode, photonsPerAreaLight, photonsPerPointLight, progressPrinter);
+                photonMap = PhotonMapBuilder::buildPhotonMap(scene, photonMappingMode, pmraysarealamp, pmrayspointlamp, progressPrinter);
             }
 
             if(savePhotonMapToFile)
@@ -308,7 +333,7 @@ int main(int argc, char** argv)
         std::cout << "Material AA level = " << settings.materialAAModifier << std::endl;
 		//PPMRenderer renderer;
 		Renderer renderer;
-		renderer.render(scene, *buffer, tile, settings, progressPrinter, true);
+		renderer.render(scene, *buffer, perfFCI, tile, settings, progressPrinter, true);
         std::cout << "Done" << std::endl;
 
 		auto finish = std::chrono::high_resolution_clock::now();
@@ -321,7 +346,7 @@ int main(int argc, char** argv)
 	std::cout << "Writing output to " << outputfile.string() << std::endl;
 	if(outputtype == "exr")
 	{
-		write_to_exr_file(*buffer, outputfile.string());
+		write_to_exr_file(*buffer, outputfile.string(), false);
 	}
 	else if (outputtype == "png")
 	{
@@ -335,6 +360,11 @@ int main(int argc, char** argv)
 	{
 		write_to_tile_file(*buffer, tile, outputfile.string());
 	}
+
+	if(renderPerfFCI)
+    {
+        write_to_exr_file(*perfFCI, perfFCIFile.string(), true);
+    }
 
     previewWindow.wait();
 

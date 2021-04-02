@@ -45,6 +45,11 @@ public:
         return std::uniform_real_distribution<float>(0, maxValue)(randDevSrc.randDev);
     }
 
+    static unsigned int unsignedInteger()
+    {
+        return randDevSrc.randDev();
+    }
+
     static int intInRange(int a, int b)
     {
         return std::uniform_int_distribution<int>(a, b)(randDevSrc.randDev);

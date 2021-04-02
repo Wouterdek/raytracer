@@ -2,7 +2,7 @@
 
 #include <sstream>
 #include <cmath>
-#include <assert.h>
+#include <cassert>
 
 class RGB
 {

@@ -3,7 +3,7 @@
 #define TINYEXR_IMPLEMENTATION
 #include "io/lib/tinyexr.h"
 
-void write_to_exr_file(const FrameBuffer& buffer, std::string filepath)
+void write_to_exr_file(const FrameBuffer& buffer, std::string filepath, bool full_floats)
 {
 	EXRHeader header;
 	InitEXRHeader(&header);
@@ -52,7 +52,7 @@ void write_to_exr_file(const FrameBuffer& buffer, std::string filepath)
 	header.requested_pixel_types = (int*)malloc(sizeof(int) * header.num_channels);
 	for (int i = 0; i < header.num_channels; i++) {
 		header.pixel_types[i] = TINYEXR_PIXELTYPE_FLOAT; // pixel type of input image
-		header.requested_pixel_types[i] = TINYEXR_PIXELTYPE_HALF; // pixel type of output image to be stored in .EXR
+		header.requested_pixel_types[i] = full_floats ? TINYEXR_PIXELTYPE_FLOAT : TINYEXR_PIXELTYPE_HALF; // pixel type of output image to be stored in .EXR
 	}
 
 	std::string error;

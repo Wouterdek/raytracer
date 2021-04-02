@@ -9,7 +9,7 @@ class Model;
 class SceneRayHitInfo : public RayHitInfo
 {
 public:
-	SceneRayHitInfo(RayHitInfo geometryInfo, const SceneNode<Model>& node);
+	SceneRayHitInfo(RayHitInfo geometryInfo, const SceneNode<Model>& node) : RayHitInfo(geometryInfo), modelNode(node) {};
 
 	const SceneNode<Model>& getModelNode() const
 	{

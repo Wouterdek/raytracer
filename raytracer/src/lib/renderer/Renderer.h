@@ -14,8 +14,8 @@ struct RenderSettings
 class Renderer
 {
 public:
-    virtual void render(const Scene& scene, FrameBuffer& buffer, const Tile& tile, const RenderSettings& renderSettings, ProgressMonitor progressMon, bool multithreaded);
-    virtual void render(const Scene& scene, FrameBuffer& buffer, const RenderSettings& renderSettings, ProgressMonitor progressMon);
+    virtual void render(const Scene& scene, FrameBuffer& buffer, std::shared_ptr<FrameBuffer>& perfBuffer, const Tile& tile, const RenderSettings& renderSettings, ProgressMonitor progressMon, bool multithreaded);
+    virtual void render(const Scene& scene, FrameBuffer& buffer, std::shared_ptr<FrameBuffer>& perfBuffer, const RenderSettings& renderSettings, ProgressMonitor progressMon);
 
 protected:
     const ICamera& findCamera(const Scene& scene);

@@ -16,7 +16,7 @@ struct HitpointInfo
     {}
 };
 
-void PPMRenderer::render(const Scene& scene, FrameBuffer& buffer, const Tile& tile, const RenderSettings& renderSettings, ProgressMonitor progressMon, bool multithreaded)
+void PPMRenderer::render(const Scene& scene, FrameBuffer& buffer, std::shared_ptr<FrameBuffer>& perfBuffer, const Tile& tile, const RenderSettings& renderSettings, ProgressMonitor progressMon, bool multithreaded)
 {
     /*std::vector<std::optional<HitpointInfo>> hits;
     hits.reserve(tile.getWidth() * tile.getHeight());
